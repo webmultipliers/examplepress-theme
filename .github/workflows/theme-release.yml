@@ -315,6 +315,11 @@ jobs:
               "$UPDATES_FILE" > "${UPDATES_FILE}.tmp" && mv "${UPDATES_FILE}.tmp" "${UPDATES_FILE}"
           done
 
+      - name: Cleanup Staging Directory
+        if: always()
+        run: |
+          rm -rf staging updates.json
+
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
