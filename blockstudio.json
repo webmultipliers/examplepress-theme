@@ -1,0 +1,12 @@
+{
+	"$schema": "https://blockstudio.dev/schema/blockstudio",
+	"dev": {
+		"grab": {
+			"enabled": true
+		},
+		"canvas": {
+			"enabled": true,
+			"adminBar": true
+		}
+	}
+}

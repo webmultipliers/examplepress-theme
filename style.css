@@ -3,7 +3,7 @@ Theme Name: ExamplePress
 Theme URI: https://examplepress.com
 Author: Vinny S. Green
 Author URI: https://vinnysgreen.com
-Description: 
+Description: A code-first WordPress theme built on Blockstudio. Routes all requests through a single dispatcher and loads modular template components from version-controlled files.
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 8.4

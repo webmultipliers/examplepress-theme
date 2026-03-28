@@ -1,5 +1,6 @@
 {
-	"name": "examplepress-theme/template-index",
+	"$schema": "https://blockstudio.dev/schema/block",
+	"name": "examplepress-theme/index",
 	"title": "Template: Index",
 	"category": "theme",
 	"blockstudio": true

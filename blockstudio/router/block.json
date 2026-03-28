@@ -1,4 +1,5 @@
 {
+	"$schema": "https://blockstudio.dev/schema/block",
 	"name": "examplepress-theme/router",
 	"title": "Theme Router",
 	"category": "theme",
