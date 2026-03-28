@@ -1,0 +1,5 @@
+{
+    "require": {
+        "blockstudio/blockstudio": "^7.1"
+    }
+}
