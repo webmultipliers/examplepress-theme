@@ -1,92 +1,73 @@
 # ExamplePress
 
-A code-first WordPress theme built on [Blockstudio](https://blockstudio.dev). All requests flow through a single entry point. A PHP resolver maps the WordPress query context to a modular template block.
+ExamplePress is a code-first WordPress theme built on Blockstudio. It replaces the traditional WordPress template hierarchy with a single-entry-point router. All requests flow through one universal template which dispatches to modular Blockstudio components based on the query context.
+
+## Features
+
+* **Single-Entry Routing:** Routes all requests through a single dispatcher instead of relying on the traditional WordPress template hierarchy.
+* **Modular Components:** Loads template components from version-controlled files using Blockstudio.
+* **Code-First Architecture:** Keeps developers in the code, with themes built out of PHP, JSON, and HTML.
+* **Clean Frontend Output:** Removes unnecessary wrapper divs from routing and template blocks.
+* **Disabled Remote Patterns:** Prevents remote block patterns from loading by default for better performance and control.
 
 ## Requirements
 
-| Dependency | Version |
-|---|---|
-| WordPress | 6.9+ |
-| PHP | 8.4+ |
-| [Blockstudio](https://blockstudio.dev) | 7.1+ |
-| Composer | 2.x |
-
-## Installation
-
-1. Install and activate the **Blockstudio** plugin.
-2. Clone this repository into `wp-content/themes/examplepress-theme`.
-3. Run `composer install --no-dev`.
-4. Activate the theme.
-
-## How It Works
-
-Every request hits one block template:
-
-```
-templates/index.html  →  <!-- wp:examplepress-theme/router /-->
-```
-
-The router block calls `examplepress_get_current_route()`, resolves a template slug, and renders the matching Blockstudio block.
-
-Override any mapping with the `examplepress_route_context` filter:
-
-```php
-add_filter( 'examplepress_route_context', function ( $template_slug, $slug ) {
-    if ( is_singular( 'press_release' ) ) {
-        return 'singular';
-    }
-    return $template_slug;
-}, 10, 2 );
-```
+* **WordPress:** 6.9 or higher
+* **PHP:** 8.4 or higher
+* **Plugin:** Blockstudio (v7.1+) is strictly required.
+* **Composer:** Required for vendor autoloading.
 
 ## Project Structure
 
-```
-examplepress-theme/
-  blockstudio/
-    init.php                  # Blockstudio code-snippet entry point
-    router/                   # Dispatcher block
-    templates/                # One directory per route
-      index/                  # Default — start here
-  templates/
-    index.html                # The only WordPress template file
-  functions.php               # Theme setup + route resolver
-  style.css                   # Theme header
-  theme.json                  # Block theme settings
-```
+* `functions.php`: Handles theme setup, composer autoloading, and registers routing functions.
+* `templates/index.html`: The universal entry point containing only the `` block.
+* `blockstudio/router/`: Contains the logic for the Theme Router block, which dynamically determines and renders the appropriate template block.
+* `blockstudio/templates/`: Directory for modular template blocks (e.g., `get-started`), which act as the actual views for your routes.
 
-## Development
+## How Routing Works
 
-### Adding a Route
+ExamplePress bypasses the standard template hierarchy by using a single `templates/index.html` file. Inside, a custom router block takes over:
 
-1. Create `blockstudio/templates/my-route/block.json`:
-   ```json
-   {
-     "$schema": "https://blockstudio.dev/schema/block",
-     "name": "examplepress-theme/template-my-route",
-     "title": "Template: My Route",
-     "category": "theme",
-     "blockstudio": true
-   }
-   ```
-2. Create `blockstudio/templates/my-route/index.php` with your markup.
-3. Add a condition in `functions.php` (or use the filter above) to map to `my-route`.
+1. The `examplepress_get_current_route()` function determines the target slug (defaulting to `get-started`).
+2. The router block (`examplepress-theme/router`) renders dynamically via `blockstudio/router/index.php`.
+3. The router dynamically constructs the name of the template block to load (e.g., `examplepress-theme/template-get-started`) and renders it.
 
-### Styles & Scripts
+## Developer Hooks & Filters
 
-Drop files next to any `block.json` and Blockstudio enqueues them automatically:
+ExamplePress provides several custom filters in `functions.php` to allow developers to easily extend or override the routing and templating behavior.
 
-| File | Loaded |
-|---|---|
-| `style.scss` | Frontend + editor |
-| `style.editor.scss` | Editor only |
-| `style.scoped.scss` | Scoped to the block instance |
-| `script.js` | Frontend + editor (ES module) |
-| `script.view.js` | Frontend only |
-| `global-style.scss` | All pages, regardless of block usage |
+### Custom Theme Filters
 
-## Releases
+* `examplepress_route_context`
+  Filters the current route slug.
+  * **Parameters:** `$slug` (string)
+  * **Default:** `'get-started'`
 
-Push to `main` or tag `v*` to trigger the GitHub Actions release workflow. It builds Composer dependencies, zips the theme (respecting `.distignore`), and publishes a GitHub Release with an `updates.json` manifest for self-hosted update checking.
+* `examplepress_theme_namespace`
+  Filters the namespace used for the theme's blocks.
+  * **Parameters:** `$namespace` (string)
+  * **Default:** `'examplepress-theme'`
 
-Bump the version in `style.css` before merging to `main` — the workflow enforces this on PRs.
+* `examplepress_template_prefix`
+  Filters the prefix applied to template blocks.
+  * **Parameters:** `$prefix` (string)
+  * **Default:** `'template'`
+
+* `examplepress_template_block_name`
+  Filters the fully assembled block name before it is passed to the Blockstudio renderer.
+  * **Parameters:** `$full_block_name` (string), `$slug` (string), `$prefix` (string), `$theme_ns` (string)
+  * **Default:** `sprintf( '%s/%s-%s', $theme_ns, $prefix, $slug )`
+
+### Third-Party & Core Filters Modified
+
+* `should_load_remote_block_patterns`
+  Forced to return `false` to disable core remote block patterns.
+* `blockstudio/patterns/paths`
+  Appends `EP_THEME_PATH . '/blockstudio/patterns'` to the registered Blockstudio pattern directories.
+* `blockstudio/blocks/components/inner_blocks/frontend/wrap`
+  Used to intercept the frontend rendering of specific blocks. It specifically returns `false` to remove the default Blockstudio wrappers for the `examplepress-theme/router` block and any registered template blocks (matching the format `$theme_ns/$template_prefix-*`).
+
+## Author
+
+**Vinny S. Green**
+* [vinnysgreen.com](https://vinnysgreen.com)
