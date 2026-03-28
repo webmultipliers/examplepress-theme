@@ -55,7 +55,7 @@ add_filter( 'should_load_remote_block_patterns', '__return_false' );
 
 function examplepress_get_current_route() {
 
-	$slug = 'index';
+	$slug = 'get-started';
 
 	return apply_filters( 'examplepress_route_context', $slug, $slug );
 }

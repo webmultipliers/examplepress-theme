@@ -1,0 +1,8 @@
+{
+	"$schema": "https://blockstudio.dev/schema/block",
+	"name": "examplepress-theme/template-get-started",
+	"title": "Get Started",
+	"description": "A demo block intended for you to override.",
+	"category": "theme",
+	"blockstudio": true
+}
