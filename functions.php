@@ -14,64 +14,23 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 }
 
 /**
+ * Feature Registry
+ */
+require_once EP_THEME_PATH . '/inc/feature-registry.php';
+require_once EP_THEME_PATH . '/inc/features.php';
+
+/**
  * Theme Setup
  */
-add_action(
-	'after_setup_theme',
-	function () {
+add_action( 'after_setup_theme', 'examplepress_boot_features' );
 
-		add_theme_support( 'title-tag' );
-		add_theme_support( 'responsive-embeds' );
-		add_theme_support( 'post-thumbnails' );
-		add_theme_support( 'wp-block-styles' );
-
-		add_theme_support( 'html5', [
-			'caption',
-			'comment-form',
-			'comment-list',
-			'gallery',
-			'search-form',
-			'script',
-			'style',
-		] );
-
-		remove_theme_support( 'core-block-patterns' );
-	}
-);
-
-
-
+/**
+ * Blockstudio
+ */
 add_filter( 'blockstudio/patterns/paths', function ( $paths ) {
 	$paths[] = EP_THEME_PATH . '/blockstudio/patterns';
 	return $paths;
 } );
-
-
-/**
- * Disable Remote Block Patterns
- */
-add_filter( 'should_load_remote_block_patterns', '__return_false' );
-
-
-function examplepress_get_current_route() {
-
-	$slug = 'get-started';
-
-	return apply_filters( 'examplepress_route_context', $slug, $slug );
-}
-
-function examplepress_get_theme_namespace() {
-	return apply_filters( 'examplepress_theme_namespace', 'examplepress-theme' );
-}
-
-function examplepress_get_template_prefix() {
-	return apply_filters( 'examplepress_template_prefix', 'template' );
-}
-
-function examplepress_get_template_block_name( $slug, $prefix, $theme_ns ) {
-	return apply_filters( 'examplepress_template_block_name', sprintf( '%s/%s-%s', $theme_ns, $prefix, $slug ), $slug, $prefix, $theme_ns );
-}
-
 
 add_filter( 'blockstudio/blocks/components/inner_blocks/frontend/wrap', function ( $render, $block ) {
 
@@ -88,3 +47,23 @@ add_filter( 'blockstudio/blocks/components/inner_blocks/frontend/wrap', function
 
 	return $render;
 }, 10, 2 );
+
+/**
+ * Routing Helpers
+ */
+function examplepress_get_current_route() {
+	return apply_filters( 'examplepress_route_context', 'get-started' );
+}
+
+function examplepress_get_theme_namespace() {
+	return apply_filters( 'examplepress_theme_namespace', 'examplepress-theme' );
+}
+
+function examplepress_get_template_prefix() {
+	return apply_filters( 'examplepress_template_prefix', 'template' );
+}
+
+function examplepress_get_template_block_name( $slug, $prefix, $theme_ns ) {
+	return apply_filters( 'examplepress_template_block_name', sprintf( '%s/%s-%s', $theme_ns, $prefix, $slug ), $slug, $prefix, $theme_ns );
+}
+

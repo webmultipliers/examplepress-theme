@@ -1,0 +1,119 @@
+<?php
+/**
+ * ExamplePress Feature Registry
+ *
+ * Centralised system for registering, querying, and booting
+ * filterable feature flags.
+ *
+ * - Register features with examplepress_register_feature().
+ * - Check state with examplepress_feature_enabled() (filterable via
+ *   "examplepress_feature_{$id}").
+ * - Read per-feature options with examplepress_feature_option() (filterable
+ *   via "examplepress_feature_{$id}_{$key}").
+ * - Boot all features with examplepress_boot_features().
+ */
+
+global $examplepress_features;
+$examplepress_features = [];
+
+/**
+ * Register a feature.
+ *
+ * @param string $id   Unique feature identifier (slug).
+ * @param array  $args {
+ *     @type string   $label    Human-readable label.
+ *     @type bool     $default  Whether the feature is enabled by default.
+ *     @type array    $options  Feature-specific key/value pairs.
+ *     @type string   $hook     Target hook (simple features only).
+ *     @type callable $callback Hook callback (simple features only).
+ *     @type string   $type     'filter' or 'action'. Default 'filter'.
+ *     @type int      $priority Hook priority. Default 10.
+ *     @type callable $setup    Custom boot callable for complex features.
+ *                              Receives ($id, $feature).
+ * }
+ */
+function examplepress_register_feature( $id, $args = [] ) {
+	global $examplepress_features;
+
+	$examplepress_features[ $id ] = wp_parse_args( $args, [
+		'label'    => '',
+		'default'  => true,
+		'options'  => [],
+		'hook'     => '',
+		'callback' => '',
+		'type'     => 'filter',
+		'priority' => 10,
+		'setup'    => NULL,
+	] );
+}
+
+/**
+ * Check whether a feature is enabled.
+ *
+ * Filterable via `examplepress_feature_{$id}`.
+ */
+function examplepress_feature_enabled( $id ) {
+	global $examplepress_features;
+
+	$default = $examplepress_features[ $id ]['default'] ?? true;
+
+	return (bool) apply_filters( "examplepress_feature_{$id}", $default );
+}
+
+/**
+ * Retrieve a feature-specific option value.
+ *
+ * Filterable via `examplepress_feature_{$id}_{$key}`.
+ */
+function examplepress_feature_option( $id, $key, $fallback = NULL ) {
+	global $examplepress_features;
+
+	$options = $examplepress_features[ $id ]['options'] ?? [];
+	$value   = $options[ $key ] ?? $fallback;
+
+	return apply_filters( "examplepress_feature_{$id}_{$key}", $value );
+}
+
+/**
+ * Return every registered feature.
+ *
+ * Filterable via `examplepress_features`.
+ */
+function examplepress_get_features() {
+	global $examplepress_features;
+
+	return apply_filters( 'examplepress_features', $examplepress_features );
+}
+
+/**
+ * Boot all registered features.
+ *
+ * Complex features (those with a `setup` callable) always have their
+ * setup invoked — the callable is responsible for checking enabled
+ * state internally when appropriate.
+ *
+ * Simple features (hook + callback, no setup) are only wired when
+ * the feature is enabled.
+ */
+function examplepress_boot_features() {
+	$features = examplepress_get_features();
+
+	foreach ( $features as $id => $feature ) {
+		if ( is_callable( $feature['setup'] ) ) {
+			call_user_func( $feature['setup'], $id, $feature );
+			continue;
+		}
+
+		if ( ! examplepress_feature_enabled( $id ) ) {
+			continue;
+		}
+
+		if ( $feature['hook'] && $feature['callback'] ) {
+			if ( 'action' === $feature['type'] ) {
+				add_action( $feature['hook'], $feature['callback'], $feature['priority'] );
+			} else {
+				add_filter( $feature['hook'], $feature['callback'], $feature['priority'] );
+			}
+		}
+	}
+}
