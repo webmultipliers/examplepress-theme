@@ -33,10 +33,20 @@
 	<section class="docs">
 		<div class="docs-inner">
 
-			<div class="step-card reveal visible" style="transition-delay:0.24s">
+			<div class="step-card reveal visible" style="transition-delay:0.20s">
+				<div class="step-number">00</div>
+				<h3>Configure Without Code</h3>
+				<p>Before writing any PHP, customize colors, layout, typography, and feature toggles by editing
+					<code class="inline">examplepress.json</code> in the theme root. This declarative config file
+					drives design tokens, plugin requirements, and feature flags. A JSON Schema provides full IDE
+					autocompletion. Run <code class="inline">wp examplepress init</code> to generate a starter file
+					with all defaults.</p>
+			</div>
+
+			<div class="step-card reveal visible" style="transition-delay:0.28s">
 				<div class="step-number">01</div>
 				<h3>Create a Core Plugin</h3>
-				<p>Instead of modifying the theme, create a companion Core Plugin (e.g., <code
+				<p>For routing and custom templates, create a companion plugin (e.g., <code
 						class="inline">wp-content/plugins/examplepress-core/</code>) to intercept the router, define
 					your own Blockstudio namespace, and build your custom views.</p>
 
@@ -107,12 +117,13 @@
 				</div>
 			</div>
 
-			<div class="step-card reveal visible" style="transition-delay:0.40s">
+			<div class="step-card reveal visible" style="transition-delay:0.44s">
 				<div class="step-number">03</div>
 				<h3>Enjoy Your Pristine Theme</h3>
 				<p>Once your plugin intercepts the namespace, this <code class="inline">get-started</code> fallback is
-					completely bypassed. Your base theme can now be safely updated via Composer or remote zips without
-					destroying your project's custom code.</p>
+					completely bypassed. Configuration lives in <code class="inline">examplepress.json</code>, routing
+					lives in your plugin, and the base theme can be safely updated via Composer without destroying
+					your project's custom code.</p>
 			</div>
 
 		</div>

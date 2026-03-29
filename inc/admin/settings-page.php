@@ -66,6 +66,7 @@ function examplepress_enqueue_settings_assets() {
 function examplepress_settings_gather_data() {
 	return [
 		'themeVersion' => EP_THEME_VERSION,
+		'devMode'      => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
 		'features'     => examplepress_settings_get_features(),
 		'colors'       => (array) examplepress_feature_option( 'theme-colors', 'palette', [] ),
 		'layout'       => [
@@ -75,8 +76,7 @@ function examplepress_settings_gather_data() {
 		'fonts'        => examplepress_settings_get_fonts(),
 		'sizes'        => examplepress_settings_get_sizes(),
 		'blocks'       => examplepress_settings_get_blocks(),
-		'pluginsReq'   => examplepress_settings_get_plugins( 'required' ),
-		'pluginsRec'   => examplepress_settings_get_plugins( 'recommended' ),
+		'plugins'      => examplepress_settings_get_plugins(),
 		'configFiles'  => examplepress_settings_get_config_files(),
 		'healthChecks' => examplepress_settings_get_health(),
 		'docs'         => examplepress_settings_get_docs(),
@@ -101,6 +101,38 @@ function examplepress_settings_detect_source( $id ) {
 }
 
 /**
+ * Inspect $wp_filter to identify which function or class hooked a
+ * feature filter. Returns a human-readable origin string.
+ */
+function examplepress_settings_get_filter_origin( $id ) {
+	global $wp_filter;
+
+	$tag = "examplepress_feature_{$id}";
+	if ( empty( $wp_filter[ $tag ] ) ) {
+		return '';
+	}
+
+	$callbacks = $wp_filter[ $tag ]->callbacks ?? [];
+	foreach ( $callbacks as $hooks ) {
+		foreach ( $hooks as $hook ) {
+			$fn = $hook['function'] ?? null;
+			if ( is_string( $fn ) ) {
+				return $fn . '()';
+			}
+			if ( is_array( $fn ) && count( $fn ) === 2 ) {
+				$class = is_object( $fn[0] ) ? get_class( $fn[0] ) : (string) $fn[0];
+				return $class . '::' . $fn[1] . '()';
+			}
+			if ( $fn instanceof Closure ) {
+				$ref = new ReflectionFunction( $fn );
+				return basename( $ref->getFileName() ) . ':' . $ref->getStartLine();
+			}
+		}
+	}
+	return '';
+}
+
+/**
  * Build the features array grouped by UI category.
  */
 function examplepress_settings_get_features() {
@@ -112,6 +144,7 @@ function examplepress_settings_get_features() {
 		'guards'        => [ 'guard-template-redirect', 'guard-template-rest', 'guard-template-resolution' ],
 		'admin'         => [ 'remove-dashboard-widgets', 'login-branding' ],
 		'options'       => [ 'permalink-structure', 'managed-options' ],
+		'design'        => [ 'theme-colors', 'theme-layout', 'theme-typography', 'design-strict' ],
 	];
 
 	$opt_display = [
@@ -135,12 +168,19 @@ function examplepress_settings_get_features() {
 			if ( ! isset( $features[ $id ] ) ) {
 				continue;
 			}
+			$src  = examplepress_settings_detect_source( $id );
 			$item = [
 				'id'   => $id,
 				'name' => $features[ $id ]['label'],
 				'on'   => examplepress_feature_enabled( $id ),
-				'src'  => examplepress_settings_detect_source( $id ),
+				'src'  => $src,
 			];
+			if ( $src === 'php' ) {
+				$origin = examplepress_settings_get_filter_origin( $id );
+				if ( $origin ) {
+					$item['srcDetail'] = $origin;
+				}
+			}
 			if ( isset( $opt_display[ $id ] ) ) {
 				[ $key, $formatter ] = $opt_display[ $id ];
 				$val = examplepress_feature_option( $id, $key, null );
@@ -155,9 +195,19 @@ function examplepress_settings_get_features() {
 }
 
 /**
- * Static font family definitions.
+ * Get font families from the feature registry, falling back to system defaults.
  */
 function examplepress_settings_get_fonts() {
+	$families = (array) examplepress_feature_option( 'theme-typography', 'font_families', [] );
+	if ( ! empty( $families ) ) {
+		return array_map( function ( $f ) {
+			return [
+				'name'  => $f['name'] ?? '',
+				'slug'  => $f['slug'] ?? '',
+				'stack' => $f['fontFamily'] ?? '',
+			];
+		}, $families );
+	}
 	return [
 		[ 'name' => 'System',    'slug' => 'system', 'stack' => "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" ],
 		[ 'name' => 'Monospace', 'slug' => 'mono',   'stack' => "'JetBrains Mono', ui-monospace, monospace" ],
@@ -166,9 +216,13 @@ function examplepress_settings_get_fonts() {
 }
 
 /**
- * Static type size scale.
+ * Get font sizes from the feature registry, falling back to system defaults.
  */
 function examplepress_settings_get_sizes() {
+	$sizes = (array) examplepress_feature_option( 'theme-typography', 'font_sizes', [] );
+	if ( ! empty( $sizes ) ) {
+		return $sizes;
+	}
 	return [
 		[ 'slug' => 'sm',  'size' => '0.875rem', 'name' => 'Small' ],
 		[ 'slug' => 'md',  'size' => '1rem',     'name' => 'Medium' ],
@@ -186,7 +240,6 @@ function examplepress_settings_get_sizes() {
  */
 function examplepress_settings_get_blocks() {
 	$blocks     = [];
-	$theme_ns   = examplepress_get_theme_namespace();
 	$registry   = WP_Block_Type_Registry::get_instance();
 	$registered = $registry->get_all_registered();
 
@@ -208,13 +261,15 @@ function examplepress_settings_get_blocks() {
 }
 
 /**
- * Check installed/active status for plugin dependencies.
+ * Build the full plugin directory with status, fallback state, and metadata.
+ *
+ * Returns the normalised plugins array enriched with runtime status.
  */
-function examplepress_settings_get_plugins( $tier ) {
-	$config = examplepress_get_config();
-	$slugs  = $config['plugins'][ $tier ] ?? [];
+function examplepress_settings_get_plugins() {
+	$config  = examplepress_get_config();
+	$plugins = $config['plugins'] ?? [];
 
-	if ( empty( $slugs ) ) {
+	if ( empty( $plugins ) ) {
 		return [];
 	}
 
@@ -226,22 +281,61 @@ function examplepress_settings_get_plugins( $tier ) {
 	$active    = array_map( 'plugin_basename', wp_get_active_and_valid_plugins() );
 	$result    = [];
 
-	foreach ( $slugs as $slug ) {
+	foreach ( $plugins as $plugin ) {
+		$slug = $plugin['slug'] ?? '';
+		if ( empty( $slug ) ) {
+			continue;
+		}
+
+		$source_type = $plugin['source']['type'] ?? 'wporg';
+		$source_url  = $plugin['source']['url'] ?? '';
+
+		// Build URL: use source URL, fall back to wporg.
+		$url = $source_url;
+		if ( ! $url && $source_type === 'wporg' ) {
+			$url = "https://wordpress.org/plugins/{$slug}/";
+		}
+
 		$item = [
-			'name'   => $slug,
-			'slug'   => $slug,
-			'status' => 'missing',
-			'url'    => "https://wordpress.org/plugins/{$slug}/",
+			'slug'    => $slug,
+			'name'    => $plugin['name'] ?? $slug,
+			'tier'    => $plugin['tier'] ?? 'optional',
+			'pricing' => $plugin['pricing'] ?? 'free',
+			'cloud'   => ! empty( $plugin['cloud_dependent'] ),
+			'source'  => $source_type,
+			'url'     => $url,
+			'status'  => 'missing',
 		];
 
+		// Resolve primary plugin name and status from WP registry.
 		foreach ( $installed as $file => $data ) {
 			if ( str_starts_with( $file, $slug . '/' ) ) {
 				$item['name']   = $data['Name'];
 				$item['status'] = in_array( $file, $active, true ) ? 'active' : 'installed';
-				if ( ! empty( $data['PluginURI'] ) ) {
+				if ( ! empty( $data['PluginURI'] ) && ! $source_url ) {
 					$item['url'] = $data['PluginURI'];
 				}
 				break;
+			}
+		}
+
+		// Check fallback if primary is not active.
+		$fallback_slug = $plugin['fallback_slug'] ?? '';
+		if ( $fallback_slug ) {
+			$fb_status = 'missing';
+			foreach ( $installed as $file => $data ) {
+				if ( str_starts_with( $file, $fallback_slug . '/' ) ) {
+					$fb_status = in_array( $file, $active, true ) ? 'active' : 'installed';
+					break;
+				}
+			}
+			$item['fallback'] = [
+				'slug'   => $fallback_slug,
+				'status' => $fb_status,
+			];
+			// If primary is missing but fallback is active, mark as satisfied.
+			if ( $item['status'] === 'missing' && $fb_status === 'active' ) {
+				$item['status'] = 'fallback';
 			}
 		}
 
@@ -336,16 +430,40 @@ function examplepress_settings_get_health() {
 }
 
 /**
- * Static documentation links.
+ * Documentation links — read from examplepress.json docs section.
+ *
+ * Client forks can replace these with their own documentation URLs.
+ * The JS renderer uses 'eyebrow' (mapped from category), 'title',
+ * 'desc', 'link', and 'label'.
  */
 function examplepress_settings_get_docs() {
-	return [
-		[ 'eyebrow' => 'Architecture', 'title' => 'Router & Routing',          'desc' => 'How the single-entry-point router works, the filter chain, and how to implement your routing cascade.', 'link' => 'https://examplepress.com/docs/routing',          'label' => 'Read docs' ],
-		[ 'eyebrow' => 'Architecture', 'title' => 'Guard System',              'desc' => 'Why template lockdown exists, what each guard prevents, and how to disable guards for development.',     'link' => 'https://examplepress.com/docs/guards',           'label' => 'Read docs' ],
-		[ 'eyebrow' => 'Configuration', 'title' => 'examplepress.json Schema', 'desc' => 'Full schema reference for the configuration file — features, design tokens, plugin dependencies.',       'link' => 'https://examplepress.com/schema/examplepress-theme', 'label' => 'View schema' ],
-		[ 'eyebrow' => 'Configuration', 'title' => 'Feature Registry API',     'desc' => 'Register features, check state, read options. The filterable flag system that powers theme behavior.',    'link' => 'https://examplepress.com/docs/feature-registry', 'label' => 'Read docs' ],
-		[ 'eyebrow' => 'Blockstudio',   'title' => 'Blockstudio Documentation', 'desc' => 'The block framework ExamplePress is built on. Covers block registration, fields, rendering, and hooks.', 'link' => 'https://blockstudio.dev/documentation/',         'label' => 'blockstudio.dev' ],
-	];
+	$config = examplepress_get_config();
+	$docs   = $config['docs'] ?? [];
+
+	if ( empty( $docs ) ) {
+		return [];
+	}
+
+	return array_map( function ( $doc ) {
+		$url   = $doc['url'] ?? '';
+		$label = 'Read docs';
+
+		// Derive a friendly label from the URL host.
+		if ( $url ) {
+			$host = wp_parse_url( $url, PHP_URL_HOST ) ?? '';
+			if ( $host && ! str_contains( $host, 'github.com' ) ) {
+				$label = str_replace( 'www.', '', $host );
+			}
+		}
+
+		return [
+			'eyebrow' => $doc['category'] ?? '',
+			'title'   => $doc['title'] ?? '',
+			'desc'    => $doc['description'] ?? '',
+			'link'    => $url,
+			'label'   => $label,
+		];
+	}, $docs );
 }
 
 /**
@@ -369,9 +487,14 @@ function examplepress_settings_get_hooks() {
 // ── HTML Shell ─────────────────────────────────────────────────────
 
 function examplepress_render_settings_page() {
+	$is_dev = defined( 'EP_DEV_MODE' ) && EP_DEV_MODE;
 	?>
 	<div class="ep-settings-wrapper">
 		<div class="ep-settings">
+
+			<?php if ( $is_dev ) : ?>
+				<div class="ep-dev-banner">Developer Mode is active — all guards are bypassed. Remove <code>EP_DEV_MODE</code> from wp-config.php before deploying.</div>
+			<?php endif; ?>
 
 			<header class="ep-header">
 				<div class="ep-header-top">
@@ -394,7 +517,7 @@ function examplepress_render_settings_page() {
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-docs"     id="t-docs">Docs</button>
 			</nav>
 
-			<!-- ═══ Features ═══ -->
+			<!-- Features -->
 			<div class="ep-panel" id="p-features" role="tabpanel" aria-hidden="false">
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Theme Support</span><div class="ep-section-line"></div></div>
@@ -417,9 +540,13 @@ function examplepress_render_settings_page() {
 					<div class="ep-section-header"><span class="ep-section-title">Site Options</span><div class="ep-section-line"></div></div>
 					<div class="ep-table" id="tbl-options"></div>
 				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Design Tokens</span><div class="ep-section-line"></div></div>
+					<div class="ep-table" id="tbl-design-features"></div>
+				</section>
 			</div>
 
-			<!-- ═══ Design ═══ -->
+			<!-- Design -->
 			<div class="ep-panel" id="p-design" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Color Palette</span><div class="ep-section-line"></div></div>
@@ -440,7 +567,7 @@ function examplepress_render_settings_page() {
 				</section>
 			</div>
 
-			<!-- ═══ Blocks ═══ -->
+			<!-- Blocks -->
 			<div class="ep-panel" id="p-blocks" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Registered Blocks</span><div class="ep-section-line"></div></div>
@@ -449,20 +576,16 @@ function examplepress_render_settings_page() {
 				</section>
 			</div>
 
-			<!-- ═══ Plugins ═══ -->
+			<!-- Plugins -->
 			<div class="ep-panel" id="p-plugins" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Required</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Must be installed and active for the theme to function.</p>
-					<div class="ep-table" id="tbl-plugins-req"></div>
-				</section>
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Recommended</span><div class="ep-section-line"></div></div>
-					<div class="ep-table" id="tbl-plugins-rec"></div>
+					<div class="ep-section-header"><span class="ep-section-title">Plugin Directory</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Curated plugin dependencies declared in examplepress.json. Paid plugins with a free fallback show satisfied status when the free version is active.</p>
+					<div class="ep-table" id="tbl-plugins"></div>
 				</section>
 			</div>
 
-			<!-- ═══ Config ═══ -->
+			<!-- Config -->
 			<div class="ep-panel" id="p-config" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Configuration Files</span><div class="ep-section-line"></div></div>
@@ -496,7 +619,7 @@ function examplepress_render_settings_page() {
 				</section>
 			</div>
 
-			<!-- ═══ Health ═══ -->
+			<!-- Health -->
 			<div class="ep-panel" id="p-health" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
 					<div class="ep-health-summary" id="health-summary"></div>
@@ -519,7 +642,7 @@ function examplepress_render_settings_page() {
 				</section>
 			</div>
 
-			<!-- ═══ Docs ═══ -->
+			<!-- Docs -->
 			<div class="ep-panel" id="p-docs" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
 					<div class="ep-doc-section-title">Getting Started</div>

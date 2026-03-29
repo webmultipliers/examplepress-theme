@@ -211,7 +211,3 @@ A read-only settings page is available at **ExamplePress** in the admin menu. It
 ## Author
 
 **Vinny S. Green** — [vinnysgreen.com](https://vinnysgreen.com)
-
-## License
-
-GPL-2.0-or-later

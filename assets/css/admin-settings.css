@@ -85,6 +85,16 @@
 
 .ep-subtitle { font-size: 0.82rem; color: var(--text-dim); }
 
+.ep-dev-banner {
+  background: var(--red-dim); border: 1px solid rgba(255,107,107,0.25); border-radius: var(--radius);
+  padding: 0.7rem 1.2rem; margin-bottom: 1.5rem;
+  font-family: var(--mono); font-size: 0.75rem; font-weight: 500; color: var(--red);
+}
+.ep-dev-banner code {
+  background: rgba(255,107,107,0.12); padding: 0.1rem 0.35rem; border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+}
+
 /* ── Tabs ─────────────────────────────────────────────────────────── */
 
 .ep-tabs {
@@ -194,6 +204,18 @@
 
 .badge-php   { background: var(--php-dim); color: var(--php); border: 1px solid rgba(199,141,255,0.15); }
 
+/* ── Plugin Metadata Badges ────────────────────────────────────────── */
+
+.ep-meta-badge {
+  display: inline-flex; align-items: center; margin-left: 0.4rem;
+  padding: 0.08rem 0.35rem; border-radius: var(--radius-sm);
+  font-family: var(--mono); font-size: 0.52rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; vertical-align: middle;
+}
+.meta-paid { color: var(--amber); background: var(--amber-dim); }
+.meta-cloud { color: var(--blue); background: var(--blue-dim); }
+.meta-private { color: var(--php); background: var(--php-dim); }
+
 /* ── Source Tags ──────────────────────────────────────────────────── */
 
 .ep-src {
@@ -213,6 +235,7 @@
 }
 .tier-req { color: var(--red); background: var(--red-dim); }
 .tier-rec { color: var(--blue); background: var(--blue-dim); }
+.tier-opt { color: var(--text-dim); background: rgba(139,139,158,0.08); }
 
 .ep-link {
   font-family: var(--mono); font-size: 0.66rem; color: var(--text-dim);

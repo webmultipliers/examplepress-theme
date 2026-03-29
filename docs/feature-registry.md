@@ -140,6 +140,9 @@ The `design` section in `examplepress.json` is a shorthand that normalises into 
 | `design.colors` | `features.theme-colors.options.palette` |
 | `design.layout.wideSize` | `features.theme-layout.options.wide_size` |
 | `design.layout.contentSize` | `features.theme-layout.options.content_size` |
+| `design.typography.fontFamilies` | `features.theme-typography.options.font_families` |
+| `design.typography.fontSizes` | `features.theme-typography.options.font_sizes` |
+| `design.strict` | `features.design-strict.enabled` |
 
 This means the following are equivalent:
 
@@ -164,3 +167,5 @@ This means the following are equivalent:
 ```
 
 The `design` shorthand is recommended for readability. Both can coexist — `design` values are normalised first, then explicit `features` entries take precedence.
+
+**Important:** The `design.*` shorthand provides *option data*, not feature toggles. Setting `features.theme-colors: false` disables the colour palette even if `design.colors` has values. The toggle always wins over the data.

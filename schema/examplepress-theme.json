@@ -14,28 +14,7 @@
 			"type": "object",
 			"description": "Toggle or configure registered theme features. Keys are feature IDs. Values can be a boolean (toggle) or an object with 'enabled' and 'options'.",
 			"additionalProperties": {
-				"oneOf": [
-					{
-						"type": "boolean",
-						"description": "Enable or disable this feature."
-					},
-					{
-						"type": "object",
-						"description": "Feature configuration with optional overrides.",
-						"properties": {
-							"enabled": {
-								"type": "boolean",
-								"description": "Enable or disable this feature."
-							},
-							"options": {
-								"type": "object",
-								"description": "Feature-specific option overrides.",
-								"additionalProperties": true
-							}
-						},
-						"additionalProperties": false
-					}
-				]
+				"$ref": "#/$defs/featureToggle"
 			},
 			"properties": {
 				"title-tag": {
@@ -105,6 +84,26 @@
 				"theme-layout": {
 					"description": "Inject layout dimensions into theme.json at runtime. Prefer using design.layout instead.",
 					"$ref": "#/$defs/featureToggle"
+				},
+				"theme-typography": {
+					"description": "Inject font families and sizes into theme.json at runtime. Prefer using design.typography instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"design-strict": {
+					"description": "Lock down all appearance tools in the editor. Prefer using design.strict instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"guard-template-redirect": {
+					"description": "Redirect site editor template URLs to the Styles panel. Part of the three-layer template lockdown.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"guard-template-rest": {
+					"description": "Block template creation and index deletion via the REST API. Most critical guard layer.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"guard-template-resolution": {
+					"description": "Filter out user-created templates at resolution time. Safety net for pre-existing database templates.",
+					"$ref": "#/$defs/featureToggle"
 				}
 			}
 		},
@@ -113,6 +112,11 @@
 			"description": "Design tokens injected into WordPress theme.json at runtime via wp_theme_json_data_theme.",
 			"additionalProperties": false,
 			"properties": {
+				"strict": {
+					"type": "boolean",
+					"description": "Lock down all appearance tools (custom colors, font sizes, spacing) in the block editor. Forces appearanceTools to false.",
+					"default": false
+				},
 				"colors": {
 					"type": "array",
 					"description": "Colour palette entries. Each maps to a CSS custom property --wp--preset--color--{slug}.",
@@ -153,25 +157,76 @@
 							"pattern": "^\\d+(\\.\\d+)?(px|rem|em|vw|%)$"
 						}
 					}
+				},
+				"typography": {
+					"type": "object",
+					"description": "Typography settings injected into theme.json at runtime.",
+					"additionalProperties": false,
+					"properties": {
+						"fontFamilies": {
+							"type": "array",
+							"description": "Font family definitions.",
+							"items": {
+								"type": "object",
+								"required": ["name", "slug", "fontFamily"],
+								"additionalProperties": false,
+								"properties": {
+									"name": { "type": "string", "description": "Human-readable font name." },
+									"slug": { "type": "string", "description": "Slug for CSS custom property." },
+									"fontFamily": { "type": "string", "description": "CSS font-family stack." }
+								}
+							}
+						},
+						"fontSizes": {
+							"type": "array",
+							"description": "Font size presets.",
+							"items": {
+								"type": "object",
+								"required": ["slug", "size", "name"],
+								"additionalProperties": false,
+								"properties": {
+									"slug": { "type": "string" },
+									"size": { "type": "string", "description": "CSS size value (e.g. '1rem')." },
+									"name": { "type": "string", "description": "Human-readable size name." }
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"docs": {
+			"type": "array",
+			"description": "Documentation links shown in the settings page Docs tab. Client forks can replace these to point at their own documentation.",
+			"items": {
+				"type": "object",
+				"required": ["title", "url"],
+				"additionalProperties": false,
+				"properties": {
+					"title": {
+						"type": "string",
+						"description": "Document title shown as the card heading."
+					},
+					"description": {
+						"type": "string",
+						"description": "Short summary shown below the title."
+					},
+					"url": {
+						"type": "string",
+						"description": "URL to the documentation page.",
+						"format": "uri"
+					},
+					"category": {
+						"type": "string",
+						"description": "Grouping label shown as an eyebrow above the title (e.g. 'Architecture', 'Configuration')."
+					}
 				}
 			}
 		},
 		"plugins": {
-			"type": "object",
-			"description": "Companion plugin requirements. The theme surfaces an admin notice when required plugins are missing.",
-			"additionalProperties": false,
-			"properties": {
-				"required": {
-					"type": "array",
-					"description": "Plugin slugs that must be installed and active.",
-					"items": { "type": "string" }
-				},
-				"recommended": {
-					"type": "array",
-					"description": "Plugin slugs that are recommended but not mandatory.",
-					"items": { "type": "string" }
-				}
-			}
+			"type": "array",
+			"description": "Curated plugin directory. Each entry declares a dependency with tier, pricing, source, and optional fallback.",
+			"items": { "$ref": "#/$defs/pluginEntry" }
 		}
 	},
 	"$defs": {
@@ -192,6 +247,57 @@
 					"additionalProperties": false
 				}
 			]
+		},
+		"pluginEntry": {
+			"type": "object",
+			"required": ["slug", "name", "tier", "pricing", "source"],
+			"additionalProperties": false,
+			"properties": {
+				"slug": {
+					"type": "string",
+					"description": "Plugin folder name used for detection."
+				},
+				"name": {
+					"type": "string",
+					"description": "Human-readable plugin name."
+				},
+				"tier": {
+					"type": "string",
+					"enum": ["required", "recommended", "optional"],
+					"description": "How critical this plugin is to the architecture."
+				},
+				"pricing": {
+					"type": "string",
+					"enum": ["free", "paid"],
+					"description": "Whether this plugin costs money."
+				},
+				"cloud_dependent": {
+					"type": "boolean",
+					"default": false,
+					"description": "True if the plugin is primarily a connector for a SaaS/cloud service."
+				},
+				"source": {
+					"type": "object",
+					"required": ["type"],
+					"additionalProperties": false,
+					"properties": {
+						"type": {
+							"type": "string",
+							"enum": ["wporg", "direct", "private"],
+							"description": "Distribution channel."
+						},
+						"url": {
+							"type": "string",
+							"description": "Download or purchase URL. Optional for wporg, required for direct and private.",
+							"format": "uri"
+						}
+					}
+				},
+				"fallback_slug": {
+					"type": "string",
+					"description": "Slug of a free WordPress.org alternative that satisfies this dependency."
+				}
+			}
 		}
 	}
 }

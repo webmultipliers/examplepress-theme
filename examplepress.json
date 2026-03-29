@@ -24,8 +24,52 @@
 			"contentSize": "800px"
 		}
 	},
-	"plugins": {
-		"required": [],
-		"recommended": []
-	}
+	"docs": [
+		{
+			"title": "Companion Plugin Guide",
+			"description": "Build your first companion plugin: hook the router, register blocks, and take ownership of the frontend.",
+			"url": "https://github.com/webmultipliers/examplepress-theme/blob/development/docs/companion-plugin.md",
+			"category": "Start Here"
+		},
+		{
+			"title": "Router & Routing",
+			"description": "How the single-entry-point router works, the filter chain, and how to implement your routing cascade.",
+			"url": "https://github.com/webmultipliers/examplepress-theme/blob/development/docs/routing.md",
+			"category": "Architecture"
+		},
+		{
+			"title": "Guard System",
+			"description": "Why template lockdown exists, what each guard prevents, and how to disable guards for development.",
+			"url": "https://github.com/webmultipliers/examplepress-theme/blob/development/docs/guards.md",
+			"category": "Architecture"
+		},
+		{
+			"title": "Configuration Guide",
+			"description": "All three JSON files, the schema, design tokens, strict mode, and the full config loading pipeline.",
+			"url": "https://github.com/webmultipliers/examplepress-theme/blob/development/docs/configuration.md",
+			"category": "Configuration"
+		},
+		{
+			"title": "Feature Registry API",
+			"description": "Register features, check state, read options. The filterable flag system that powers theme behavior.",
+			"url": "https://github.com/webmultipliers/examplepress-theme/blob/development/docs/feature-registry.md",
+			"category": "Configuration"
+		},
+		{
+			"title": "Blockstudio Documentation",
+			"description": "The block framework ExamplePress is built on. Covers block registration, fields, rendering, and hooks.",
+			"url": "https://blockstudio.dev/documentation/",
+			"category": "Blockstudio"
+		}
+	],
+	"plugins": [
+		{
+			"slug": "blockstudio",
+			"name": "Blockstudio",
+			"tier": "required",
+			"pricing": "paid",
+			"cloud_dependent": false,
+			"source": { "type": "direct", "url": "https://blockstudio.dev/" }
+		}
+	]
 }

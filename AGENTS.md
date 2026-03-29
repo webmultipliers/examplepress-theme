@@ -29,6 +29,13 @@ The `design` section in `examplepress.json` is a shorthand that normalises into 
 - `design.colors` → `features.theme-colors.options.palette`
 - `design.layout.wideSize` → `features.theme-layout.options.wide_size`
 - `design.layout.contentSize` → `features.theme-layout.options.content_size`
+- `design.typography.fontFamilies` → `features.theme-typography.options.font_families`
+- `design.typography.fontSizes` → `features.theme-typography.options.font_sizes`
+- `design.strict` → `features.design-strict.enabled`
+
+### Developer Mode
+
+Define `EP_DEV_MODE` as `true` in `wp-config.php` to auto-disable all three guards during development. The settings page displays a red warning banner when active.
 
 ## Public API
 
@@ -52,7 +59,13 @@ The `design` section in `examplepress.json` is a shorthand that normalises into 
 |---|---|
 | `examplepress_route_resolved` | Fires before router dispatch with `($slug, $block_name)` |
 
-## Feature Inventory
+### WP-CLI
+
+| Command | Description |
+|---|---|
+| `wp examplepress init` | Generate a starter `examplepress.json` pre-populated with all registration defaults |
+
+## Feature Inventory (23 features)
 
 ### Theme Support
 `title-tag`, `responsive-embeds`, `post-thumbnails`, `wp-block-styles`, `html5`
@@ -64,26 +77,32 @@ The `design` section in `examplepress.json` is a shorthand that normalises into 
 `post-lock-window`, `remove-dashboard-widgets`, `login-branding`
 
 ### Design Tokens
-`theme-colors`, `theme-layout` — inject into `wp_theme_json_data_theme` at runtime
+`theme-colors`, `theme-layout`, `theme-typography` — inject into `wp_theme_json_data_theme` at runtime
+
+### Design Controls
+`design-strict` — locks down `appearanceTools` when enabled via `design.strict: true`
 
 ### Site Options
 `disable-redirect-guess-404`, `permalink-structure`, `managed-options`
 
 ### Guards
-`guard-template-redirect`, `guard-template-rest`, `guard-template-resolution` — three-layer template lockdown preventing users from creating templates that bypass the router
+`guard-template-redirect`, `guard-template-rest`, `guard-template-resolution` — three-layer template lockdown preventing users from creating templates that bypass the router. Auto-disabled by `EP_DEV_MODE`.
 
 ## Directory Structure
 
 ```
 inc/
-├── config.php              # examplepress_get_config(), JSON reader + design normalisation
+├── admin/
+│   └── settings-page.php   # Read-only admin dashboard
+├── config.php              # examplepress_get_config(), JSON reader + design normalisation + EP_DEV_MODE
+├── cli.php                 # WP-CLI commands (wp examplepress init)
 ├── feature-registry.php    # Registry API (register, enabled, option, boot)
 ├── features.php            # Loader for domain-specific feature files
 ├── features/
 │   ├── theme-support.php
 │   ├── editor-controls.php
 │   ├── admin-customization.php
-│   ├── design-tokens.php
+│   ├── design-tokens.php   # Colors, layout, typography, strict mode
 │   ├── site-options.php
 │   └── guards.php
 ├── router.php              # Routing helper functions
@@ -105,3 +124,4 @@ schema/examplepress-theme.json  # JSON Schema for IDE autocompletion
 - **Every new behaviour must be a registered feature** with a unique ID, default state, and filter support.
 - **The theme must work with zero plugins installed** — the `get-started` fallback is the baseline.
 - **Guards exist to protect the router pattern.** Do not remove them without understanding the template hijacking problem they solve.
+- **`design.*` values provide option data, not feature toggles.** A `features.{id}: false` toggle always takes precedence over `design.*` shorthand values for that feature.

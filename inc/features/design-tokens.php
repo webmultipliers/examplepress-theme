@@ -2,9 +2,9 @@
 /**
  * Design Token Features
  *
- * Inject colours and layout dimensions into WordPress theme.json
- * at runtime via the wp_theme_json_data_theme filter. Values
- * are resolved through the standard feature-option chain
+ * Inject colours, layout dimensions, and typography into WordPress
+ * theme.json at runtime via the wp_theme_json_data_theme filter.
+ * Values are resolved through the standard feature-option chain
  * (PHP filter > examplepress.json > registration default).
  */
 
@@ -63,5 +63,51 @@ examplepress_register_feature( 'theme-layout', [
 
 			return $theme_json->update_with( $data );
 		}, 39 );
+	},
+] );
+
+examplepress_register_feature( 'theme-typography', [
+	'label'   => 'Theme Typography',
+	'default' => true,
+	'options' => [
+		'font_families' => [],
+		'font_sizes'    => [],
+	],
+	'setup'   => function ( $id ) {
+		if ( ! examplepress_feature_enabled( $id ) ) {
+			return;
+		}
+		add_filter( 'wp_theme_json_data_theme', function ( $theme_json ) use ( $id ) {
+			$data            = $theme_json->get_data();
+			$data['version'] = 3;
+
+			$families = (array) examplepress_feature_option( $id, 'font_families', [] );
+			if ( ! empty( $families ) ) {
+				$data['settings']['typography']['fontFamilies'] = $families;
+			}
+
+			$sizes = (array) examplepress_feature_option( $id, 'font_sizes', [] );
+			if ( ! empty( $sizes ) ) {
+				$data['settings']['typography']['fontSizes'] = $sizes;
+			}
+
+			return $theme_json->update_with( $data );
+		}, 39 );
+	},
+] );
+
+examplepress_register_feature( 'design-strict', [
+	'label'   => 'Strict Design Mode',
+	'default' => false,
+	'setup'   => function ( $id ) {
+		if ( ! examplepress_feature_enabled( $id ) ) {
+			return;
+		}
+		add_filter( 'wp_theme_json_data_theme', function ( $theme_json ) {
+			$data                                = $theme_json->get_data();
+			$data['version']                     = 3;
+			$data['settings']['appearanceTools'] = false;
+			return $theme_json->update_with( $data );
+		}, 99 );
 	},
 ] );

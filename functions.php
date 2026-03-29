@@ -29,6 +29,8 @@ if ( is_admin() ) {
 	require_once EP_THEME_PATH . '/inc/admin/settings-page.php';
 }
 
+require_once EP_THEME_PATH . '/inc/cli.php';
+
 /**
  * Theme setup.
  */

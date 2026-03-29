@@ -1,9 +1,14 @@
 {
-	"$schema": "https://blockstudio.dev/schema/blockstudio",
+	"$schema": "https://app.blockstudio.dev/schema/blockstudio",
 	"assets": {
 		"enqueue": true,
-		"minify": true,
-		"scss": true
+		"minify": {
+			"css": true,
+			"js": true
+		},
+		"process": {
+			"scss": true
+		}
 	},
 	"dev": {
 		"grab": {

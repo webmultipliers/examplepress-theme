@@ -16,8 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		fonts,
 		sizes,
 		blocks,
-		pluginsReq,
-		pluginsRec,
+		plugins,
 		configFiles,
 		healthChecks,
 		docs,
@@ -59,10 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
 		return `<span class="ep-badge ${cls}"><span class="ep-dot"></span>${label || (on ? 'Enabled' : 'Disabled')}</span>`;
 	}
 
-	function srcTag(src) {
+	function srcTag(src, detail) {
 		const cls = src === 'json' ? 'src-json' : src === 'php' ? 'src-php' : '';
 		const label = src === 'php' ? 'filter' : src;
-		return `<span class="ep-src ${cls}">${label}</span>`;
+		const title = detail ? ` title="${esc(detail)}"` : '';
+		return `<span class="ep-src ${cls}"${title}>${label}</span>`;
 	}
 
 	function esc(str) {
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			html += `<div class="ep-row ep-cols-3">
 				<div class="ep-td-label"><span class="ep-name">${esc(f.name)}</span><span class="ep-id">${esc(f.id)}</span>${f.opts ? `<span class="ep-opt"><em>${esc(f.opts)}</em></span>` : ''}</div>
 				<div>${badge(f.on)}</div>
-				<div>${srcTag(f.src)}</div>
+				<div>${srcTag(f.src, f.srcDetail)}</div>
 			</div>`;
 		});
 		el.innerHTML = html;
@@ -95,21 +95,50 @@ document.addEventListener('DOMContentLoaded', () => {
 			.replace(/: (null)/g, ': <span class="j-null">$1</span>');
 	}
 
-	function pluginTable(containerId, items, tier) {
+	function pluginDirectory(containerId, items) {
 		const el = document.getElementById(containerId);
 		if (!el || !items || !items.length) return;
-		const tierCls = tier === 'required' ? 'tier-req' : 'tier-rec';
-		let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Plugin</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Link</div></div>';
+		let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Plugin</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
 		items.forEach(p => {
-			const sCls = p.status === 'active' ? 'badge-on' : p.status === 'installed' ? 'badge-warn' : 'badge-err';
-			const sLbl = p.status === 'active' ? 'Active' : p.status === 'installed' ? 'Installed' : 'Missing';
-			let domain = '';
-			try { domain = new URL(p.url).hostname; } catch (e) { domain = p.url; }
+			// Status badge
+			const statusMap = {
+				active:    { cls: 'badge-on',   lbl: 'Active' },
+				installed: { cls: 'badge-warn', lbl: 'Installed' },
+				fallback:  { cls: 'badge-info', lbl: 'Free Alt.' },
+				missing:   { cls: 'badge-err',  lbl: 'Missing' },
+			};
+			const st = statusMap[p.status] || statusMap.missing;
+
+			// Tier badge
+			const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
+			const tierCls = tierMap[p.tier] || 'tier-opt';
+
+			// Inline metadata badges
+			let badges = '';
+			if (p.pricing === 'paid') badges += '<span class="ep-meta-badge meta-paid">Paid</span>';
+			if (p.cloud) badges += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
+			if (p.source === 'private') badges += '<span class="ep-meta-badge meta-private">Private</span>';
+
+			// Fallback note
+			let fallbackNote = '';
+			if (p.fallback) {
+				const fbSt = p.fallback.status === 'active' ? 'active' : p.fallback.status === 'installed' ? 'installed' : 'not installed';
+				fallbackNote = `<span class="ep-desc-small">Free alt: ${esc(p.fallback.slug)} (${fbSt})</span>`;
+			}
+
+			// Source link
+			let sourceLink = '';
+			if (p.url) {
+				let domain = '';
+				try { domain = new URL(p.url).hostname; } catch (e) { domain = p.url; }
+				sourceLink = `<a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a>`;
+			}
+
 			html += `<div class="ep-row ep-cols-4">
-				<div class="ep-td-label"><span class="ep-name">${esc(p.name)}</span><span class="ep-id">${esc(p.slug)}</span></div>
-				<div><span class="ep-tier ${tierCls}">${tier}</span></div>
-				<div><span class="ep-badge ${sCls}"><span class="ep-dot"></span>${sLbl}</span></div>
-				<div><a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a></div>
+				<div class="ep-td-label"><span class="ep-name">${esc(p.name)}${badges}</span><span class="ep-id">${esc(p.slug)}</span>${fallbackNote}</div>
+				<div><span class="ep-tier ${tierCls}">${esc(p.tier)}</span></div>
+				<div><span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span></div>
+				<div>${sourceLink}</div>
 			</div>`;
 		});
 		el.innerHTML = html;
@@ -139,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	featureTable('tbl-guards', features.guards);
 	featureTable('tbl-admin', features.admin);
 	featureTable('tbl-options', features.options);
+	featureTable('tbl-design-features', features.design);
 
 	/* ── Design tab — Colors ────────────────────────────────────────── */
 
@@ -213,8 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	/* ── Plugins tab ────────────────────────────────────────────────── */
 
-	pluginTable('tbl-plugins-req', pluginsReq, 'required');
-	pluginTable('tbl-plugins-rec', pluginsRec, 'recommended');
+	pluginDirectory('tbl-plugins', plugins);
 
 	/* ── Config tab ─────────────────────────────────────────────────── */
 
@@ -305,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	const counts = {
 		't-features': featureCount,
 		't-blocks': blocks.length,
-		't-plugins': (pluginsReq ? pluginsReq.length : 0) + (pluginsRec ? pluginsRec.length : 0),
+		't-plugins': plugins ? plugins.length : 0,
 	};
 	Object.entries(counts).forEach(([tabId, count]) => {
 		const tab = document.getElementById(tabId);
