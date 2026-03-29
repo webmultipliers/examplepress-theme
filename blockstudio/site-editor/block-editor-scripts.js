@@ -1,9 +1,10 @@
 /**
- * Site Editor — hide Templates and Template Parts from the sidebar.
+ * Site Editor — hide Templates, Template Parts, Patterns, and Pages
+ * from the sidebar navigation.
  *
  * There's no PHP filter for site editor navigation panels (Gutenberg #49640),
- * so a MutationObserver is the only available approach. The observer is
- * disconnected once both items are found to avoid unnecessary DOM watching.
+ * so a MutationObserver is the only available approach. The observer runs
+ * permanently because the site editor dynamically re-renders panels.
  */
 wp.domReady(() => {
 	const hideSidebarItems = () => {

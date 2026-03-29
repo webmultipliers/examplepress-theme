@@ -50,12 +50,21 @@ function examplepress_register_feature( $id, $args = [] ) {
 /**
  * Check whether a feature is enabled.
  *
- * Filterable via `examplepress_feature_{$id}`.
+ * Resolution order (highest wins):
+ *   1. PHP Filter  (`examplepress_feature_{$id}`)
+ *   2. examplepress.json  (`features.{id}` — bool or object with `enabled`)
+ *   3. Registration default
  */
 function examplepress_feature_enabled( $id ) {
 	global $examplepress_features;
 
 	$default = $examplepress_features[ $id ]['default'] ?? true;
+
+	$json = examplepress_get_config();
+	if ( isset( $json['features'][ $id ] ) ) {
+		$val     = $json['features'][ $id ];
+		$default = is_array( $val ) ? ( $val['enabled'] ?? $default ) : (bool) $val;
+	}
 
 	return (bool) apply_filters( "examplepress_feature_{$id}", $default );
 }
@@ -63,13 +72,24 @@ function examplepress_feature_enabled( $id ) {
 /**
  * Retrieve a feature-specific option value.
  *
- * Filterable via `examplepress_feature_{$id}_{$key}`.
+ * Resolution order (highest wins):
+ *   1. PHP Filter  (`examplepress_feature_{$id}_{$key}`)
+ *   2. examplepress.json  (`features.{id}.options.{key}`)
+ *   3. Registration default
  */
 function examplepress_feature_option( $id, $key, $fallback = NULL ) {
 	global $examplepress_features;
 
 	$options = $examplepress_features[ $id ]['options'] ?? [];
 	$value   = $options[ $key ] ?? $fallback;
+
+	$json = examplepress_get_config();
+	if ( isset( $json['features'][ $id ] ) && is_array( $json['features'][ $id ] ) ) {
+		$json_options = $json['features'][ $id ]['options'] ?? [];
+		if ( array_key_exists( $key, $json_options ) ) {
+			$value = $json_options[ $key ];
+		}
+	}
 
 	return apply_filters( "examplepress_feature_{$id}_{$key}", $value );
 }

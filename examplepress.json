@@ -1,0 +1,31 @@
+{
+	"$schema": "https://www.examplepress.com/schema/examplepress-theme",
+	"features": {},
+	"design": {
+		"colors": [
+			{ "name": "Primary", "slug": "primary", "color": "#a3122e" },
+			{ "name": "Secondary", "slug": "secondary", "color": "#205375" },
+			{ "name": "Background", "slug": "bg", "color": "#f4f6fb" },
+			{ "name": "Separator", "slug": "separator", "color": "#cfd8dc" },
+			{ "name": "Dark", "slug": "dark", "color": "#181a20" },
+			{ "name": "Light", "slug": "light", "color": "#f9fafb" },
+			{ "name": "Black", "slug": "black", "color": "#1b1b1b" },
+			{ "name": "Danger", "slug": "danger", "color": "#e63946" },
+			{ "name": "Info", "slug": "info", "color": "#3a86ff" },
+			{ "name": "Success", "slug": "success", "color": "#43aa8b" },
+			{ "name": "Warning", "slug": "warning", "color": "#ffd166" },
+			{ "name": "Content", "slug": "text-content", "color": "#23272f" },
+			{ "name": "Highlight", "slug": "text-highlight", "color": "#a3122e" },
+			{ "name": "Muted", "slug": "text-muted", "color": "#7b8a8b" },
+			{ "name": "Placeholder", "slug": "text-placeholder", "color": "#b0bec5" }
+		],
+		"layout": {
+			"wideSize": "1200px",
+			"contentSize": "800px"
+		}
+	},
+	"plugins": {
+		"required": [],
+		"recommended": []
+	}
+}

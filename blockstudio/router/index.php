@@ -5,10 +5,33 @@ $target_slug     = examplepress_get_current_route();
 $template_prefix = examplepress_get_template_prefix();
 $full_block_name = examplepress_get_template_block_name( $target_slug, $template_prefix, $theme_ns );
 
+/**
+ * Filter the data payload passed to the resolved template block.
+ *
+ * Companion plugins can enrich this array with queried objects,
+ * breadcrumbs, or any context the template block needs.
+ *
+ * @param array  $data            Key/value pairs passed to bs_block().
+ * @param string $target_slug     The resolved route slug.
+ * @param string $full_block_name The fully-qualified block name.
+ */
+$route_data = apply_filters( 'examplepress_route_data', [], $target_slug, $full_block_name );
+
+/**
+ * Fires immediately before the router dispatches to a template block.
+ *
+ * Companion plugins can use this to enqueue assets, set global state,
+ * or register sidebars for the resolved route.
+ *
+ * @param string $target_slug     The resolved route slug.
+ * @param string $full_block_name The fully-qualified block name.
+ */
+do_action( 'examplepress_route_resolved', $target_slug, $full_block_name );
+
 $block_content = bs_block(
 	[
 		'id'   => $full_block_name,
-		'data' => [],
+		'data' => $route_data,
 	]
 );
 

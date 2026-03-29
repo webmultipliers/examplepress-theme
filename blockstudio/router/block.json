@@ -4,6 +4,7 @@
 	"title": "Theme Router",
 	"category": "theme",
 	"supports": {
+		"inserter": false,
 		"lock": true,
 		"renaming": true
 	},

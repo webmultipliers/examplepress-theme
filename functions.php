@@ -1,6 +1,9 @@
 <?php
 /**
  * ExamplePress functions and definitions.
+ *
+ * This file is pure bootstrap: constants, autoloader, requires,
+ * and the after_setup_theme hook. No loose logic belongs here.
  */
 
 define( 'EP_THEME_VERSION', wp_get_theme()->get( 'Version' ) ?? '1.0.0' );
@@ -14,18 +17,29 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 }
 
 /**
- * Feature Registry
+ * Core includes.
  */
+require_once EP_THEME_PATH . '/inc/config.php';
 require_once EP_THEME_PATH . '/inc/feature-registry.php';
 require_once EP_THEME_PATH . '/inc/features.php';
+require_once EP_THEME_PATH . '/inc/router.php';
+require_once EP_THEME_PATH . '/inc/plugins.php';
+
+if ( is_admin() ) {
+	require_once EP_THEME_PATH . '/inc/admin/settings-page.php';
+}
 
 /**
- * Theme Setup
+ * Theme setup.
  */
+add_action( 'after_setup_theme', function () {
+	load_theme_textdomain( 'examplepress-theme', EP_THEME_PATH . '/languages' );
+} );
+
 add_action( 'after_setup_theme', 'examplepress_boot_features' );
 
 /**
- * Blockstudio
+ * Blockstudio integration.
  */
 add_filter( 'blockstudio/patterns/paths', function ( $paths ) {
 	$paths[] = EP_THEME_PATH . '/blockstudio/patterns';
@@ -47,23 +61,3 @@ add_filter( 'blockstudio/blocks/components/inner_blocks/frontend/wrap', function
 
 	return $render;
 }, 10, 2 );
-
-/**
- * Routing Helpers
- */
-function examplepress_get_current_route() {
-	return apply_filters( 'examplepress_route_context', 'get-started' );
-}
-
-function examplepress_get_theme_namespace() {
-	return apply_filters( 'examplepress_theme_namespace', 'examplepress-theme' );
-}
-
-function examplepress_get_template_prefix() {
-	return apply_filters( 'examplepress_template_prefix', 'template' );
-}
-
-function examplepress_get_template_block_name( $slug, $prefix, $theme_ns ) {
-	return apply_filters( 'examplepress_template_block_name', sprintf( '%s/%s-%s', $theme_ns, $prefix, $slug ), $slug, $prefix, $theme_ns );
-}
-

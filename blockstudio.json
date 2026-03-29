@@ -1,5 +1,10 @@
 {
 	"$schema": "https://blockstudio.dev/schema/blockstudio",
+	"assets": {
+		"enqueue": true,
+		"minify": true,
+		"scss": true
+	},
 	"dev": {
 		"grab": {
 			"enabled": true

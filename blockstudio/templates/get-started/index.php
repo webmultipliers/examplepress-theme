@@ -5,7 +5,7 @@
  */
 ?>
 
-<main useBlockProps>
+<main useBlockProps class="get-started">
 
 	<!-- NAV -->
 	<nav class="nav">

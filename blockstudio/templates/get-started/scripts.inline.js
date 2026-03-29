@@ -1,4 +1,19 @@
 
+// --- Copy Code ---
+function copyCode(button, codeId) {
+	const code = document.getElementById(codeId);
+	if (!code) return;
+
+	navigator.clipboard.writeText(code.textContent).then(() => {
+		button.classList.add('copied');
+		button.textContent = 'Copied!';
+		setTimeout(() => {
+			button.classList.remove('copied');
+			button.textContent = 'Copy';
+		}, 2000);
+	});
+}
+
 // --- Scroll Reveal ---
 const observer = new IntersectionObserver((entries) => {
 	entries.forEach(e => {

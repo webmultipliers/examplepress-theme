@@ -1,0 +1,197 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://www.examplepress.com/schema/examplepress-theme",
+	"title": "ExamplePress Theme Configuration",
+	"description": "Declarative configuration for the ExamplePress WordPress theme. Overrides registration defaults; PHP filters still take highest priority.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "JSON Schema reference for IDE autocompletion."
+		},
+		"features": {
+			"type": "object",
+			"description": "Toggle or configure registered theme features. Keys are feature IDs. Values can be a boolean (toggle) or an object with 'enabled' and 'options'.",
+			"additionalProperties": {
+				"oneOf": [
+					{
+						"type": "boolean",
+						"description": "Enable or disable this feature."
+					},
+					{
+						"type": "object",
+						"description": "Feature configuration with optional overrides.",
+						"properties": {
+							"enabled": {
+								"type": "boolean",
+								"description": "Enable or disable this feature."
+							},
+							"options": {
+								"type": "object",
+								"description": "Feature-specific option overrides.",
+								"additionalProperties": true
+							}
+						},
+						"additionalProperties": false
+					}
+				]
+			},
+			"properties": {
+				"title-tag": {
+					"description": "Add <title> tag support via add_theme_support.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"responsive-embeds": {
+					"description": "Enable responsive embed wrappers.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"post-thumbnails": {
+					"description": "Enable featured images (post thumbnails).",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"wp-block-styles": {
+					"description": "Load core block stylesheets.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"html5": {
+					"description": "Enable HTML5 markup for core elements. Options: features (array of markup types).",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"disable-remote-block-patterns": {
+					"description": "Prevent loading remote block patterns from the pattern directory.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"disable-core-block-patterns": {
+					"description": "Remove core block patterns.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"restrict-block-types": {
+					"description": "Restrict which blocks are available in the editor. Options: types (array of block names).",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"disable-redirect-guess-404": {
+					"description": "Prevent WordPress from guessing redirects on 404.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"openverse": {
+					"description": "Show/hide the Openverse media category in the editor.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"post-lock-window": {
+					"description": "Set the post lock heartbeat duration in seconds. Options: duration (int).",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"remove-dashboard-widgets": {
+					"description": "Remove default WordPress dashboard widgets.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"login-branding": {
+					"description": "Apply custom branding to the WordPress login screen.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"permalink-structure": {
+					"description": "Enforce a specific permalink structure. Options: structure (string).",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"managed-options": {
+					"description": "Override wp_options at runtime. Options: values (object of option_name: value).",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"theme-colors": {
+					"description": "Inject a colour palette into theme.json at runtime. Prefer using design.colors instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"theme-layout": {
+					"description": "Inject layout dimensions into theme.json at runtime. Prefer using design.layout instead.",
+					"$ref": "#/$defs/featureToggle"
+				}
+			}
+		},
+		"design": {
+			"type": "object",
+			"description": "Design tokens injected into WordPress theme.json at runtime via wp_theme_json_data_theme.",
+			"additionalProperties": false,
+			"properties": {
+				"colors": {
+					"type": "array",
+					"description": "Colour palette entries. Each maps to a CSS custom property --wp--preset--color--{slug}.",
+					"items": {
+						"type": "object",
+						"required": ["name", "slug", "color"],
+						"additionalProperties": false,
+						"properties": {
+							"name": {
+								"type": "string",
+								"description": "Human-readable colour name shown in the editor."
+							},
+							"slug": {
+								"type": "string",
+								"description": "Slug used in CSS custom properties and class names.",
+								"pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+							},
+							"color": {
+								"type": "string",
+								"description": "CSS colour value (hex, rgb, hsl, etc.)."
+							}
+						}
+					}
+				},
+				"layout": {
+					"type": "object",
+					"description": "Global layout dimensions.",
+					"additionalProperties": false,
+					"properties": {
+						"wideSize": {
+							"type": "string",
+							"description": "Maximum width for wide-aligned blocks (e.g. '1200px').",
+							"pattern": "^\\d+(\\.\\d+)?(px|rem|em|vw|%)$"
+						},
+						"contentSize": {
+							"type": "string",
+							"description": "Maximum width for default content blocks (e.g. '800px').",
+							"pattern": "^\\d+(\\.\\d+)?(px|rem|em|vw|%)$"
+						}
+					}
+				}
+			}
+		},
+		"plugins": {
+			"type": "object",
+			"description": "Companion plugin requirements. The theme surfaces an admin notice when required plugins are missing.",
+			"additionalProperties": false,
+			"properties": {
+				"required": {
+					"type": "array",
+					"description": "Plugin slugs that must be installed and active.",
+					"items": { "type": "string" }
+				},
+				"recommended": {
+					"type": "array",
+					"description": "Plugin slugs that are recommended but not mandatory.",
+					"items": { "type": "string" }
+				}
+			}
+		}
+	},
+	"$defs": {
+		"featureToggle": {
+			"oneOf": [
+				{
+					"type": "boolean"
+				},
+				{
+					"type": "object",
+					"properties": {
+						"enabled": { "type": "boolean" },
+						"options": {
+							"type": "object",
+							"additionalProperties": true
+						}
+					},
+					"additionalProperties": false
+				}
+			]
+		}
+	}
+}
