@@ -22,6 +22,20 @@
 		"layout": {
 			"wideSize": "1200px",
 			"contentSize": "800px"
+		},
+		"typography": {
+			"fontFamilies": [
+				{ "name": "System", "slug": "system", "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+				{ "name": "Monospace", "slug": "mono", "fontFamily": "'JetBrains Mono', ui-monospace, monospace" },
+				{ "name": "Serif", "slug": "serif", "fontFamily": "'Instrument Serif', Georgia, serif" }
+			],
+			"fontSizes": [
+				{ "slug": "sm", "size": "0.875rem", "name": "Small" },
+				{ "slug": "md", "size": "1rem", "name": "Medium" },
+				{ "slug": "lg", "size": "1.25rem", "name": "Large" },
+				{ "slug": "xl", "size": "1.5rem", "name": "Extra Large" },
+				{ "slug": "2xl", "size": "2rem", "name": "2X Large" }
+			]
 		}
 	},
 	"docs": [
@@ -62,14 +76,26 @@
 			"category": "Blockstudio"
 		}
 	],
-	"plugins": [
+	"dependencies": [
 		{
 			"slug": "blockstudio",
 			"name": "Blockstudio",
 			"tier": "required",
 			"pricing": "paid",
 			"cloud_dependent": false,
+			"check_type": "class",
+			"check_target": "Blockstudio\\Build",
 			"source": { "type": "direct", "url": "https://blockstudio.dev/" }
+		},
+		{
+			"slug": "action-scheduler",
+			"name": "Action Scheduler",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "function",
+			"check_target": "as_schedule_single_action",
+			"source": { "type": "wporg" }
 		}
 	]
 }

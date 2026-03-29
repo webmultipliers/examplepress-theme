@@ -23,7 +23,8 @@ require_once EP_THEME_PATH . '/inc/config.php';
 require_once EP_THEME_PATH . '/inc/feature-registry.php';
 require_once EP_THEME_PATH . '/inc/features.php';
 require_once EP_THEME_PATH . '/inc/router.php';
-require_once EP_THEME_PATH . '/inc/plugins.php';
+require_once EP_THEME_PATH . '/inc/dependencies.php';
+require_once EP_THEME_PATH . '/inc/notifications.php';
 
 if ( is_admin() ) {
 	require_once EP_THEME_PATH . '/inc/admin/settings-page.php';

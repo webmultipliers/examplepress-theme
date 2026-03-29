@@ -223,10 +223,10 @@
 				}
 			}
 		},
-		"plugins": {
+		"dependencies": {
 			"type": "array",
-			"description": "Curated plugin directory. Each entry declares a dependency with tier, pricing, source, and optional fallback.",
-			"items": { "$ref": "#/$defs/pluginEntry" }
+			"description": "Plugins, Composer packages, and libraries required by the theme. Each entry declares a dependency with check type, tier, pricing, source, and optional fallback.",
+			"items": { "$ref": "#/$defs/dependencyEntry" }
 		}
 	},
 	"$defs": {
@@ -248,33 +248,43 @@
 				}
 			]
 		},
-		"pluginEntry": {
+		"dependencyEntry": {
 			"type": "object",
 			"required": ["slug", "name", "tier", "pricing", "source"],
 			"additionalProperties": false,
 			"properties": {
 				"slug": {
 					"type": "string",
-					"description": "Plugin folder name used for detection."
+					"description": "Unique identifier for the dependency."
 				},
 				"name": {
 					"type": "string",
-					"description": "Human-readable plugin name."
+					"description": "Human-readable name."
 				},
 				"tier": {
 					"type": "string",
 					"enum": ["required", "recommended", "optional"],
-					"description": "How critical this plugin is to the architecture."
+					"description": "How critical this dependency is to the architecture."
 				},
 				"pricing": {
 					"type": "string",
 					"enum": ["free", "paid"],
-					"description": "Whether this plugin costs money."
+					"description": "Whether this dependency costs money."
 				},
 				"cloud_dependent": {
 					"type": "boolean",
 					"default": false,
-					"description": "True if the plugin is primarily a connector for a SaaS/cloud service."
+					"description": "True if primarily a connector for a SaaS/cloud service."
+				},
+				"check_type": {
+					"type": "string",
+					"enum": ["plugin", "class", "function"],
+					"default": "plugin",
+					"description": "How to detect this dependency: scan the WP plugin registry, check class_exists(), or check function_exists()."
+				},
+				"check_target": {
+					"type": "string",
+					"description": "The value to check. Defaults to slug for plugins. Use a fully-qualified class name for 'class' or a function name for 'function'."
 				},
 				"source": {
 					"type": "object",
@@ -283,12 +293,12 @@
 					"properties": {
 						"type": {
 							"type": "string",
-							"enum": ["wporg", "direct", "private"],
+							"enum": ["wporg", "direct", "private", "composer"],
 							"description": "Distribution channel."
 						},
 						"url": {
 							"type": "string",
-							"description": "Download or purchase URL. Optional for wporg, required for direct and private.",
+							"description": "Download or purchase URL.",
 							"format": "uri"
 						}
 					}

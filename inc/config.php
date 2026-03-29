@@ -32,7 +32,7 @@ function examplepress_get_config() {
 	$config = is_array( $data ) ? $data : [];
 
 	$config = examplepress_normalise_design_config( $config );
-	$config = examplepress_normalise_plugins_config( $config );
+	$config = examplepress_normalise_dependencies_config( $config );
 
 	return $config;
 }
@@ -88,23 +88,29 @@ function examplepress_normalise_design_config( array $config ) {
 }
 
 /**
- * Normalise the plugins config to the v1 array-of-objects format.
+ * Normalise dependency config.
  *
- * Accepts both the legacy { required: [], recommended: [] } format
- * and the new flat array of plugin objects.
+ * Accepts:
+ *   - Current format:  "dependencies": [...]
+ *   - Legacy v1:       "plugins": [...] (flat array)
+ *   - Legacy v0:       "plugins": { "required": [], "recommended": [] }
+ *
+ * All formats are normalised to config['dependencies'] as a flat array.
  */
-function examplepress_normalise_plugins_config( array $config ) {
-	$plugins = $config['plugins'] ?? [];
+function examplepress_normalise_dependencies_config( array $config ) {
+	// Prefer 'dependencies' key; fall back to legacy 'plugins'.
+	$raw = $config['dependencies'] ?? $config['plugins'] ?? [];
 
 	// Already new format (indexed array) or empty.
-	if ( empty( $plugins ) || isset( $plugins[0] ) ) {
+	if ( empty( $raw ) || isset( $raw[0] ) ) {
+		$config['dependencies'] = is_array( $raw ) ? $raw : [];
 		return $config;
 	}
 
-	// Legacy format: { required: [...], recommended: [...] }.
+	// Legacy v0: { required: [...], recommended: [...] }.
 	$result = [];
 	foreach ( [ 'required', 'recommended' ] as $tier ) {
-		foreach ( $plugins[ $tier ] ?? [] as $entry ) {
+		foreach ( $raw[ $tier ] ?? [] as $entry ) {
 			if ( is_string( $entry ) ) {
 				$result[] = [
 					'slug'            => $entry,
@@ -121,7 +127,7 @@ function examplepress_normalise_plugins_config( array $config ) {
 		}
 	}
 
-	$config['plugins'] = $result;
+	$config['dependencies'] = $result;
 
 	return $config;
 }

@@ -53,10 +53,14 @@ class ExamplePress_CLI {
 			'$schema'  => 'https://www.examplepress.com/schema/examplepress-theme',
 			'features' => $defaults,
 			'design'   => [
-				'colors' => (array) examplepress_feature_option( 'theme-colors', 'palette', [] ),
-				'layout' => [
+				'colors'     => (array) examplepress_feature_option( 'theme-colors', 'palette', [] ),
+				'layout'     => [
 					'wideSize'    => (string) examplepress_feature_option( 'theme-layout', 'wide_size', '1200px' ),
 					'contentSize' => (string) examplepress_feature_option( 'theme-layout', 'content_size', '800px' ),
+				],
+				'typography' => [
+					'fontFamilies' => (array) examplepress_feature_option( 'theme-typography', 'font_families', [] ),
+					'fontSizes'    => (array) examplepress_feature_option( 'theme-typography', 'font_sizes', [] ),
 				],
 			],
 			'docs'     => [
@@ -67,13 +71,15 @@ class ExamplePress_CLI {
 				[ 'title' => 'Feature Registry API',   'description' => 'Register features, check state, read options, and the filterable flag system.',    'url' => 'https://github.com/webmultipliers/examplepress-theme/blob/development/docs/feature-registry.md', 'category' => 'Configuration' ],
 				[ 'title' => 'Blockstudio',            'description' => 'Block registration, fields, rendering, and hooks.',                                'url' => 'https://blockstudio.dev/documentation/',                                                         'category' => 'Blockstudio' ],
 			],
-			'plugins'  => [
+			'dependencies' => [
 				[
 					'slug'            => 'blockstudio',
 					'name'            => 'Blockstudio',
 					'tier'            => 'required',
 					'pricing'         => 'paid',
 					'cloud_dependent' => false,
+					'check_type'      => 'class',
+					'check_target'    => 'Blockstudio\\Build',
 					'source'          => [ 'type' => 'direct', 'url' => 'https://blockstudio.dev/' ],
 				],
 			],

@@ -386,6 +386,54 @@
 .hook-filter { color: var(--amber); background: var(--amber-dim); }
 .hook-action { color: var(--blue); background: var(--blue-dim); }
 
+/* ── Check Type Badge ─────────────────────────────────────────────── */
+
+.meta-check { color: var(--accent); background: var(--accent-dim); }
+
+/* ── Notification Cards ───────────────────────────────────────────── */
+
+.ep-notif-subtabs { display: flex; gap: 0.3rem; margin-bottom: 1.2rem; }
+.ep-notif-subtab {
+  font-family: var(--mono); font-size: 0.68rem; font-weight: 500;
+  padding: 0.4rem 0.8rem; border-radius: var(--radius); cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-dim);
+  transition: all 0.15s;
+}
+.ep-notif-subtab:hover { border-color: var(--border-bright); color: var(--text-muted); }
+.ep-notif-subtab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+.ep-notif-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.ep-notif-card {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elevated);
+  padding: 1rem 1.2rem; transition: border-color 0.15s;
+}
+.ep-notif-card:hover { border-color: var(--border-bright); }
+.ep-notif-card.notif-error { border-left: 3px solid var(--red); }
+.ep-notif-card.notif-warn  { border-left: 3px solid var(--amber); }
+.ep-notif-card.notif-info  { border-left: 3px solid var(--blue); }
+
+.ep-notif-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+.ep-notif-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+.ep-notif-msg { font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; }
+.ep-notif-empty { font-size: 0.8rem; color: var(--text-dim); font-style: italic; padding: 2rem 0; text-align: center; }
+
+.ep-notif-action {
+  font-family: var(--mono); font-size: 0.62rem; font-weight: 500;
+  padding: 0.25rem 0.6rem; border-radius: var(--radius-sm); cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim);
+  transition: all 0.15s; flex-shrink: 0;
+}
+.ep-notif-action:hover { border-color: var(--border-bright); color: var(--text-muted); }
+
+/* ── Library Hero ─────────────────────────────────────────────────── */
+
+.ep-library-hero { text-align: center; padding: 5rem 2rem 4rem; }
+.ep-library-icon {
+  font-size: 3rem; margin-bottom: 1.5rem; opacity: 0.3;
+  color: var(--accent); line-height: 1;
+}
+
 /* ── Block Category Headers ───────────────────────────────────────── */
 
 .ep-block-cat {

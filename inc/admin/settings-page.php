@@ -3,7 +3,8 @@
  * ExamplePress Settings Page
  *
  * Read-only admin dashboard surfacing the resolved state of the
- * feature registry, design tokens, guards, and system health.
+ * feature registry, design tokens, dependencies, notifications,
+ * guards, and system health.
  */
 
 // ── Menu Registration ──────────────────────────────────────────────
@@ -65,22 +66,26 @@ function examplepress_enqueue_settings_assets() {
 
 function examplepress_settings_gather_data() {
 	return [
-		'themeVersion' => EP_THEME_VERSION,
-		'devMode'      => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
-		'features'     => examplepress_settings_get_features(),
-		'colors'       => (array) examplepress_feature_option( 'theme-colors', 'palette', [] ),
-		'layout'       => [
+		'themeVersion'   => EP_THEME_VERSION,
+		'devMode'        => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
+		'features'       => examplepress_settings_get_features(),
+		'colors'         => (array) examplepress_feature_option( 'theme-colors', 'palette', [] ),
+		'layout'         => [
 			'wideSize'    => (string) examplepress_feature_option( 'theme-layout', 'wide_size', '1200px' ),
 			'contentSize' => (string) examplepress_feature_option( 'theme-layout', 'content_size', '800px' ),
 		],
-		'fonts'        => examplepress_settings_get_fonts(),
-		'sizes'        => examplepress_settings_get_sizes(),
-		'blocks'       => examplepress_settings_get_blocks(),
-		'plugins'      => examplepress_settings_get_plugins(),
-		'configFiles'  => examplepress_settings_get_config_files(),
-		'healthChecks' => examplepress_settings_get_health(),
-		'docs'         => examplepress_settings_get_docs(),
-		'hooks'        => examplepress_settings_get_hooks(),
+		'fonts'          => examplepress_settings_get_fonts(),
+		'sizes'          => examplepress_settings_get_sizes(),
+		'blocks'         => examplepress_settings_get_blocks(),
+		'dependencies'   => examplepress_get_dependencies(),
+		'notifications'  => examplepress_gather_notifications(),
+		'archived'       => examplepress_get_archived_notifications(),
+		'configFiles'    => examplepress_settings_get_config_files(),
+		'healthChecks'   => examplepress_settings_get_health(),
+		'docs'           => examplepress_settings_get_docs(),
+		'hooks'          => examplepress_settings_get_hooks(),
+		'restUrl'        => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
+		'nonce'          => wp_create_nonce( 'wp_rest' ),
 	];
 }
 
@@ -234,9 +239,6 @@ function examplepress_settings_get_sizes() {
 
 /**
  * Discover all Blockstudio blocks from the WP block registry.
- *
- * Queries WP_Block_Type_Registry instead of scanning the filesystem
- * so companion plugin blocks are included alongside theme blocks.
  */
 function examplepress_settings_get_blocks() {
 	$blocks     = [];
@@ -258,91 +260,6 @@ function examplepress_settings_get_blocks() {
 	}
 
 	return $blocks;
-}
-
-/**
- * Build the full plugin directory with status, fallback state, and metadata.
- *
- * Returns the normalised plugins array enriched with runtime status.
- */
-function examplepress_settings_get_plugins() {
-	$config  = examplepress_get_config();
-	$plugins = $config['plugins'] ?? [];
-
-	if ( empty( $plugins ) ) {
-		return [];
-	}
-
-	if ( ! function_exists( 'get_plugins' ) ) {
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-	}
-
-	$installed = get_plugins();
-	$active    = array_map( 'plugin_basename', wp_get_active_and_valid_plugins() );
-	$result    = [];
-
-	foreach ( $plugins as $plugin ) {
-		$slug = $plugin['slug'] ?? '';
-		if ( empty( $slug ) ) {
-			continue;
-		}
-
-		$source_type = $plugin['source']['type'] ?? 'wporg';
-		$source_url  = $plugin['source']['url'] ?? '';
-
-		// Build URL: use source URL, fall back to wporg.
-		$url = $source_url;
-		if ( ! $url && $source_type === 'wporg' ) {
-			$url = "https://wordpress.org/plugins/{$slug}/";
-		}
-
-		$item = [
-			'slug'    => $slug,
-			'name'    => $plugin['name'] ?? $slug,
-			'tier'    => $plugin['tier'] ?? 'optional',
-			'pricing' => $plugin['pricing'] ?? 'free',
-			'cloud'   => ! empty( $plugin['cloud_dependent'] ),
-			'source'  => $source_type,
-			'url'     => $url,
-			'status'  => 'missing',
-		];
-
-		// Resolve primary plugin name and status from WP registry.
-		foreach ( $installed as $file => $data ) {
-			if ( str_starts_with( $file, $slug . '/' ) ) {
-				$item['name']   = $data['Name'];
-				$item['status'] = in_array( $file, $active, true ) ? 'active' : 'installed';
-				if ( ! empty( $data['PluginURI'] ) && ! $source_url ) {
-					$item['url'] = $data['PluginURI'];
-				}
-				break;
-			}
-		}
-
-		// Check fallback if primary is not active.
-		$fallback_slug = $plugin['fallback_slug'] ?? '';
-		if ( $fallback_slug ) {
-			$fb_status = 'missing';
-			foreach ( $installed as $file => $data ) {
-				if ( str_starts_with( $file, $fallback_slug . '/' ) ) {
-					$fb_status = in_array( $file, $active, true ) ? 'active' : 'installed';
-					break;
-				}
-			}
-			$item['fallback'] = [
-				'slug'   => $fallback_slug,
-				'status' => $fb_status,
-			];
-			// If primary is missing but fallback is active, mark as satisfied.
-			if ( $item['status'] === 'missing' && $fb_status === 'active' ) {
-				$item['status'] = 'fallback';
-			}
-		}
-
-		$result[] = $item;
-	}
-
-	return $result;
 }
 
 /**
@@ -431,10 +348,6 @@ function examplepress_settings_get_health() {
 
 /**
  * Documentation links — read from examplepress.json docs section.
- *
- * Client forks can replace these with their own documentation URLs.
- * The JS renderer uses 'eyebrow' (mapped from category), 'title',
- * 'desc', 'link', and 'label'.
  */
 function examplepress_settings_get_docs() {
 	$config = examplepress_get_config();
@@ -448,7 +361,6 @@ function examplepress_settings_get_docs() {
 		$url   = $doc['url'] ?? '';
 		$label = 'Read docs';
 
-		// Derive a friendly label from the URL host.
 		if ( $url ) {
 			$host = wp_parse_url( $url, PHP_URL_HOST ) ?? '';
 			if ( $host && ! str_contains( $host, 'github.com' ) ) {
@@ -508,13 +420,15 @@ function examplepress_render_settings_page() {
 			</header>
 
 			<nav class="ep-tabs" role="tablist">
-				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-features" id="t-features">Features<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-design"   id="t-design">Design</button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-blocks"   id="t-blocks">Blocks<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-plugins"  id="t-plugins">Plugins<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-config"   id="t-config">Config</button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-health"   id="t-health">Health</button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-docs"     id="t-docs">Docs</button>
+				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-features"      id="t-features">Features<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-design"         id="t-design">Design</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-blocks"         id="t-blocks">Blocks<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-dependencies"   id="t-dependencies">Dependencies<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-notifications"  id="t-notifications">Notifications<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-library"        id="t-library">Library</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-config"         id="t-config">Config</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-health"         id="t-health">Health</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-docs"           id="t-docs">Docs</button>
 			</nav>
 
 			<!-- Features -->
@@ -576,12 +490,34 @@ function examplepress_render_settings_page() {
 				</section>
 			</div>
 
-			<!-- Plugins -->
-			<div class="ep-panel" id="p-plugins" role="tabpanel" aria-hidden="true">
+			<!-- Dependencies -->
+			<div class="ep-panel" id="p-dependencies" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Plugin Directory</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Curated plugin dependencies declared in examplepress.json. Paid plugins with a free fallback show satisfied status when the free version is active.</p>
-					<div class="ep-table" id="tbl-plugins"></div>
+					<div class="ep-section-header"><span class="ep-section-title">Dependency Directory</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Plugins, Composer packages, and libraries declared in examplepress.json. Detected via plugin registry, class_exists, or function_exists.</p>
+					<div class="ep-table" id="tbl-dependencies"></div>
+				</section>
+			</div>
+
+			<!-- Notifications -->
+			<div class="ep-panel" id="p-notifications" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-notif-subtabs" id="notif-subtabs">
+						<button class="ep-notif-subtab active" data-target="notices-active">Active</button>
+						<button class="ep-notif-subtab" data-target="notices-archived">Archived</button>
+					</div>
+					<div id="notices-active" class="ep-notif-list"></div>
+					<div id="notices-archived" class="ep-notif-list" style="display:none"></div>
+				</section>
+			</div>
+
+			<!-- Library -->
+			<div class="ep-panel" id="p-library" role="tabpanel" aria-hidden="true">
+				<section class="ep-section ep-library-hero">
+					<div class="ep-library-icon">&#9783;</div>
+					<div class="ep-doc-section-title">The Component Library is arriving soon.</div>
+					<p class="ep-doc-section-desc" style="margin: 0 auto 2rem; text-align: center;">Browse, import, and build with Troy-delivered companion plugins. Perfectly structured components that claim their own routes and integrate with the ExamplePress engine.</p>
+					<span class="ep-badge badge-info"><span class="ep-dot"></span>Coming in v1.1</span>
 				</section>
 			</div>
 

@@ -16,12 +16,15 @@ document.addEventListener('DOMContentLoaded', () => {
 		fonts,
 		sizes,
 		blocks,
-		plugins,
+		dependencies,
+		notifications,
 		configFiles,
 		healthChecks,
 		docs,
 		hooks,
 	} = window.ExamplePressData;
+
+	let archived = window.ExamplePressData.archived || [];
 
 	/* ── Tab switching ──────────────────────────────────────────────── */
 
@@ -66,8 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	function esc(str) {
+		if (str == null) return '';
 		const d = document.createElement('div');
-		d.textContent = str;
+		d.textContent = String(str);
 		return d.innerHTML;
 	}
 
@@ -93,55 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
 			.replace(/: (true|false)/g, ': <span class="j-bool">$1</span>')
 			.replace(/: (\d+\.?\d*)/g, ': <span class="j-num">$1</span>')
 			.replace(/: (null)/g, ': <span class="j-null">$1</span>');
-	}
-
-	function pluginDirectory(containerId, items) {
-		const el = document.getElementById(containerId);
-		if (!el || !items || !items.length) return;
-		let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Plugin</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
-		items.forEach(p => {
-			// Status badge
-			const statusMap = {
-				active:    { cls: 'badge-on',   lbl: 'Active' },
-				installed: { cls: 'badge-warn', lbl: 'Installed' },
-				fallback:  { cls: 'badge-info', lbl: 'Free Alt.' },
-				missing:   { cls: 'badge-err',  lbl: 'Missing' },
-			};
-			const st = statusMap[p.status] || statusMap.missing;
-
-			// Tier badge
-			const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
-			const tierCls = tierMap[p.tier] || 'tier-opt';
-
-			// Inline metadata badges
-			let badges = '';
-			if (p.pricing === 'paid') badges += '<span class="ep-meta-badge meta-paid">Paid</span>';
-			if (p.cloud) badges += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
-			if (p.source === 'private') badges += '<span class="ep-meta-badge meta-private">Private</span>';
-
-			// Fallback note
-			let fallbackNote = '';
-			if (p.fallback) {
-				const fbSt = p.fallback.status === 'active' ? 'active' : p.fallback.status === 'installed' ? 'installed' : 'not installed';
-				fallbackNote = `<span class="ep-desc-small">Free alt: ${esc(p.fallback.slug)} (${fbSt})</span>`;
-			}
-
-			// Source link
-			let sourceLink = '';
-			if (p.url) {
-				let domain = '';
-				try { domain = new URL(p.url).hostname; } catch (e) { domain = p.url; }
-				sourceLink = `<a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a>`;
-			}
-
-			html += `<div class="ep-row ep-cols-4">
-				<div class="ep-td-label"><span class="ep-name">${esc(p.name)}${badges}</span><span class="ep-id">${esc(p.slug)}</span>${fallbackNote}</div>
-				<div><span class="ep-tier ${tierCls}">${esc(p.tier)}</span></div>
-				<div><span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span></div>
-				<div>${sourceLink}</div>
-			</div>`;
-		});
-		el.innerHTML = html;
 	}
 
 	function healthTable(containerId, items) {
@@ -170,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	featureTable('tbl-options', features.options);
 	featureTable('tbl-design-features', features.design);
 
-	/* ── Design tab — Colors ────────────────────────────────────────── */
+	/* ── Design tab ─────────────────────────────────────────────────── */
 
 	const colorsGrid = document.getElementById('colors-grid');
 	if (colorsGrid && colors.length) {
@@ -184,8 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
 			</div>`).join('');
 	}
 
-	/* ── Design tab — Layout ────────────────────────────────────────── */
-
 	const layoutEl = document.getElementById('layout-visual');
 	if (layoutEl && layout) {
 		const wideNum = parseFloat(layout.wideSize) || 1200;
@@ -198,8 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
 			</div>`;
 	}
 
-	/* ── Design tab — Fonts ─────────────────────────────────────────── */
-
 	const typeStack = document.getElementById('type-stack');
 	if (typeStack && fonts.length) {
 		typeStack.innerHTML = fonts.map(f => `
@@ -208,8 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
 				<div class="ep-type-preview" style="font-family:${f.stack};">The quick brown fox jumps over the lazy dog &mdash; 0123456789</div>
 			</div>`).join('');
 	}
-
-	/* ── Design tab — Sizes ─────────────────────────────────────────── */
 
 	const sizeScale = document.getElementById('size-scale');
 	if (sizeScale && sizes.length) {
@@ -241,9 +190,121 @@ document.addEventListener('DOMContentLoaded', () => {
 		tblBlocks.innerHTML = html;
 	}
 
-	/* ── Plugins tab ────────────────────────────────────────────────── */
+	/* ── Dependencies tab ───────────────────────────────────────────── */
 
-	pluginDirectory('tbl-plugins', plugins);
+	const tblDeps = document.getElementById('tbl-dependencies');
+	if (tblDeps && dependencies && dependencies.length) {
+		let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Dependency</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
+		dependencies.forEach(p => {
+			const statusMap = {
+				active:    { cls: 'badge-on',   lbl: 'Active' },
+				installed: { cls: 'badge-warn', lbl: 'Installed' },
+				fallback:  { cls: 'badge-info', lbl: 'Free Alt.' },
+				missing:   { cls: 'badge-err',  lbl: 'Missing' },
+			};
+			const st = statusMap[p.status] || statusMap.missing;
+			const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
+			const tierCls = tierMap[p.tier] || 'tier-opt';
+
+			let badges = '';
+			if (p.pricing === 'paid') badges += '<span class="ep-meta-badge meta-paid">Paid</span>';
+			if (p.cloud) badges += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
+			if (p.source === 'private') badges += '<span class="ep-meta-badge meta-private">Private</span>';
+			if (p.checkType && p.checkType !== 'plugin') badges += `<span class="ep-meta-badge meta-check">${esc(p.checkType)}</span>`;
+
+			let fallbackNote = '';
+			if (p.fallback) {
+				const fbSt = p.fallback.status === 'active' ? 'active' : p.fallback.status === 'installed' ? 'installed' : 'not installed';
+				fallbackNote = `<span class="ep-desc-small">Free alt: ${esc(p.fallback.slug)} (${fbSt})</span>`;
+			}
+
+			let sourceLink = '';
+			if (p.url) {
+				let domain = '';
+				try { domain = new URL(p.url).hostname; } catch (e) { domain = p.url; }
+				sourceLink = `<a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a>`;
+			}
+
+			html += `<div class="ep-row ep-cols-4">
+				<div class="ep-td-label"><span class="ep-name">${esc(p.name)}${badges}</span><span class="ep-id">${esc(p.slug)}</span>${fallbackNote}</div>
+				<div><span class="ep-tier ${tierCls}">${esc(p.tier)}</span></div>
+				<div><span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span></div>
+				<div>${sourceLink}</div>
+			</div>`;
+		});
+		tblDeps.innerHTML = html;
+	}
+
+	/* ── Notifications tab ──────────────────────────────────────────── */
+
+	function renderNotifications() {
+		const active = (notifications || []).filter(n => !archived.includes(n.id));
+		const archivedList = (notifications || []).filter(n => archived.includes(n.id));
+
+		const activeEl = document.getElementById('notices-active');
+		const archivedEl = document.getElementById('notices-archived');
+		if (!activeEl || !archivedEl) return;
+
+		function renderCard(n, isArchived) {
+			const typeMap = { error: 'notif-error', warn: 'notif-warn', info: 'notif-info' };
+			const cls = typeMap[n.type] || 'notif-info';
+			const action = isArchived ? 'restore' : 'archive';
+			const btnLabel = isArchived ? 'Restore' : 'Archive';
+			return `<div class="ep-notif-card ${cls}">
+				<div class="ep-notif-top">
+					<span class="ep-notif-title">${esc(n.title)}</span>
+					<button class="ep-notif-action" data-id="${esc(n.id)}" data-action="${action}">${btnLabel}</button>
+				</div>
+				<p class="ep-notif-msg">${esc(n.message)}</p>
+			</div>`;
+		}
+
+		activeEl.innerHTML = active.length
+			? active.map(n => renderCard(n, false)).join('')
+			: '<p class="ep-notif-empty">No active notifications.</p>';
+
+		archivedEl.innerHTML = archivedList.length
+			? archivedList.map(n => renderCard(n, true)).join('')
+			: '<p class="ep-notif-empty">No archived notifications.</p>';
+
+		// Bind archive/restore buttons.
+		document.querySelectorAll('.ep-notif-action').forEach(btn => {
+			btn.addEventListener('click', async () => {
+				const id = btn.dataset.id;
+				const action = btn.dataset.action;
+
+				if (action === 'archive' && !archived.includes(id)) {
+					archived.push(id);
+				} else if (action === 'restore') {
+					archived = archived.filter(i => i !== id);
+				}
+				renderNotifications();
+				updateTabCounts();
+
+				await fetch(window.ExamplePressData.restUrl, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': window.ExamplePressData.nonce,
+					},
+					body: JSON.stringify({ id, action }),
+				});
+			});
+		});
+	}
+
+	// Subtab switching within Notifications.
+	document.querySelectorAll('.ep-notif-subtab').forEach(btn => {
+		btn.addEventListener('click', () => {
+			document.querySelectorAll('.ep-notif-subtab').forEach(b => b.classList.remove('active'));
+			btn.classList.add('active');
+			const target = btn.dataset.target;
+			document.getElementById('notices-active').style.display = target === 'notices-active' ? '' : 'none';
+			document.getElementById('notices-archived').style.display = target === 'notices-archived' ? '' : 'none';
+		});
+	});
+
+	renderNotifications();
 
 	/* ── Config tab ─────────────────────────────────────────────────── */
 
@@ -328,23 +389,33 @@ document.addEventListener('DOMContentLoaded', () => {
 			</div>`).join('');
 	}
 
-	/* ── Update tab counts ──────────────────────────────────────────── */
+	/* ── Tab counts ─────────────────────────────────────────────────── */
 
-	const featureCount = Object.values(features).reduce((sum, arr) => sum + (arr ? arr.length : 0), 0);
-	const counts = {
-		't-features': featureCount,
-		't-blocks': blocks.length,
-		't-plugins': plugins ? plugins.length : 0,
-	};
-	Object.entries(counts).forEach(([tabId, count]) => {
-		const tab = document.getElementById(tabId);
-		if (!tab) return;
-		let countEl = tab.querySelector('.ep-tab-count');
-		if (!countEl) {
-			countEl = document.createElement('span');
-			countEl.className = 'ep-tab-count';
-			tab.appendChild(countEl);
-		}
-		countEl.textContent = count;
-	});
+	function updateTabCounts() {
+		const activeNotifCount = (notifications || []).filter(n => !archived.includes(n.id)).length;
+		const featureCount = Object.values(features).reduce((sum, arr) => sum + (arr ? arr.length : 0), 0);
+		const counts = {
+			't-features': featureCount,
+			't-blocks': blocks ? blocks.length : 0,
+			't-dependencies': dependencies ? dependencies.length : 0,
+			't-notifications': activeNotifCount,
+		};
+		Object.entries(counts).forEach(([tabId, count]) => {
+			const tab = document.getElementById(tabId);
+			if (!tab) return;
+			let countEl = tab.querySelector('.ep-tab-count');
+			if (!countEl) {
+				countEl = document.createElement('span');
+				countEl.className = 'ep-tab-count';
+				tab.appendChild(countEl);
+			}
+			countEl.textContent = count;
+			// Hide count badge when zero for notifications.
+			if (tabId === 't-notifications') {
+				countEl.style.display = count > 0 ? '' : 'none';
+			}
+		});
+	}
+
+	updateTabCounts();
 });
