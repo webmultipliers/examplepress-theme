@@ -74,6 +74,15 @@
   border: 1px solid var(--border); border-radius: 100px; padding: 0.18rem 0.5rem; background: var(--bg-elevated);
 }
 
+.ep-copy-report {
+  font-family: var(--mono); font-size: 0.66rem; font-weight: 500;
+  padding: 0.35rem 0.8rem; border-radius: var(--radius); cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-dim);
+  transition: all 0.15s;
+}
+.ep-copy-report:hover { border-color: var(--border-bright); color: var(--text-muted); }
+.ep-copy-report.copied { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
 .ep-subtitle { font-size: 0.82rem; color: var(--text-dim); }
 
 /* ── Tabs ─────────────────────────────────────────────────────────── */

@@ -179,34 +179,27 @@ function examplepress_settings_get_sizes() {
 }
 
 /**
- * Discover Blockstudio blocks by scanning block.json files.
+ * Discover all Blockstudio blocks from the WP block registry.
+ *
+ * Queries WP_Block_Type_Registry instead of scanning the filesystem
+ * so companion plugin blocks are included alongside theme blocks.
  */
 function examplepress_settings_get_blocks() {
-	$blocks = [];
-	$base   = EP_THEME_PATH . '/blockstudio';
+	$blocks     = [];
+	$theme_ns   = examplepress_get_theme_namespace();
+	$registry   = WP_Block_Type_Registry::get_instance();
+	$registered = $registry->get_all_registered();
 
-	if ( ! is_dir( $base ) ) {
-		return $blocks;
-	}
-
-	$iterator = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator( $base, RecursiveDirectoryIterator::SKIP_DOTS )
-	);
-
-	foreach ( $iterator as $file ) {
-		if ( $file->getFilename() !== 'block.json' ) {
+	foreach ( $registered as $name => $block ) {
+		if ( empty( $block->blockstudio ) ) {
 			continue;
 		}
-		$data = json_decode( file_get_contents( $file->getPathname() ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		if ( ! $data || empty( $data['name'] ) ) {
-			continue;
-		}
-		$name     = $data['name'];
+
 		$blocks[] = [
 			'name'   => $name,
-			'title'  => $data['title'] ?? $name,
-			'cat'    => $data['category'] ?? 'uncategorized',
-			'source' => 'theme',
+			'title'  => $block->title ?? $name,
+			'cat'    => $block->category ?? 'uncategorized',
+			'source' => str_starts_with( $name, 'examplepress-theme/' ) ? 'theme' : 'plugin',
 			'type'   => str_contains( $name, '/router' ) ? 'system' : ( str_contains( $name, '/template-' ) ? 'template' : 'block' ),
 		];
 	}
@@ -317,7 +310,13 @@ function examplepress_settings_get_health() {
 			[ 'name' => 'templates/index.html', 'detail' => $router_only ? 'Router block only' : 'Non-standard', 'req' => 'Single router block', 'status' => $router_only ? 'pass' : 'warn' ],
 		],
 		'router'   => [
-			[ 'name' => 'Active Namespace',  'detail' => examplepress_get_theme_namespace(),   'req' => 'Non-empty string', 'status' => ! empty( examplepress_get_theme_namespace() ) ? 'pass' : 'fail' ],
+			[
+				'name'   => 'Active Namespace',
+				'detail' => examplepress_get_theme_namespace(),
+				'req'    => 'Changed via filter',
+				'status' => examplepress_get_theme_namespace() !== 'examplepress-theme' ? 'pass' : 'warn',
+				'note'   => examplepress_get_theme_namespace() === 'examplepress-theme' ? 'Still using the theme default — a companion plugin should override this' : '',
+			],
 			[ 'name' => 'Current Route',     'detail' => examplepress_get_current_route(),     'req' => 'Non-empty string', 'status' => ! empty( examplepress_get_current_route() ) ? 'pass' : 'fail' ],
 			[ 'name' => 'Template Prefix',   'detail' => examplepress_get_template_prefix(),   'req' => 'Non-empty string', 'status' => 'pass' ],
 		],
@@ -378,6 +377,7 @@ function examplepress_render_settings_page() {
 				<div class="ep-header-top">
 					<div class="ep-logo"><span>&lt;</span>ExamplePress<span>/&gt;</span></div>
 					<div class="ep-header-right">
+						<button class="ep-copy-report" id="ep-copy-report">Copy System Report</button>
 						<div class="ep-version">v<?php echo esc_html( EP_THEME_VERSION ); ?></div>
 					</div>
 				</div>

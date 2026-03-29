@@ -2,8 +2,7 @@
 /**
  * Login — Blockstudio entry point.
  *
- * Branding (headerurl, headertext, stylesheet) and URL obscuring are
- * managed by the feature registry. See inc/features.php:
+ * Branding (headerurl, headertext, stylesheet) is managed by the
+ * feature registry. See inc/features/admin-customization.php:
  *   - login-branding
- *   - login-url
  */

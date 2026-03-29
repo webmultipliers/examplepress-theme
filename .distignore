@@ -4,6 +4,7 @@
 .vscode
 .distignore
 AGENTS.md
+docs
 composer.json
 composer.lock
 package.json

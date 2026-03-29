@@ -35,6 +35,23 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 	});
 
+	/* ── Copy system report ─────────────────────────────────────────── */
+
+	const copyBtn = document.getElementById('ep-copy-report');
+	if (copyBtn) {
+		copyBtn.addEventListener('click', () => {
+			const report = JSON.stringify(window.ExamplePressData, null, 2);
+			navigator.clipboard.writeText(report).then(() => {
+				copyBtn.classList.add('copied');
+				copyBtn.textContent = 'Copied!';
+				setTimeout(() => {
+					copyBtn.classList.remove('copied');
+					copyBtn.textContent = 'Copy System Report';
+				}, 2000);
+			});
+		});
+	}
+
 	/* ── Render helpers ─────────────────────────────────────────────── */
 
 	function badge(on, label) {
