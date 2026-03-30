@@ -23,7 +23,7 @@ Requires the Blockstudio plugin (v7.1+).
 = 1.0.0 =
 * Single-entry-point router architecture.
 * Three-layer template guard system.
-* Feature registry with 23 toggleable features.
+* Feature registry with 22 toggleable features.
 * Declarative configuration via examplepress.json.
 * Design token injection (colors, layout, typography).
 * Read-only admin settings dashboard.

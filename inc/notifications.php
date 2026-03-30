@@ -35,7 +35,8 @@ function examplepress_archive_notification( WP_REST_Request $request ) {
 	}
 
 	$user_id  = get_current_user_id();
-	$archived = get_user_meta( $user_id, 'ep_archived_notifications', true ) ?: [];
+	$archived = get_user_meta( $user_id, 'ep_archived_notifications', true );
+	$archived = is_array( $archived ) ? $archived : [];
 
 	if ( $action === 'archive' && ! in_array( $id, $archived, true ) ) {
 		$archived[] = $id;
@@ -52,7 +53,8 @@ function examplepress_archive_notification( WP_REST_Request $request ) {
  * Get the current user's archived notification IDs.
  */
 function examplepress_get_archived_notifications() {
-	return get_user_meta( get_current_user_id(), 'ep_archived_notifications', true ) ?: [];
+	$meta = get_user_meta( get_current_user_id(), 'ep_archived_notifications', true );
+	return is_array( $meta ) ? $meta : [];
 }
 
 // ── Notification Aggregator ────────────────────────────────────────

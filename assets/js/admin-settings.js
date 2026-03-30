@@ -10,7 +10,16 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	const version = window.ExamplePressData.themeVersion || '?';
-	console.info(`[ExamplePress] Settings page initializing — v${version}`);
+	const devMode = !!window.ExamplePressData.devMode;
+
+	// Gated logging — only emits to console when EP_DEV_MODE is active.
+	const log = {
+		info: (...args) => devMode && console.info(...args),
+		warn: (...args) => devMode && console.warn(...args),
+		error: (...args) => console.error(...args), // errors always log
+	};
+
+	log.info(`[ExamplePress] Settings page initializing — v${version}`);
 
 	const {
 		features,
@@ -67,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		const panel = document.getElementById(tab.getAttribute('aria-controls'));
 		if (panel) panel.setAttribute('aria-hidden', 'false');
 		setUrlParams(tabId);
-		console.info(`[ExamplePress] Tab activated: ${tabId}`);
+		log.info(`[ExamplePress] Tab activated: ${tabId}`);
 	}
 
 	/* ── Tab switching ──────────────────────────────────────────────── */
@@ -92,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			const panel = document.getElementById(panelId);
 			if (panel) panel.style.display = 'none';
 		});
-		console.info(`[ExamplePress] Hidden tabs: ${hiddenTabs.join(', ')}`);
+		log.info(`[ExamplePress] Hidden tabs: ${hiddenTabs.join(', ')}`);
 	}
 
 	/* ── Initial tab from URL ──────────────────────────────────────── */
@@ -111,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			navigator.clipboard.writeText(report).then(() => {
 				copyBtn.classList.add('copied');
 				copyBtn.textContent = 'Copied!';
-				console.info(`[ExamplePress] System report copied (${report.length} chars)`);
+				log.info(`[ExamplePress] System report copied (${report.length} chars)`);
 				setTimeout(() => {
 					copyBtn.classList.remove('copied');
 					copyBtn.textContent = 'Copy System Report';
@@ -206,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	const featureCount = Object.values(features).reduce((sum, arr) => sum + (arr ? arr.length : 0), 0);
 	const catCount = Object.keys(features).length;
-	console.info(`[ExamplePress] Features rendered: ${featureCount} features across ${catCount} categories`);
+	log.info(`[ExamplePress] Features rendered: ${featureCount} features across ${catCount} categories`);
 
 	/* ── Feature Detail Modal ──────────────────────────────────────── */
 
@@ -284,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		modalBody.innerHTML = html;
 		modalOverlay.style.display = '';
-		console.info(`[ExamplePress] Feature modal opened: ${featureId}`);
+		log.info(`[ExamplePress] Feature modal opened: ${featureId}`);
 	}
 
 	function closeFeatureModal() {
@@ -313,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
 					<div class="ep-color-meta"><span class="ep-color-hex">${esc(c.color)}</span><span class="ep-color-slug">${esc(c.slug)}</span></div>
 				</div>
 			</div>`).join('');
-		console.info(`[ExamplePress] Design: ${colors.length} colors loaded`);
+		log.info(`[ExamplePress] Design: ${colors.length} colors loaded`);
 	}
 
 	const layoutEl = document.getElementById('layout-visual');
@@ -365,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			});
 		});
 		tblBlocks.innerHTML = html;
-		console.info(`[ExamplePress] Blocks: ${blocks.length} blocks across ${cats.length} categories`);
+		log.info(`[ExamplePress] Blocks: ${blocks.length} blocks across ${cats.length} categories`);
 	}
 
 	/* ── Dependencies tab ───────────────────────────────────────────── */
@@ -374,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	if (tblDeps) {
 		if (!dependencies || !dependencies.length) {
 			tblDeps.innerHTML = '<p class="ep-notif-empty">No dependencies declared in examplepress.json.</p>';
-			console.warn('[ExamplePress] No dependencies declared');
+			log.warn('[ExamplePress] No dependencies declared');
 		} else {
 			let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Dependency</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
 			dependencies.forEach(p => {
@@ -415,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				</div>`;
 			});
 			tblDeps.innerHTML = html;
-			console.info(`[ExamplePress] Dependencies: ${dependencies.length} loaded`);
+			log.info(`[ExamplePress] Dependencies: ${dependencies.length} loaded`);
 		}
 	}
 
@@ -459,10 +468,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 				if (action === 'archive' && !archived.includes(id)) {
 					archived.push(id);
-					console.info(`[ExamplePress] Notification archived: ${id}`);
+					log.info(`[ExamplePress] Notification archived: ${id}`);
 				} else if (action === 'restore') {
 					archived = archived.filter(i => i !== id);
-					console.info(`[ExamplePress] Notification restored: ${id}`);
+					log.info(`[ExamplePress] Notification restored: ${id}`);
 				}
 				renderNotifications();
 				updateTabCounts();
@@ -557,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		healthTable('tbl-health-theme', healthChecks.theme);
 		healthTable('tbl-health-router', healthChecks.router);
 		healthTable('tbl-health-security', healthChecks.security);
-		console.info(`[ExamplePress] Health: ${pass} pass, ${warn} warn, ${fail} fail, ${info} info`);
+		log.info(`[ExamplePress] Health: ${pass} pass, ${warn} warn, ${fail} fail, ${info} info`);
 	}
 
 	/* ── Docs tab ───────────────────────────────────────────────────── */
@@ -625,7 +634,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				tblMenus.innerHTML = html;
 			}
 		}
-		console.info(`[ExamplePress] Navigation: ${navigation.menus.length} menus, ${navigation.locations.length} locations`);
+		log.info(`[ExamplePress] Navigation: ${navigation.menus.length} menus, ${navigation.locations.length} locations`);
 	}
 
 	/* ── Demo Companion Plugin ─────────────────────────────────────── */
@@ -678,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				installBtn.addEventListener('click', async () => {
 					installBtn.disabled = true;
 					installBtn.textContent = 'Installing...';
-					console.info('[ExamplePress] Demo install started');
+					log.info('[ExamplePress] Demo install started');
 					try {
 						const res = await fetch(window.ExamplePressData.demoInstallUrl, {
 							method: 'POST',
@@ -687,12 +696,12 @@ document.addEventListener('DOMContentLoaded', () => {
 						const data = await res.json();
 						if (res.ok && data.success) {
 							demoStatus = data.status;
-							console.info(`[ExamplePress] Demo install success: ${data.status}`);
+							log.info(`[ExamplePress] Demo install success: ${data.status}`);
 							renderDemo();
 						} else {
 							const msg = data.message || data.data?.message || 'Install failed.';
 							demoMessage.textContent = msg;
-							console.error(`[ExamplePress] Demo install error: ${msg}`);
+							log.error(`[ExamplePress] Demo install error: ${msg}`);
 							installBtn.disabled = false;
 							installBtn.textContent = 'Retry Install';
 						}
@@ -709,7 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				uninstallBtn.addEventListener('click', async () => {
 					uninstallBtn.disabled = true;
 					uninstallBtn.textContent = 'Removing...';
-					console.info('[ExamplePress] Demo uninstall started');
+					log.info('[ExamplePress] Demo uninstall started');
 					try {
 						const res = await fetch(window.ExamplePressData.demoUninstallUrl, {
 							method: 'POST',
@@ -718,7 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
 						const data = await res.json();
 						if (res.ok && data.success) {
 							demoStatus = data.status;
-							console.info(`[ExamplePress] Demo uninstall success`);
+							log.info(`[ExamplePress] Demo uninstall success`);
 							renderDemo();
 						} else {
 							const msg = data.message || data.data?.message || 'Uninstall failed.';
@@ -836,7 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 
 			setBuildLoading(true);
-			console.info(`[ExamplePress] Build started: ${appName} (${appSlug})`);
+			log.info(`[ExamplePress] Build started: ${appName} (${appSlug})`);
 
 			try {
 				const res = await fetch(window.ExamplePressData.buildUrl, {
@@ -854,14 +863,14 @@ document.addEventListener('DOMContentLoaded', () => {
 					const errMsg = data.message || data.data?.message || 'An unknown error occurred.';
 					showBuildError(errMsg);
 					setBuildLoading(false);
-					console.error(`[ExamplePress] Build error: ${errMsg}`);
+					log.error(`[ExamplePress] Build error: ${errMsg}`);
 					return;
 				}
 
 				// Show success card.
 				buildForm.style.display = 'none';
 				buildSuccess.style.display = '';
-				console.info(`[ExamplePress] Build success: ${data.repoUrl || appSlug}`);
+				log.info(`[ExamplePress] Build success: ${data.repoUrl || appSlug}`);
 
 				const successMsg = document.getElementById('ep-build-success-msg');
 				successMsg.textContent = data.message || 'Your companion plugin repository has been created.';
@@ -887,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				}
 			} catch (err) {
 				showBuildError('Network error: ' + err.message);
-				console.error(`[ExamplePress] Build network error: ${err.message}`);
+				log.error(`[ExamplePress] Build network error: ${err.message}`);
 			}
 
 			setBuildLoading(false);
@@ -937,5 +946,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	updateTabCounts();
 
-	console.info('[ExamplePress] Settings page ready.');
+	log.info('[ExamplePress] Settings page ready.');
 });

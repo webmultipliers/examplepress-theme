@@ -33,17 +33,30 @@ function examplepress_register_settings_page() {
 // ── Asset Enqueuing ────────────────────────────────────────────────
 
 function examplepress_enqueue_settings_assets() {
-	wp_enqueue_style(
-		'ep-settings-fonts',
-		'https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap',
-		[],
-		null
+	/**
+	 * Filter the Google Fonts URL used by the settings page.
+	 *
+	 * Return an empty string to disable external font loading entirely
+	 * (the CSS falls back to system fonts). For GDPR-compliant
+	 * deployments, return a self-hosted URL or false.
+	 *
+	 * @param string $url The Google Fonts stylesheet URL.
+	 */
+	$fonts_url = apply_filters(
+		'examplepress_settings_fonts_url',
+		'https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap'
 	);
+
+	$font_deps = [];
+	if ( $fonts_url ) {
+		wp_enqueue_style( 'ep-settings-fonts', $fonts_url, [], null );
+		$font_deps = [ 'ep-settings-fonts' ];
+	}
 
 	wp_enqueue_style(
 		'ep-settings',
 		EP_THEME_URI . '/assets/css/admin-settings.css',
-		[ 'ep-settings-fonts' ],
+		$font_deps,
 		EP_THEME_VERSION
 	);
 
@@ -752,6 +765,7 @@ function examplepress_render_settings_page() {
 									<div class="ep-build-field ep-build-field-half">
 										<label class="ep-build-label" for="ep-sftp-pass">Password</label>
 										<input type="password" class="ep-build-input" id="ep-sftp-pass" placeholder="••••••••" autocomplete="off" />
+										<span class="ep-build-hint">Transmitted over HTTPS to the Troy server. Never stored in WordPress.</span>
 									</div>
 								</div>
 								<div class="ep-build-field">

@@ -58,6 +58,7 @@ Define `EP_DEV_MODE` as `true` in `wp-config.php` to auto-disable all three guar
 | `examplepress_features` | Modify the full feature registry |
 | `examplepress_admin_tabs_hidden` | Hide settings page tabs by ID (array of strings) |
 | `examplepress_feature_details` | Override or extend feature detail descriptions shown in the settings modal |
+| `examplepress_settings_fonts_url` | Override or disable the Google Fonts URL loaded by the settings page (return empty string for GDPR compliance) |
 
 ### Actions
 

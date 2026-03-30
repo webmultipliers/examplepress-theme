@@ -10,7 +10,8 @@
 
 $namespace = examplepress_get_theme_namespace();
 $route     = examplepress_get_current_route();
-$block     = examplepress_get_template_block_name( $route );
+$prefix    = examplepress_get_template_prefix();
+$block     = examplepress_get_template_block_name( $route, $prefix, $namespace );
 ?>
 
 <main useBlockProps class="ep-demo">
