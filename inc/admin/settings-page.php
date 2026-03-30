@@ -102,7 +102,6 @@ function examplepress_settings_gather_data() {
 		'featureDetails' => examplepress_settings_get_feature_details(),
 		'demo'           => [ 'status' => function_exists( 'examplepress_get_demo_status' ) ? examplepress_get_demo_status() : 'not-installed' ],
 		'restUrl'        => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
-		'buildUrl'       => esc_url_raw( rest_url( 'examplepress/v1/build' ) ),
 		'demoInstallUrl' => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
 		'demoUninstallUrl' => esc_url_raw( rest_url( 'examplepress/v1/demo/uninstall' ) ),
 		'nonce'          => wp_create_nonce( 'wp_rest' ),
@@ -803,7 +802,7 @@ function examplepress_render_settings_page() {
 			<div class="ep-panel" id="p-build" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Scaffold Companion App</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Create a new companion plugin repository on GitHub via Troy. Your app will be pre-configured with the ExamplePress foundation, a CI/CD pipeline, and optional staging auto-sync.</p>
+					<p class="ep-section-desc">Launch the Troy scaffolding service to create a new companion plugin repository. All configuration — naming, GitHub setup, and deployment options — is handled on the Troy side.</p>
 					<button class="ep-build-submit" id="ep-build-open-modal">
 						<span class="ep-build-submit-label">Create App</span>
 					</button>
@@ -970,115 +969,48 @@ function examplepress_render_settings_page() {
 
 		<!-- Build Modal -->
 		<div class="ep-modal-overlay" id="ep-build-modal" style="display:none">
-			<div class="ep-modal" style="max-width:640px">
+			<div class="ep-modal" style="max-width:520px">
 				<div class="ep-modal-header">
 					<div>
 						<span class="ep-modal-title">Scaffold Companion App</span>
-						<span class="ep-modal-id">Create a new companion plugin via Troy</span>
+						<span class="ep-modal-id">Choose where to create your app</span>
 					</div>
 					<button class="ep-modal-close" id="ep-build-modal-close">&times;</button>
 				</div>
 				<div class="ep-modal-body">
-					<div class="ep-build-alert">
-						<span class="ep-badge badge-info"><span class="ep-dot"></span>Coming Soon</span>
-						<p>The scaffolding service is currently conceptual. This form previews the planned workflow for creating companion plugin repositories via Troy.</p>
-					</div>
+					<p class="ep-build-handoff-desc">Select a Troy server to handle the scaffolding. You'll complete setup — including naming, configuration, and repository creation — on the Troy side.</p>
 
-					<!-- Build Form -->
-					<div id="ep-build-form-wrap">
-						<div class="ep-build-form" style="max-width:none">
-							<!-- GitHub Authentication -->
-							<div class="ep-build-field">
-								<label class="ep-build-label" for="ep-github-token">GitHub Personal Access Token</label>
-								<input type="password" class="ep-build-input" id="ep-github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
-								<span class="ep-build-hint">Requires <code>repo</code> and <code>codespace</code> scopes. <a href="https://github.com/settings/tokens/new?scopes=repo,codespace&description=ExamplePress+Build" target="_blank" rel="noopener" class="ep-link">Generate token &rarr;</a></span>
+					<div class="ep-build-options">
+						<a class="ep-build-option" id="ep-build-option-cloud" href="https://cloud.troy.dev/scaffold" target="_blank" rel="noopener">
+							<div class="ep-build-option-icon">&#9729;</div>
+							<div class="ep-build-option-content">
+								<div class="ep-build-option-title">Troy Cloud</div>
+								<div class="ep-build-option-desc">Hosted scaffolding service. No setup required &mdash; authenticate with GitHub and create your companion plugin in seconds.</div>
 							</div>
+							<span class="ep-build-option-arrow">&rarr;</span>
+						</a>
 
-							<!-- App Configuration -->
-							<div class="ep-build-row">
-								<div class="ep-build-field ep-build-field-half">
-									<label class="ep-build-label" for="ep-app-name">App Name</label>
-									<input type="text" class="ep-build-input" id="ep-app-name" placeholder="Acme Corp Core" />
-								</div>
-								<div class="ep-build-field ep-build-field-half">
-									<label class="ep-build-label" for="ep-app-slug">App Slug</label>
-									<input type="text" class="ep-build-input" id="ep-app-slug" placeholder="acme-corp-core" />
-								</div>
+						<div class="ep-build-option ep-build-option-custom" id="ep-build-option-custom">
+							<div class="ep-build-option-icon">&#9881;</div>
+							<div class="ep-build-option-content">
+								<div class="ep-build-option-title">Custom Server</div>
+								<div class="ep-build-option-desc">Self-hosted Troy instance for teams with private infrastructure or custom scaffolding requirements.</div>
 							</div>
-
-							<div class="ep-build-row">
-								<div class="ep-build-field ep-build-field-half">
-									<label class="ep-build-label" for="ep-troy-server">Troy Server</label>
-									<select class="ep-build-select" id="ep-troy-server">
-										<option value="cloud">Troy Cloud (Hosted)</option>
-										<option value="custom">Custom URL</option>
-									</select>
-								</div>
-								<div class="ep-build-field ep-build-field-half" id="ep-custom-url-wrap" style="display:none">
-									<label class="ep-build-label" for="ep-custom-url">Custom Server URL</label>
-									<input type="url" class="ep-build-input" id="ep-custom-url" placeholder="https://troy.yourcompany.com" />
-								</div>
-							</div>
-
-							<!-- Staging Toggle -->
-							<div class="ep-build-field">
-								<label class="ep-build-checkbox-label">
-									<input type="checkbox" id="ep-staging-toggle" />
-									<span>Connect Staging Environment (SFTP Auto-Sync on Save)</span>
-								</label>
-							</div>
-
-							<!-- Staging SFTP Fields (hidden by default) -->
-							<div id="ep-staging-fields" style="display:none">
-								<div class="ep-build-row">
-									<div class="ep-build-field ep-build-field-half">
-										<label class="ep-build-label" for="ep-sftp-host">SFTP Host</label>
-										<input type="text" class="ep-build-input" id="ep-sftp-host" placeholder="staging.example.com" />
-									</div>
-									<div class="ep-build-field ep-build-field-quarter">
-										<label class="ep-build-label" for="ep-sftp-port">Port</label>
-										<input type="number" class="ep-build-input" id="ep-sftp-port" value="22" />
-									</div>
-								</div>
-								<div class="ep-build-row">
-									<div class="ep-build-field ep-build-field-half">
-										<label class="ep-build-label" for="ep-sftp-user">Username</label>
-										<input type="text" class="ep-build-input" id="ep-sftp-user" placeholder="deploy" />
-									</div>
-									<div class="ep-build-field ep-build-field-half">
-										<label class="ep-build-label" for="ep-sftp-pass">Password</label>
-										<input type="password" class="ep-build-input" id="ep-sftp-pass" placeholder="••••••••" autocomplete="off" />
-										<span class="ep-build-hint">Transmitted over HTTPS to the Troy server. Never stored in WordPress.</span>
-									</div>
-								</div>
-								<div class="ep-build-field">
-									<label class="ep-build-label" for="ep-sftp-path">Remote Path</label>
-									<input type="text" class="ep-build-input" id="ep-sftp-path" placeholder="/wp-content/plugins/acme-corp-core" />
-									<span class="ep-build-hint">Auto-filled from App Slug if left empty.</span>
-								</div>
-							</div>
-
-							<!-- Error display -->
-							<div id="ep-build-error" class="ep-build-error" style="display:none"></div>
-
-							<!-- Submit -->
-							<button class="ep-build-submit" id="ep-build-submit">
-								<span class="ep-build-submit-label">Scaffold &amp; Create Repo</span>
-								<span class="ep-build-spinner" style="display:none"></span>
-							</button>
+							<span class="ep-build-option-arrow">&rarr;</span>
 						</div>
 					</div>
 
-					<!-- Success Card (hidden by default) -->
-					<div id="ep-build-success" class="ep-build-success" style="display:none">
-						<div class="ep-build-success-icon">&#10003;</div>
-						<div class="ep-build-success-title">Repository Created</div>
-						<p class="ep-build-success-msg" id="ep-build-success-msg"></p>
-						<div class="ep-build-success-actions">
-							<a id="ep-build-codespaces-link" class="ep-build-btn-primary" href="#" target="_blank" rel="noopener">Launch in Codespaces &#8599;</a>
-							<a id="ep-build-repo-link" class="ep-build-btn-secondary" href="#" target="_blank" rel="noopener">View Repository &rarr;</a>
+					<!-- Custom Server URL (shown when Custom Server is selected) -->
+					<div id="ep-build-custom-wrap" class="ep-build-custom-wrap" style="display:none">
+						<div class="ep-build-field">
+							<label class="ep-build-label" for="ep-custom-server-url">Server URL</label>
+							<input type="url" class="ep-build-input" id="ep-custom-server-url" placeholder="https://troy.yourcompany.com" />
+							<span class="ep-build-hint">Must use HTTPS. You'll complete setup on your Troy server.</span>
 						</div>
-						<button class="ep-build-reset" id="ep-build-reset">Create Another App</button>
+						<div id="ep-build-error" class="ep-build-error" style="display:none"></div>
+						<a class="ep-build-submit" id="ep-build-custom-go" href="#" target="_blank" rel="noopener">
+							<span class="ep-build-submit-label">Continue to Server &rarr;</span>
+						</a>
 					</div>
 				</div>
 			</div>

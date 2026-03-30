@@ -171,42 +171,298 @@
 			"category": "Blockstudio"
 		}
 	],
+	"updater": {
+		"github_repo": "webmultipliers/examplepress-theme",
+		"asset_filename": "examplepress-theme.zip",
+		"theme_slug": "examplepress-theme",
+		"default_channel": "prerelease",
+		"requires_wp": "6.9",
+		"requires_php": "8.4"
+	},
 	"dependencies": [
-		{
-			"slug": "blockstudio",
-			"name": "Blockstudio",
-			"tier": "required",
-			"pricing": "paid",
-			"cloud_dependent": false,
-			"check_type": "class",
-			"check_target": "Blockstudio\\Build",
-			"source": {
-				"type": "direct",
-				"url": "https://blockstudio.dev/"
-			}
-		},
-		{
-			"slug": "action-scheduler",
-			"name": "Action Scheduler",
-			"tier": "recommended",
-			"pricing": "free",
-			"cloud_dependent": false,
-			"check_type": "function",
-			"check_target": "as_schedule_single_action",
-			"source": {
-				"type": "wporg"
-			}
-		},
 		{
 			"slug": "redirection",
 			"name": "Redirection",
-			"tier": "optional",
+			"tier": "recommended",
 			"pricing": "free",
 			"cloud_dependent": false,
 			"check_type": "plugin",
 			"check_target": "redirection/redirection.php",
 			"source": {
 				"type": "wporg"
+			}
+		},
+		{
+			"slug": "realfavicongenerator",
+			"name": "Real Favicon Generator",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "realfavicongenerator/realfavicongenerator.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "create-block-theme",
+			"name": "Create Block Theme",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "create-block-theme/create-block-theme.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "query-monitor",
+			"name": "Query Monitor",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "query-monitor/query-monitor.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "safe-svg",
+			"name": "Safe SVG",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "safe-svg/safe-svg.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "simple-local-avatar",
+			"name": "Simple Local Avatar",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "simple-local-avatar/simple-local-avatar.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "stream",
+			"name": "Stream",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "stream/stream.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "user-switching",
+			"name": "User Switching",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "user-switching/user-switching.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "wp-crontrol",
+			"name": "WP Crontrol",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "wp-crontrol/wp-crontrol.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "duplicate-post",
+			"name": "Duplicate Post",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "duplicate-post/duplicate-post.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "insert-special-character",
+			"name": "Insert Special Character",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "insert-special-character/insert-special-character.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "microsoft-clarity",
+			"name": "Microsoft Clarity",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": true,
+			"check_type": "plugin",
+			"check_target": "microsoft-clarity/microsoft-clarity.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "patchstack",
+			"name": "Patchstack",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": true,
+			"check_type": "plugin",
+			"check_target": "patchstack/patchstack.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "postmark",
+			"name": "Postmark",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": true,
+			"check_type": "plugin",
+			"check_target": "postmark/postmark.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "fathom-analytics",
+			"name": "Fathom Analytics",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": true,
+			"check_type": "plugin",
+			"check_target": "fathom-analytics/fathom-analytics.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "iframely",
+			"name": "Iframely",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": true,
+			"check_type": "plugin",
+			"check_target": "iframely/iframely.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "iubenda",
+			"name": "iubenda",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": true,
+			"check_type": "plugin",
+			"check_target": "iubenda/iubenda.php",
+			"source": {
+				"type": "wporg"
+			}
+		},
+		{
+			"slug": "perfmatters",
+			"name": "Perfmatters",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "perfmatters/perfmatters.php",
+			"source": {
+				"type": "direct",
+				"url": "https://perfmatters.io/"
+			}
+		},
+		{
+			"slug": "novashare",
+			"name": "Novashare",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "novashare/novashare.php",
+			"source": {
+				"type": "direct",
+				"url": "https://novashare.io/"
+			}
+		},
+		{
+			"slug": "admin-columns-pro",
+			"name": "Admin Columns Pro",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "admin-columns-pro/admin-columns-pro.php",
+			"source": {
+				"type": "direct",
+				"url": "https://www.admincolumns.com/"
+			},
+			"fallback_slug": "admin-columns"
+		},
+		{
+			"slug": "ws-form-pro",
+			"name": "WS Form Pro",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "ws-form-pro/ws-form-pro.php",
+			"source": {
+				"type": "direct",
+				"url": "https://wsform.com/"
+			},
+			"fallback_slug": "ws-form-lite"
+		},
+		{
+			"slug": "meta-box-aio",
+			"name": "Meta Box AIO",
+			"tier": "recommended",
+			"pricing": "paid",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "meta-box-aio/meta-box-aio.php",
+			"source": {
+				"type": "direct",
+				"url": "https://metabox.io/"
+			},
+			"fallback_slug": "meta-box"
+		},
+		{
+			"slug": "the-seo-framework",
+			"name": "The SEO Framework",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "autodescription/autodescription.php",
+			"source": {
+				"type": "direct",
+				"url": "https://theseoframework.com/"
 			}
 		}
 	]
