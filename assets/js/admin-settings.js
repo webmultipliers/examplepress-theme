@@ -109,6 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
 	const urlParams = getUrlParams();
 	if (urlParams.tab) {
 		activateTab(urlParams.tab);
+	} else {
+		activateTab('overview');
 	}
 
 	/* ── Copy system report ─────────────────────────────────────────── */
@@ -307,8 +309,43 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 	}
 	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape') closeFeatureModal();
+		if (e.key === 'Escape') {
+			closeFeatureModal();
+			closeBuildModal();
+		}
 	});
+
+	/* ── Generic Modal Helper ──────────────────────────────────────── */
+
+	function openGenericModal(title, subtitle, bodyHtml) {
+		if (!modalOverlay) return;
+		modalTitle.textContent = title;
+		modalId.textContent = subtitle || '';
+		modalBody.innerHTML = bodyHtml;
+		modalOverlay.style.display = '';
+	}
+
+	/* ── Build Modal ───────────────────────────────────────────────── */
+
+	const buildModal = document.getElementById('ep-build-modal');
+	const buildModalClose = document.getElementById('ep-build-modal-close');
+	const buildOpenBtn = document.getElementById('ep-build-open-modal');
+
+	function openBuildModal() {
+		if (buildModal) buildModal.style.display = '';
+	}
+
+	function closeBuildModal() {
+		if (buildModal) buildModal.style.display = 'none';
+	}
+
+	if (buildOpenBtn) buildOpenBtn.addEventListener('click', openBuildModal);
+	if (buildModalClose) buildModalClose.addEventListener('click', closeBuildModal);
+	if (buildModal) {
+		buildModal.addEventListener('click', (e) => {
+			if (e.target === buildModal) closeBuildModal();
+		});
+	}
 
 	/* ── Design tab ─────────────────────────────────────────────────── */
 
@@ -360,12 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
 	const tblBlocks = document.getElementById('tbl-blocks');
 	if (tblBlocks && blocks.length) {
 		let html = '<div class="ep-row ep-row-head ep-cols-blocks"><div class="ep-th">Block</div><div class="ep-th">Category</div><div class="ep-th">Source</div><div class="ep-th">Type</div></div>';
-		const cats = [...new Set(blocks.map(b => b.cat))];
-		cats.forEach(cat => {
-			html += `<div class="ep-block-cat">${esc(cat)}</div>`;
-			blocks.filter(b => b.cat === cat).forEach(b => {
+		// Group by namespace (text before the /).
+		const namespaces = [...new Set(blocks.map(b => b.name.split('/')[0]))];
+		namespaces.forEach(ns => {
+			html += `<div class="ep-block-cat">${esc(ns)}</div>`;
+			blocks.filter(b => b.name.startsWith(ns + '/')).forEach(b => {
 				const typeCls = b.type === 'template' ? 'badge-on' : b.type === 'system' ? 'badge-info' : 'badge-off';
-				html += `<div class="ep-row ep-cols-blocks">
+				html += `<div class="ep-row ep-cols-blocks ep-row-clickable" data-block-name="${esc(b.name)}">
 					<div class="ep-td-label"><span class="ep-name">${esc(b.title)}</span><span class="ep-id">${esc(b.name)}</span></div>
 					<div><span class="ep-id">${esc(b.cat)}</span></div>
 					<div><span class="ep-src">${esc(b.source)}</span></div>
@@ -374,7 +412,32 @@ document.addEventListener('DOMContentLoaded', () => {
 			});
 		});
 		tblBlocks.innerHTML = html;
-		log.info(`[ExamplePress] Blocks: ${blocks.length} blocks across ${cats.length} categories`);
+		log.info(`[ExamplePress] Blocks: ${blocks.length} blocks across ${namespaces.length} namespaces`);
+
+		// Block detail modals.
+		tblBlocks.querySelectorAll('.ep-row-clickable[data-block-name]').forEach(row => {
+			row.addEventListener('click', () => {
+				const name = row.dataset.blockName;
+				const b = blocks.find(bl => bl.name === name);
+				if (!b) return;
+				const typeCls = b.type === 'template' ? 'badge-on' : b.type === 'system' ? 'badge-info' : 'badge-off';
+				let body = '<div class="ep-modal-status">';
+				body += `<span class="ep-badge ${typeCls}"><span class="ep-dot"></span>${esc(b.type)}</span>`;
+				body += `<span class="ep-src">${esc(b.source)}</span>`;
+				body += '</div>';
+				body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Category</div>';
+				body += `<p class="ep-modal-text">${esc(b.cat)}</p></div>`;
+				body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Namespace</div>';
+				body += `<p class="ep-modal-text"><code class="ep-modal-filter">${esc(b.name.split('/')[0])}</code></p></div>`;
+				body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Block Name</div>';
+				body += `<pre class="ep-modal-code">${esc(b.name)}</pre></div>`;
+				if (b.type === 'template') {
+					body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Router</div>';
+					body += '<p class="ep-modal-text">This is a template block &mdash; the router can dispatch requests to it based on the resolved route.</p></div>';
+				}
+				openGenericModal(b.title, b.name, body);
+			});
+		});
 	}
 
 	/* ── Dependencies tab ───────────────────────────────────────────── */
@@ -416,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
 					sourceLink = `<a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a>`;
 				}
 
-				html += `<div class="ep-row ep-cols-4">
+				html += `<div class="ep-row ep-cols-4 ep-row-clickable" data-dep-slug="${esc(p.slug)}">
 					<div class="ep-td-label"><span class="ep-name">${esc(p.name)}${badges}</span><span class="ep-id">${esc(p.slug)}</span>${fallbackNote}</div>
 					<div><span class="ep-tier ${tierCls}">${esc(p.tier)}</span></div>
 					<div><span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span></div>
@@ -425,6 +488,53 @@ document.addEventListener('DOMContentLoaded', () => {
 			});
 			tblDeps.innerHTML = html;
 			log.info(`[ExamplePress] Dependencies: ${dependencies.length} loaded`);
+
+			// Dependency detail modals.
+			tblDeps.querySelectorAll('.ep-row-clickable[data-dep-slug]').forEach(row => {
+				row.addEventListener('click', (e) => {
+					// Don't open modal if clicking a link.
+					if (e.target.closest('a')) return;
+					const slug = row.dataset.depSlug;
+					const p = dependencies.find(d => d.slug === slug);
+					if (!p) return;
+					const statusMap = {
+						active:    { cls: 'badge-on',   lbl: 'Active' },
+						installed: { cls: 'badge-warn', lbl: 'Installed' },
+						fallback:  { cls: 'badge-info', lbl: 'Free Alt.' },
+						missing:   { cls: 'badge-err',  lbl: 'Missing' },
+					};
+					const st = statusMap[p.status] || statusMap.missing;
+					const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
+					const tierCls = tierMap[p.tier] || 'tier-opt';
+
+					let body = '<div class="ep-modal-status">';
+					body += `<span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span>`;
+					body += `<span class="ep-tier ${tierCls}">${esc(p.tier)}</span>`;
+					if (p.pricing === 'paid') body += '<span class="ep-meta-badge meta-paid">Paid</span>';
+					if (p.cloud) body += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
+					body += '</div>';
+
+					body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Slug</div>';
+					body += `<pre class="ep-modal-code">${esc(p.slug)}</pre></div>`;
+
+					if (p.checkType) {
+						body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Detection Method</div>';
+						body += `<p class="ep-modal-text">${esc(p.checkType === 'plugin' ? 'WordPress plugin registry scan' : p.checkType === 'class' ? 'class_exists() check (Composer)' : 'function_exists() check')}</p></div>`;
+					}
+
+					if (p.fallback) {
+						body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Free Alternative</div>';
+						body += `<p class="ep-modal-text">${esc(p.fallback.slug)} &mdash; ${esc(p.fallback.status || 'unknown')}</p></div>`;
+					}
+
+					if (p.url) {
+						body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Source</div>';
+						body += `<p class="ep-modal-text"><a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(p.url)} &rarr;</a></p></div>`;
+					}
+
+					openGenericModal(p.name, p.slug, body);
+				});
+			});
 		}
 	}
 
@@ -585,11 +695,44 @@ document.addEventListener('DOMContentLoaded', () => {
 	const hooksList = document.getElementById('hooks-list');
 	if (hooksList && hooks.length) {
 		hooksList.innerHTML = hooks.map(h => `
-			<div class="ep-hook-item">
+			<div class="ep-hook-item ep-hook-item-clickable" data-hook-name="${esc(h.name)}">
 				<span class="ep-hook-type ${h.type === 'filter' ? 'hook-filter' : 'hook-action'}">${esc(h.type)}</span>
 				<span class="ep-hook-name">${esc(h.name)}</span>
 				<span class="ep-hook-desc">${esc(h.desc)}</span>
 			</div>`).join('');
+
+		// Hook detail modals.
+		hooksList.querySelectorAll('.ep-hook-item-clickable').forEach(item => {
+			item.addEventListener('click', () => {
+				const name = item.dataset.hookName;
+				const h = hooks.find(hk => hk.name === name);
+				if (!h) return;
+
+				const typeCls = h.type === 'filter' ? 'hook-filter' : 'hook-action';
+				let body = '<div class="ep-modal-status">';
+				body += `<span class="ep-hook-type ${typeCls}">${esc(h.type)}</span>`;
+				body += '</div>';
+
+				body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Description</div>';
+				body += `<p class="ep-modal-text">${esc(h.desc)}</p></div>`;
+
+				body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Hook Name</div>';
+				body += `<pre class="ep-modal-code">${esc(h.name)}</pre></div>`;
+
+				// Usage example.
+				let usage = '';
+				if (h.type === 'filter') {
+					const paramName = h.name.includes('{id}') ? '$value' : '$value';
+					usage = `add_filter( '${h.name}', function ( ${paramName} ) {\n    // Your modification here.\n    return ${paramName};\n} );`;
+				} else {
+					usage = `add_action( '${h.name}', function () {\n    // Your code here.\n} );`;
+				}
+				body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Usage Example</div>';
+				body += `<pre class="ep-modal-code">${esc(usage)}</pre></div>`;
+
+				openGenericModal(h.name, h.type, body);
+			});
+		});
 	}
 
 	/* ── Navigation tab ────────────────────────────────────────────── */

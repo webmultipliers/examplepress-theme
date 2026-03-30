@@ -180,9 +180,8 @@ ul#adminmenu>li.current>a.current:after {
 /* ── Shell ────────────────────────────────────────────────────────── */
 
 .ep-settings {
-  margin: 0 auto;
+  margin: 0;
   padding: 2.5rem 2rem 4rem;
-  max-width: 1100px;
 }
 
 .ep-header {
@@ -272,14 +271,25 @@ ul#adminmenu>li.current>a.current:after {
   font-size: 0.72rem;
 }
 
-/* ── Tabs ─────────────────────────────────────────────────────────── */
+/* ── Layout (sidebar + panels) ────────────────────────────────────── */
+
+.ep-layout {
+  display: flex;
+  gap: 0;
+  min-height: 600px;
+}
+
+/* ── Vertical Tabs (sidebar) ─────────────────────────────────────── */
 
 .ep-tabs {
   display: flex;
+  flex-direction: column;
   gap: 0;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
+  flex-shrink: 0;
+  width: 180px;
+  border-right: 1px solid var(--border);
+  padding: 0.5rem 0;
+  overflow-y: auto;
   scrollbar-width: none;
 }
 
@@ -287,37 +297,48 @@ ul#adminmenu>li.current>a.current:after {
   display: none;
 }
 
+.ep-panels {
+  flex: 1;
+  min-width: 0;
+  padding-left: 2rem;
+}
+
 .ep-settings-wrapper button.ep-tab {
   position: relative;
-  transition: color 0.2s;
+  transition: color 0.2s, background 0.15s;
   cursor: pointer;
   border: none;
   background: none;
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 1rem;
   color: var(--text-dim);
   font-weight: 500;
   font-size: 0.72rem;
   font-family: var(--mono);
   letter-spacing: 0.04em;
   white-space: nowrap;
+  text-align: left;
+  width: 100%;
 }
 
 .ep-settings-wrapper button.ep-tab:hover {
   color: var(--text-muted);
+  background: var(--bg-elevated);
 }
 
 .ep-settings-wrapper button.ep-tab[aria-selected="true"] {
   color: var(--accent);
+  background: var(--accent-dim);
 }
 
 .ep-settings-wrapper button.ep-tab[aria-selected="true"]::after {
   position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  border-radius: 2px 2px 0 0;
+  top: 0;
+  bottom: 0;
+  right: -1px;
+  border-radius: 0;
   background: var(--accent);
-  height: 2px;
+  width: 2px;
+  height: auto;
   content: '';
 }
 
@@ -1514,10 +1535,13 @@ ul#adminmenu>li.current>a.current:after {
 
 .ep-cols-nav { grid-template-columns: 1fr 100px 1fr; }
 
-/* ── Feature Row Clickable ───────────────────────────────────────── */
+/* ── Clickable Rows ─────────────────────────────────────────────── */
 
 .ep-row-clickable { cursor: pointer; }
 .ep-row-clickable:hover { background: var(--bg-card); border-left: 2px solid var(--accent); margin-left: -2px; }
+
+.ep-hook-item-clickable { cursor: pointer; }
+.ep-hook-item-clickable:hover { border-color: var(--accent); background: var(--accent-dim); }
 
 /* ── Feature Detail Modal ────────────────────────────────────────── */
 
@@ -1597,6 +1621,63 @@ ul#adminmenu>li.current>a.current:after {
 }
 .ep-support-card:hover .ep-support-card-link { color: var(--accent); }
 
+/* ── Overview Grid ───────────────────────────────────────────────── */
+
+.ep-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.7rem;
+}
+
+.ep-overview-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  padding: 1.1rem 1.2rem;
+  transition: border-color 0.15s;
+}
+
+.ep-overview-card:hover {
+  border-color: var(--border-bright);
+}
+
+.ep-overview-card-title {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-bottom: 0.3rem;
+}
+
+.ep-overview-card-desc {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+/* ── Build Alert ────────────────────────────────────────────────── */
+
+.ep-build-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid rgba(107, 163, 255, 0.2);
+  border-radius: var(--radius);
+  background: var(--blue-dim);
+  padding: 0.8rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.ep-build-alert p {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.ep-build-alert .ep-badge {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
 /* ── Tab flex-shrink ─────────────────────────────────────────────── */
 
 .ep-settings-wrapper button.ep-tab { flex-shrink: 0; }
@@ -1659,6 +1740,43 @@ ul#adminmenu>li.current>a.current:after {
 @media (max-width: 700px) {
   .ep-settings {
     padding: 1.5rem 1rem 3rem;
+  }
+
+  .ep-layout {
+    flex-direction: column;
+  }
+
+  .ep-tabs {
+    flex-direction: row;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    padding: 0;
+  }
+
+  .ep-panels {
+    padding-left: 0;
+    padding-top: 1.5rem;
+  }
+
+  .ep-settings-wrapper button.ep-tab {
+    width: auto;
+    text-align: center;
+    padding: 0.65rem 0.8rem;
+  }
+
+  .ep-settings-wrapper button.ep-tab[aria-selected="true"]::after {
+    top: auto;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: 2px;
+  }
+
+  .ep-overview-grid {
+    grid-template-columns: 1fr;
   }
 
   .ep-cols-3 {

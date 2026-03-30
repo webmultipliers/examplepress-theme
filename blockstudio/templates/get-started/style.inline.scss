@@ -20,15 +20,6 @@
  	/* Slightly narrower for reading documentation */
  	--ease: cubic-bezier(0.16, 1, 0.3, 1);
 
- 	&,
- 	*,
- 	*::before,
- 	*::after {
- 		box-sizing: border-box;
- 		margin: 0;
- 		padding: 0;
- 	}
-
  	background: var(--bg);
  	color: var(--text);
  	line-height: 1.65;
@@ -38,6 +29,15 @@
  	flex-direction: column;
  	min-height: 100vh;
  	overflow-x: hidden;
+
+ 	&,
+ 	*,
+ 	*::before,
+ 	*::after {
+ 		box-sizing: border-box;
+ 		margin: 0;
+ 		padding: 0;
+ 	}
 
  	a {
  		color: var(--accent);

@@ -630,23 +630,93 @@ function examplepress_render_settings_page() {
 				<p class="ep-subtitle">Configuration dashboard — all values resolved from examplepress.json and PHP filters. Read-only.</p>
 			</header>
 
+			<div class="ep-layout">
 			<nav class="ep-tabs" role="tablist">
-				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-features"      id="t-features"      data-tab-id="features">Features<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-overview"       id="t-overview"      data-tab-id="overview">Overview</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-features"       id="t-features"      data-tab-id="features">Features<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-config"         id="t-config"        data-tab-id="config">Config</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-design"         id="t-design"        data-tab-id="design">Design</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-build"          id="t-build"         data-tab-id="build">Build</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-blocks"         id="t-blocks"        data-tab-id="blocks">Blocks<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-dependencies"   id="t-dependencies"  data-tab-id="dependencies">Dependencies<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-notifications"  id="t-notifications" data-tab-id="notifications">Notifications<span class="ep-tab-count"></span></button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-library"        id="t-library"       data-tab-id="library">Library</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-navigation"     id="t-navigation"    data-tab-id="navigation">Navigation<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-config"         id="t-config"        data-tab-id="config">Config</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-dependencies"   id="t-dependencies"  data-tab-id="dependencies">Dependencies<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-notifications"  id="t-notifications" data-tab-id="notifications">Notifications<span class="ep-tab-count"></span></button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-health"         id="t-health"        data-tab-id="health">Health</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-docs"           id="t-docs"          data-tab-id="docs">Docs</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-support"        id="t-support"       data-tab-id="support">Support</button>
 			</nav>
 
+			<div class="ep-panels">
+
+			<!-- Overview -->
+			<div class="ep-panel" id="p-overview" role="tabpanel" aria-hidden="false">
+				<section class="ep-section">
+					<div class="ep-doc-section-title">Welcome to ExamplePress</div>
+					<p class="ep-section-desc" style="max-width:none">ExamplePress is the Full Site Editing theme layer for <strong>Blockstudio</strong>. It provides a template router, guard system, and a feature registry &mdash; everything else is built in your companion plugin.</p>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">What Each Tab Does</span><div class="ep-section-line"></div></div>
+					<div class="ep-overview-grid">
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Features</div>
+							<p class="ep-overview-card-desc">View every registered feature flag &mdash; theme support, editor controls, guards, admin tweaks, and design tokens. All values are resolved from examplepress.json and PHP filters.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Config</div>
+							<p class="ep-overview-card-desc">Explore the raw configuration files (examplepress.json, theme.json, blockstudio.json) that drive the theme. Read-only &mdash; edit the files directly in your project.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Design</div>
+							<p class="ep-overview-card-desc">Preview the resolved design tokens: colour palette, layout dimensions, font families, and size scale. All injected into theme.json at runtime.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Build</div>
+							<p class="ep-overview-card-desc">Scaffold a new companion plugin repository via Troy. Pre-configured with CI/CD, optional staging sync, and ready to launch in GitHub Codespaces.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Blocks</div>
+							<p class="ep-overview-card-desc">All Blockstudio blocks discovered in the active theme and companion plugins, grouped by namespace. Template blocks are dispatchable by the router.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Library</div>
+							<p class="ep-overview-card-desc">Browse and import Troy-delivered companion plugins. Perfectly structured components that claim their own routes. Coming soon.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Navigation</div>
+							<p class="ep-overview-card-desc">Review registered menu locations and assigned menus. ExamplePress uses the native WordPress menu system.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Dependencies</div>
+							<p class="ep-overview-card-desc">Plugins, Composer packages, and libraries declared in examplepress.json. Status detected via plugin registry, class_exists, or function_exists.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Notifications</div>
+							<p class="ep-overview-card-desc">Theme-generated notices &mdash; errors, warnings, and informational messages. Archive notifications to keep the dashboard tidy.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Health</div>
+							<p class="ep-overview-card-desc">Environment checks, theme integrity, router health, and security guard status. A quick snapshot of whether everything is running correctly.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Docs</div>
+							<p class="ep-overview-card-desc">Getting started guides and a complete filter &amp; action reference. Every hook the theme exposes for companion plugins.</p>
+						</div>
+						<div class="ep-overview-card">
+							<div class="ep-overview-card-title">Support</div>
+							<p class="ep-overview-card-desc">Links to Blockstudio Plus, the GitHub repository, and contact information for enterprise deployments.</p>
+						</div>
+					</div>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Quick Start</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc" style="max-width:none">ExamplePress works by routing every front-end request through a single <code>index.html</code> template that contains the router block. Your companion plugin claims a namespace, defines a routing cascade, and registers Blockstudio template blocks. The theme handles resolution, guards, and design tokens &mdash; you focus on building.</p>
+					<p class="ep-section-desc" style="max-width:none">Head to the <strong>Build</strong> tab to scaffold your first companion plugin, or explore the <strong>Features</strong> tab to see what&rsquo;s already configured.</p>
+				</section>
+			</div>
+
 			<!-- Features -->
-			<div class="ep-panel" id="p-features" role="tabpanel" aria-hidden="false">
+			<div class="ep-panel" id="p-features" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Theme Support</span><div class="ep-section-line"></div></div>
 					<div class="ep-table" id="tbl-theme-support"></div>
@@ -671,6 +741,40 @@ function examplepress_render_settings_page() {
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Design Tokens</span><div class="ep-section-line"></div></div>
 					<div class="ep-table" id="tbl-design-features"></div>
+				</section>
+			</div>
+
+			<!-- Config -->
+			<div class="ep-panel" id="p-config" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Configuration Files</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Explore the configuration files that drive the theme. All values are read-only — edit the files directly in your project.</p>
+					<div class="ep-config-tabs" id="config-switcher"></div>
+					<div id="config-viewer"></div>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Resolution Order</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">When the feature registry resolves a value, it checks sources in priority order. The first match wins.</p>
+					<div class="ep-table">
+						<div class="ep-row ep-row-head ep-cols-3">
+							<div class="ep-th">Priority</div><div class="ep-th">Source</div><div class="ep-th">Mechanism</div>
+						</div>
+						<div class="ep-row ep-cols-3">
+							<div class="ep-td-label"><span class="ep-name">1 — Highest</span></div>
+							<div><span class="ep-src src-php">PHP filter</span></div>
+							<div><span class="ep-id">add_filter()</span></div>
+						</div>
+						<div class="ep-row ep-cols-3">
+							<div class="ep-td-label"><span class="ep-name">2</span></div>
+							<div><span class="ep-src src-json">JSON</span></div>
+							<div><span class="ep-id">examplepress.json</span></div>
+						</div>
+						<div class="ep-row ep-cols-3">
+							<div class="ep-td-label"><span class="ep-name">3 — Lowest</span></div>
+							<div><span class="ep-src">default</span></div>
+							<div><span class="ep-id">register_feature()</span></div>
+						</div>
+					</div>
 				</section>
 			</div>
 
@@ -700,10 +804,189 @@ function examplepress_render_settings_page() {
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Scaffold Companion App</span><div class="ep-section-line"></div></div>
 					<p class="ep-section-desc">Create a new companion plugin repository on GitHub via Troy. Your app will be pre-configured with the ExamplePress foundation, a CI/CD pipeline, and optional staging auto-sync.</p>
+					<button class="ep-build-submit" id="ep-build-open-modal">
+						<span class="ep-build-submit-label">Create App</span>
+					</button>
+				</section>
+
+				<section class="ep-section" id="ep-demo-section">
+					<div class="ep-section-header"><span class="ep-section-title">Demo Companion Plugin</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Install a working demo companion plugin to see the routing contract in action. The demo claims its own namespace, defines a routing cascade, and renders distinct template blocks. Inspect the source, then remove it when you're ready to scaffold your own.</p>
+
+					<div class="ep-demo-panel" id="ep-demo-panel">
+						<div class="ep-demo-status">
+							<div class="ep-demo-status-label">Status</div>
+							<span class="ep-badge" id="ep-demo-badge"></span>
+						</div>
+						<p class="ep-demo-message" id="ep-demo-message"></p>
+						<div class="ep-demo-actions" id="ep-demo-actions"></div>
+					</div>
+				</section>
+			</div>
+
+			<!-- Blocks -->
+			<div class="ep-panel" id="p-blocks" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Registered Blocks</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">All Blockstudio blocks discovered in the active theme and companion plugins, grouped by namespace. Template blocks are blocks the router can dispatch to.</p>
+					<div class="ep-table" id="tbl-blocks"></div>
+				</section>
+			</div>
+
+			<!-- Library -->
+			<div class="ep-panel" id="p-library" role="tabpanel" aria-hidden="true">
+				<section class="ep-section ep-library-hero">
+					<div class="ep-library-icon">&#9783;</div>
+					<div class="ep-doc-section-title">The Component Library is arriving soon.</div>
+					<p class="ep-doc-section-desc" style="margin: 0 auto 2rem; text-align: center;">Browse, import, and build with Troy-delivered companion plugins. Perfectly structured components that claim their own routes and integrate with the ExamplePress engine.</p>
+					<span class="ep-badge badge-info"><span class="ep-dot"></span>Coming in v1.1</span>
+				</section>
+			</div>
+
+			<!-- Navigation -->
+			<div class="ep-panel" id="p-navigation" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Registered Locations</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">ExamplePress uses the native WordPress menu system. Register locations in your companion plugin and assign menus via Appearance &rarr; Menus or the Navigation block.</p>
+					<div class="ep-table" id="tbl-nav-locations"></div>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Menus</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">All menus registered in this WordPress installation. Manage items via <a href="<?php echo esc_url( admin_url( 'nav-menus.php' ) ); ?>" class="ep-link">Appearance &rarr; Menus</a> or the Navigation block in the editor.</p>
+					<div class="ep-table" id="tbl-nav-menus"></div>
+				</section>
+			</div>
+
+			<!-- Dependencies -->
+			<div class="ep-panel" id="p-dependencies" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Dependency Directory</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Plugins, Composer packages, and libraries declared in examplepress.json. Detected via plugin registry, class_exists, or function_exists.</p>
+					<div class="ep-table" id="tbl-dependencies"></div>
+				</section>
+			</div>
+
+			<!-- Notifications -->
+			<div class="ep-panel" id="p-notifications" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-notif-subtabs" id="notif-subtabs">
+						<button class="ep-notif-subtab active" data-target="notices-active">Active</button>
+						<button class="ep-notif-subtab" data-target="notices-archived">Archived</button>
+					</div>
+					<div id="notices-active" class="ep-notif-list"></div>
+					<div id="notices-archived" class="ep-notif-list" style="display:none"></div>
+				</section>
+			</div>
+
+			<!-- Health -->
+			<div class="ep-panel" id="p-health" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-health-summary" id="health-summary"></div>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Environment Checks</span><div class="ep-section-line"></div></div>
+					<div class="ep-table" id="tbl-health-env"></div>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Theme Integrity</span><div class="ep-section-line"></div></div>
+					<div class="ep-table" id="tbl-health-theme"></div>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Router Health</span><div class="ep-section-line"></div></div>
+					<div class="ep-table" id="tbl-health-router"></div>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Security &amp; Guards</span><div class="ep-section-line"></div></div>
+					<div class="ep-table" id="tbl-health-security"></div>
+				</section>
+			</div>
+
+			<!-- Docs -->
+			<div class="ep-panel" id="p-docs" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-doc-section-title">Getting Started</div>
+					<div class="ep-doc-section-desc">ExamplePress is the FSE theme layer for Blockstudio. It provides a router, guards, and a feature registry. Everything else is built in your companion plugin.</div>
+					<div class="ep-docs-grid" id="docs-cards"></div>
+				</section>
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Filter &amp; Action Reference</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Every hook the theme exposes. Use these from your companion plugin to control routing, features, guards, and design tokens.</p>
+					<div class="ep-hooks-list" id="hooks-list"></div>
+				</section>
+			</div>
+
+			<!-- Support -->
+			<div class="ep-panel" id="p-support" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-doc-section-title">Support &amp; Resources</div>
+					<p class="ep-doc-section-desc">Get help, contribute, and connect with the ExamplePress ecosystem.</p>
+					<div class="ep-support-grid">
+						<a class="ep-support-card" href="https://blockstudio.dev/plus/" target="_blank" rel="noopener">
+							<div class="ep-support-card-eyebrow">Framework</div>
+							<div class="ep-support-card-title">Blockstudio Plus</div>
+							<div class="ep-support-card-desc">The premium tier of the block framework ExamplePress is built on. Priority support, advanced fields, and early access to new features.</div>
+							<div class="ep-support-card-link">blockstudio.dev &rarr;</div>
+						</a>
+						<div class="ep-support-card">
+							<div class="ep-support-card-eyebrow">Coming Soon</div>
+							<div class="ep-support-card-title">ExamplePress Support</div>
+							<div class="ep-support-card-desc">Advanced support packages for teams building on ExamplePress. Dedicated onboarding, architecture review, and priority issue resolution.</div>
+							<span class="ep-badge badge-info"><span class="ep-dot"></span>Coming Soon</span>
+						</div>
+						<a class="ep-support-card" href="https://github.com/webmultipliers/examplepress-theme" target="_blank" rel="noopener">
+							<div class="ep-support-card-eyebrow">Open Source</div>
+							<div class="ep-support-card-title">Contribute</div>
+							<div class="ep-support-card-desc">Report bugs, suggest features, or submit pull requests. ExamplePress is open source and built for the community.</div>
+							<div class="ep-support-card-link">GitHub &rarr;</div>
+						</a>
+						<a class="ep-support-card" href="https://examplepress.com/contact" target="_blank" rel="noopener">
+							<div class="ep-support-card-eyebrow">Contact</div>
+							<div class="ep-support-card-title">Get In Touch</div>
+							<div class="ep-support-card-desc">Questions about licensing, partnerships, or enterprise deployments? Reach out to the team directly.</div>
+							<div class="ep-support-card-link">examplepress.com &rarr;</div>
+						</a>
+					</div>
+				</section>
+			</div>
+
+			</div><!-- /.ep-panels -->
+			</div><!-- /.ep-layout -->
+
+		</div>
+
+		<!-- Generic Modal (shared by features, hooks, blocks, dependencies) -->
+		<div class="ep-modal-overlay" id="ep-feature-modal" style="display:none">
+			<div class="ep-modal">
+				<div class="ep-modal-header">
+					<div>
+						<span class="ep-modal-title" id="ep-modal-title"></span>
+						<span class="ep-modal-id" id="ep-modal-id"></span>
+					</div>
+					<button class="ep-modal-close" id="ep-modal-close">&times;</button>
+				</div>
+				<div class="ep-modal-body" id="ep-modal-body"></div>
+			</div>
+		</div>
+
+		<!-- Build Modal -->
+		<div class="ep-modal-overlay" id="ep-build-modal" style="display:none">
+			<div class="ep-modal" style="max-width:640px">
+				<div class="ep-modal-header">
+					<div>
+						<span class="ep-modal-title">Scaffold Companion App</span>
+						<span class="ep-modal-id">Create a new companion plugin via Troy</span>
+					</div>
+					<button class="ep-modal-close" id="ep-build-modal-close">&times;</button>
+				</div>
+				<div class="ep-modal-body">
+					<div class="ep-build-alert">
+						<span class="ep-badge badge-info"><span class="ep-dot"></span>Coming Soon</span>
+						<p>The scaffolding service is currently conceptual. This form previews the planned workflow for creating companion plugin repositories via Troy.</p>
+					</div>
 
 					<!-- Build Form -->
 					<div id="ep-build-form-wrap">
-						<div class="ep-build-form">
+						<div class="ep-build-form" style="max-width:none">
 							<!-- GitHub Authentication -->
 							<div class="ep-build-field">
 								<label class="ep-build-label" for="ep-github-token">GitHub Personal Access Token</label>
@@ -797,196 +1080,7 @@ function examplepress_render_settings_page() {
 						</div>
 						<button class="ep-build-reset" id="ep-build-reset">Create Another App</button>
 					</div>
-
-				</section>
-
-				<section class="ep-section" id="ep-demo-section">
-					<div class="ep-section-header"><span class="ep-section-title">Demo Companion Plugin</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Install a working demo companion plugin to see the routing contract in action. The demo claims its own namespace, defines a routing cascade, and renders distinct template blocks. Inspect the source, then remove it when you're ready to scaffold your own.</p>
-
-					<div class="ep-demo-panel" id="ep-demo-panel">
-						<div class="ep-demo-status">
-							<div class="ep-demo-status-label">Status</div>
-							<span class="ep-badge" id="ep-demo-badge"></span>
-						</div>
-						<p class="ep-demo-message" id="ep-demo-message"></p>
-						<div class="ep-demo-actions" id="ep-demo-actions"></div>
-					</div>
-				</section>
-			</div>
-
-			<!-- Blocks -->
-			<div class="ep-panel" id="p-blocks" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Registered Blocks</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">All Blockstudio blocks discovered in the active theme and companion plugins. Template blocks are blocks the router can dispatch to.</p>
-					<div class="ep-table" id="tbl-blocks"></div>
-				</section>
-			</div>
-
-			<!-- Dependencies -->
-			<div class="ep-panel" id="p-dependencies" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Dependency Directory</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Plugins, Composer packages, and libraries declared in examplepress.json. Detected via plugin registry, class_exists, or function_exists.</p>
-					<div class="ep-table" id="tbl-dependencies"></div>
-				</section>
-			</div>
-
-			<!-- Notifications -->
-			<div class="ep-panel" id="p-notifications" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-notif-subtabs" id="notif-subtabs">
-						<button class="ep-notif-subtab active" data-target="notices-active">Active</button>
-						<button class="ep-notif-subtab" data-target="notices-archived">Archived</button>
-					</div>
-					<div id="notices-active" class="ep-notif-list"></div>
-					<div id="notices-archived" class="ep-notif-list" style="display:none"></div>
-				</section>
-			</div>
-
-			<!-- Library -->
-			<div class="ep-panel" id="p-library" role="tabpanel" aria-hidden="true">
-				<section class="ep-section ep-library-hero">
-					<div class="ep-library-icon">&#9783;</div>
-					<div class="ep-doc-section-title">The Component Library is arriving soon.</div>
-					<p class="ep-doc-section-desc" style="margin: 0 auto 2rem; text-align: center;">Browse, import, and build with Troy-delivered companion plugins. Perfectly structured components that claim their own routes and integrate with the ExamplePress engine.</p>
-					<span class="ep-badge badge-info"><span class="ep-dot"></span>Coming in v1.1</span>
-				</section>
-			</div>
-
-			<!-- Navigation -->
-			<div class="ep-panel" id="p-navigation" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Registered Locations</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">ExamplePress uses the native WordPress menu system. Register locations in your companion plugin and assign menus via Appearance &rarr; Menus or the Navigation block.</p>
-					<div class="ep-table" id="tbl-nav-locations"></div>
-				</section>
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Menus</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">All menus registered in this WordPress installation. Manage items via <a href="<?php echo esc_url( admin_url( 'nav-menus.php' ) ); ?>" class="ep-link">Appearance &rarr; Menus</a> or the Navigation block in the editor.</p>
-					<div class="ep-table" id="tbl-nav-menus"></div>
-				</section>
-			</div>
-
-			<!-- Config -->
-			<div class="ep-panel" id="p-config" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Configuration Files</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Explore the configuration files that drive the theme. All values are read-only — edit the files directly in your project.</p>
-					<div class="ep-config-tabs" id="config-switcher"></div>
-					<div id="config-viewer"></div>
-				</section>
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Resolution Order</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">When the feature registry resolves a value, it checks sources in priority order. The first match wins.</p>
-					<div class="ep-table">
-						<div class="ep-row ep-row-head ep-cols-3">
-							<div class="ep-th">Priority</div><div class="ep-th">Source</div><div class="ep-th">Mechanism</div>
-						</div>
-						<div class="ep-row ep-cols-3">
-							<div class="ep-td-label"><span class="ep-name">1 — Highest</span></div>
-							<div><span class="ep-src src-php">PHP filter</span></div>
-							<div><span class="ep-id">add_filter()</span></div>
-						</div>
-						<div class="ep-row ep-cols-3">
-							<div class="ep-td-label"><span class="ep-name">2</span></div>
-							<div><span class="ep-src src-json">JSON</span></div>
-							<div><span class="ep-id">examplepress.json</span></div>
-						</div>
-						<div class="ep-row ep-cols-3">
-							<div class="ep-td-label"><span class="ep-name">3 — Lowest</span></div>
-							<div><span class="ep-src">default</span></div>
-							<div><span class="ep-id">register_feature()</span></div>
-						</div>
-					</div>
-				</section>
-			</div>
-
-			<!-- Health -->
-			<div class="ep-panel" id="p-health" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-health-summary" id="health-summary"></div>
-				</section>
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Environment Checks</span><div class="ep-section-line"></div></div>
-					<div class="ep-table" id="tbl-health-env"></div>
-				</section>
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Theme Integrity</span><div class="ep-section-line"></div></div>
-					<div class="ep-table" id="tbl-health-theme"></div>
-				</section>
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Router Health</span><div class="ep-section-line"></div></div>
-					<div class="ep-table" id="tbl-health-router"></div>
-				</section>
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Security &amp; Guards</span><div class="ep-section-line"></div></div>
-					<div class="ep-table" id="tbl-health-security"></div>
-				</section>
-			</div>
-
-			<!-- Docs -->
-			<div class="ep-panel" id="p-docs" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-doc-section-title">Getting Started</div>
-					<div class="ep-doc-section-desc">ExamplePress is the FSE theme layer for Blockstudio. It provides a router, guards, and a feature registry. Everything else is built in your companion plugin.</div>
-					<div class="ep-docs-grid" id="docs-cards"></div>
-				</section>
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Filter &amp; Action Reference</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Every hook the theme exposes. Use these from your companion plugin to control routing, features, guards, and design tokens.</p>
-					<div class="ep-hooks-list" id="hooks-list"></div>
-				</section>
-			</div>
-
-			<!-- Support -->
-			<div class="ep-panel" id="p-support" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-doc-section-title">Support &amp; Resources</div>
-					<p class="ep-doc-section-desc">Get help, contribute, and connect with the ExamplePress ecosystem.</p>
-					<div class="ep-support-grid">
-						<a class="ep-support-card" href="https://blockstudio.dev/plus/" target="_blank" rel="noopener">
-							<div class="ep-support-card-eyebrow">Framework</div>
-							<div class="ep-support-card-title">Blockstudio Plus</div>
-							<div class="ep-support-card-desc">The premium tier of the block framework ExamplePress is built on. Priority support, advanced fields, and early access to new features.</div>
-							<div class="ep-support-card-link">blockstudio.dev &rarr;</div>
-						</a>
-						<div class="ep-support-card">
-							<div class="ep-support-card-eyebrow">Coming Soon</div>
-							<div class="ep-support-card-title">ExamplePress Support</div>
-							<div class="ep-support-card-desc">Advanced support packages for teams building on ExamplePress. Dedicated onboarding, architecture review, and priority issue resolution.</div>
-							<span class="ep-badge badge-info"><span class="ep-dot"></span>Coming Soon</span>
-						</div>
-						<a class="ep-support-card" href="https://github.com/webmultipliers/examplepress-theme" target="_blank" rel="noopener">
-							<div class="ep-support-card-eyebrow">Open Source</div>
-							<div class="ep-support-card-title">Contribute</div>
-							<div class="ep-support-card-desc">Report bugs, suggest features, or submit pull requests. ExamplePress is open source and built for the community.</div>
-							<div class="ep-support-card-link">GitHub &rarr;</div>
-						</a>
-						<a class="ep-support-card" href="https://examplepress.com/contact" target="_blank" rel="noopener">
-							<div class="ep-support-card-eyebrow">Contact</div>
-							<div class="ep-support-card-title">Get In Touch</div>
-							<div class="ep-support-card-desc">Questions about licensing, partnerships, or enterprise deployments? Reach out to the team directly.</div>
-							<div class="ep-support-card-link">examplepress.com &rarr;</div>
-						</a>
-					</div>
-				</section>
-			</div>
-
-		</div>
-
-		<!-- Feature Detail Modal -->
-		<div class="ep-modal-overlay" id="ep-feature-modal" style="display:none">
-			<div class="ep-modal">
-				<div class="ep-modal-header">
-					<div>
-						<span class="ep-modal-title" id="ep-modal-title"></span>
-						<span class="ep-modal-id" id="ep-modal-id"></span>
-					</div>
-					<button class="ep-modal-close" id="ep-modal-close">&times;</button>
 				</div>
-				<div class="ep-modal-body" id="ep-modal-body"></div>
 			</div>
 		</div>
 	</div>
