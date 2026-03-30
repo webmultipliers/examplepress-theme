@@ -9,78 +9,80 @@
 	--demo-accent-dim: rgba(255, 107, 157, 0.08);
 	--demo-mono: 'JetBrains Mono', ui-monospace, monospace;
 	--demo-sans: 'DM Sans', system-ui, sans-serif;
-
-	background: var(--demo-bg);
-	color: var(--demo-text);
-	font-family: var(--demo-sans);
-	min-height: 100vh;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
 	align-items: center;
+
+	background: var(--demo-bg);
+	min-height: 100vh;
+	color: var(--demo-text);
+	font-family: var(--demo-sans);
 	-webkit-font-smoothing: antialiased;
 }
 
-.ep-demo-404 *, .ep-demo-404 *::before, .ep-demo-404 *::after {
+.ep-demo-404 *,
+.ep-demo-404 *::before,
+.ep-demo-404 *::after {
 	box-sizing: border-box;
 	margin: 0;
 	padding: 0;
 }
 
 .ep-demo-404-inner {
-	text-align: center;
 	padding: 2rem;
+	text-align: center;
 }
 
 .ep-demo-404-code {
-	font-family: var(--demo-mono);
-	font-size: clamp(4rem, 12vw, 8rem);
-	font-weight: 700;
-	color: var(--demo-accent);
 	opacity: 0.15;
-	line-height: 1;
 	margin-bottom: 1rem;
+	color: var(--demo-accent);
+	font-weight: 700;
+	font-size: clamp(4rem, 12vw, 8rem);
+	line-height: 1;
+	font-family: var(--demo-mono);
 }
 
 .ep-demo-404-title {
-	font-size: 1.8rem;
-	font-weight: 700;
 	margin-bottom: 0.6rem;
+	font-weight: 700;
+	font-size: 1.8rem;
 }
 
 .ep-demo-404-body {
-	font-size: 1rem;
-	color: var(--demo-muted);
 	margin-bottom: 1.5rem;
+	color: var(--demo-muted);
+	font-size: 1rem;
 }
 
 .ep-demo-404-link {
 	display: inline-block;
-	font-family: var(--demo-mono);
-	font-size: 0.82rem;
-	color: var(--demo-accent);
-	text-decoration: none;
+	transition: background 0.15s, border-color 0.15s;
 	border: 1px solid rgba(255, 107, 157, 0.25);
+	border-radius: 6px;
 	background: var(--demo-accent-dim);
 	padding: 0.5rem 1.2rem;
-	border-radius: 6px;
-	transition: background 0.15s, border-color 0.15s;
+	color: var(--demo-accent);
+	font-size: 0.82rem;
+	font-family: var(--demo-mono);
+	text-decoration: none;
 
 	&:hover {
-		background: rgba(255, 107, 157, 0.15);
 		border-color: rgba(255, 107, 157, 0.4);
+		background: rgba(255, 107, 157, 0.15);
 	}
 }
 
 .ep-demo-404-footer {
 	padding: 2rem;
-	text-align: center;
-	font-size: 0.72rem;
 	color: var(--demo-dim);
+	font-size: 0.72rem;
+	text-align: center;
 
 	code {
-		font-family: var(--demo-mono);
-		font-size: 0.68rem;
 		color: var(--demo-accent);
+		font-size: 0.68rem;
+		font-family: var(--demo-mono);
 	}
 }
