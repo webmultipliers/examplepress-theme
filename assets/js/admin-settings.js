@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		return;
 	}
 
+	const version = window.ExamplePressData.themeVersion || '?';
+	console.info(`[ExamplePress] Settings page initializing — v${version}`);
+
 	const {
 		features,
 		colors,
@@ -22,20 +25,82 @@ document.addEventListener('DOMContentLoaded', () => {
 		healthChecks,
 		docs,
 		hooks,
+		navigation,
+		adminTabs,
+		featureDetails,
 	} = window.ExamplePressData;
 
 	let archived = window.ExamplePressData.archived || [];
+
+	/* ── URL Routing ───────────────────────────────────────────────── */
+
+	function getUrlParams() {
+		const params = new URLSearchParams(window.location.search);
+		return {
+			tab: params.get('tab'),
+			section: params.get('section'),
+		};
+	}
+
+	function setUrlParams(tab, section) {
+		const params = new URLSearchParams(window.location.search);
+		params.set('page', 'examplepress-settings');
+		if (tab) {
+			params.set('tab', tab);
+		} else {
+			params.delete('tab');
+		}
+		if (section) {
+			params.set('section', section);
+		} else {
+			params.delete('section');
+		}
+		history.replaceState(null, '', '?' + params.toString());
+	}
+
+	function activateTab(tabId) {
+		const tab = document.querySelector(`.ep-tab[data-tab-id="${tabId}"]`);
+		if (!tab) return;
+		document.querySelectorAll('.ep-tab').forEach(t => t.setAttribute('aria-selected', 'false'));
+		document.querySelectorAll('.ep-panel').forEach(p => p.setAttribute('aria-hidden', 'true'));
+		tab.setAttribute('aria-selected', 'true');
+		const panel = document.getElementById(tab.getAttribute('aria-controls'));
+		if (panel) panel.setAttribute('aria-hidden', 'false');
+		setUrlParams(tabId);
+		console.info(`[ExamplePress] Tab activated: ${tabId}`);
+	}
 
 	/* ── Tab switching ──────────────────────────────────────────────── */
 
 	document.querySelectorAll('.ep-tab').forEach(tab => {
 		tab.addEventListener('click', () => {
-			document.querySelectorAll('.ep-tab').forEach(t => t.setAttribute('aria-selected', 'false'));
-			document.querySelectorAll('.ep-panel').forEach(p => p.setAttribute('aria-hidden', 'true'));
-			tab.setAttribute('aria-selected', 'true');
-			document.getElementById(tab.getAttribute('aria-controls')).setAttribute('aria-hidden', 'false');
+			const tabId = tab.dataset.tabId;
+			if (tabId) {
+				activateTab(tabId);
+			}
 		});
 	});
+
+	/* ── Tab visibility ─────────────────────────────────────────────── */
+
+	const hiddenTabs = (adminTabs && adminTabs.hidden) || [];
+	if (hiddenTabs.length) {
+		hiddenTabs.forEach(tabId => {
+			const tabBtn = document.querySelector(`.ep-tab[data-tab-id="${tabId}"]`);
+			if (tabBtn) tabBtn.style.display = 'none';
+			const panelId = tabBtn ? tabBtn.getAttribute('aria-controls') : `p-${tabId}`;
+			const panel = document.getElementById(panelId);
+			if (panel) panel.style.display = 'none';
+		});
+		console.info(`[ExamplePress] Hidden tabs: ${hiddenTabs.join(', ')}`);
+	}
+
+	/* ── Initial tab from URL ──────────────────────────────────────── */
+
+	const urlParams = getUrlParams();
+	if (urlParams.tab) {
+		activateTab(urlParams.tab);
+	}
 
 	/* ── Copy system report ─────────────────────────────────────────── */
 
@@ -46,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			navigator.clipboard.writeText(report).then(() => {
 				copyBtn.classList.add('copied');
 				copyBtn.textContent = 'Copied!';
+				console.info(`[ExamplePress] System report copied (${report.length} chars)`);
 				setTimeout(() => {
 					copyBtn.classList.remove('copied');
 					copyBtn.textContent = 'Copy System Report';
@@ -80,7 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (!el || !items || !items.length) return;
 		let html = '<div class="ep-row ep-row-head ep-cols-3"><div class="ep-th">Feature</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
 		items.forEach(f => {
-			html += `<div class="ep-row ep-cols-3">
+			const hasDetail = featureDetails && featureDetails[f.id];
+			const rowCls = hasDetail ? 'ep-row ep-cols-3 ep-row-clickable' : 'ep-row ep-cols-3';
+			const dataAttr = hasDetail ? ` data-feature-id="${esc(f.id)}"` : '';
+			html += `<div class="${rowCls}"${dataAttr}>
 				<div class="ep-td-label"><span class="ep-name">${esc(f.name)}</span><span class="ep-id">${esc(f.id)}</span>${f.opts ? `<span class="ep-opt"><em>${esc(f.opts)}</em></span>` : ''}</div>
 				<div>${badge(f.on)}</div>
 				<div>${srcTag(f.src, f.srcDetail)}</div>
@@ -125,6 +194,113 @@ document.addEventListener('DOMContentLoaded', () => {
 	featureTable('tbl-options', features.options);
 	featureTable('tbl-design-features', features.design);
 
+	// Bind feature row click handlers for modal.
+	document.querySelectorAll('.ep-row-clickable[data-feature-id]').forEach(row => {
+		row.addEventListener('click', () => {
+			const id = row.dataset.featureId;
+			if (featureDetails && featureDetails[id]) {
+				openFeatureModal(id);
+			}
+		});
+	});
+
+	const featureCount = Object.values(features).reduce((sum, arr) => sum + (arr ? arr.length : 0), 0);
+	const catCount = Object.keys(features).length;
+	console.info(`[ExamplePress] Features rendered: ${featureCount} features across ${catCount} categories`);
+
+	/* ── Feature Detail Modal ──────────────────────────────────────── */
+
+	const modalOverlay = document.getElementById('ep-feature-modal');
+	const modalTitle = document.getElementById('ep-modal-title');
+	const modalId = document.getElementById('ep-modal-id');
+	const modalBody = document.getElementById('ep-modal-body');
+	const modalClose = document.getElementById('ep-modal-close');
+
+	function findFeatureData(featureId) {
+		for (const cat of Object.values(features)) {
+			if (!cat) continue;
+			const found = cat.find(f => f.id === featureId);
+			if (found) return found;
+		}
+		return null;
+	}
+
+	function openFeatureModal(featureId) {
+		if (!modalOverlay || !featureDetails) return;
+		const detail = featureDetails[featureId];
+		const fData = findFeatureData(featureId);
+		if (!detail) return;
+
+		modalTitle.textContent = fData ? fData.name : featureId;
+		modalId.textContent = featureId;
+
+		let html = '';
+
+		// Status + Source
+		html += '<div class="ep-modal-status">';
+		if (fData) {
+			html += badge(fData.on);
+			html += ' ' + srcTag(fData.src, fData.srcDetail);
+		}
+		html += '</div>';
+
+		// Description
+		if (detail.description) {
+			html += '<div class="ep-modal-section">';
+			html += '<div class="ep-modal-section-title">What It Does</div>';
+			html += `<p class="ep-modal-text">${esc(detail.description)}</p>`;
+			html += '</div>';
+		}
+
+		// Technical
+		if (detail.technical) {
+			html += '<div class="ep-modal-section">';
+			html += '<div class="ep-modal-section-title">Technical Detail</div>';
+			html += `<p class="ep-modal-text">${esc(detail.technical)}</p>`;
+			html += '</div>';
+		}
+
+		// Override Example
+		if (detail.override) {
+			html += '<div class="ep-modal-section">';
+			html += '<div class="ep-modal-section-title">Override Example</div>';
+			html += `<pre class="ep-modal-code">${esc(detail.override)}</pre>`;
+			html += '</div>';
+		}
+
+		// Current Options
+		if (fData && fData.opts) {
+			html += '<div class="ep-modal-section">';
+			html += '<div class="ep-modal-section-title">Current Options</div>';
+			html += `<p class="ep-modal-text"><span class="ep-modal-opt">${esc(fData.opts)}</span></p>`;
+			html += '</div>';
+		}
+
+		// Filter Hook
+		html += '<div class="ep-modal-section">';
+		html += '<div class="ep-modal-section-title">Filter Hooks</div>';
+		html += `<p class="ep-modal-text">Toggle: <code class="ep-modal-filter">examplepress_feature_${esc(featureId)}</code></p>`;
+		html += '</div>';
+
+		modalBody.innerHTML = html;
+		modalOverlay.style.display = '';
+		console.info(`[ExamplePress] Feature modal opened: ${featureId}`);
+	}
+
+	function closeFeatureModal() {
+		if (modalOverlay) modalOverlay.style.display = 'none';
+	}
+
+	if (modalClose) modalClose.addEventListener('click', closeFeatureModal);
+	if (modalOverlay) {
+		modalOverlay.addEventListener('click', (e) => {
+			if (e.target === modalOverlay) closeFeatureModal();
+		});
+	}
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') closeFeatureModal();
+	});
+
 	/* ── Design tab ─────────────────────────────────────────────────── */
 
 	const colorsGrid = document.getElementById('colors-grid');
@@ -137,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
 					<div class="ep-color-meta"><span class="ep-color-hex">${esc(c.color)}</span><span class="ep-color-slug">${esc(c.slug)}</span></div>
 				</div>
 			</div>`).join('');
+		console.info(`[ExamplePress] Design: ${colors.length} colors loaded`);
 	}
 
 	const layoutEl = document.getElementById('layout-visual');
@@ -188,51 +365,58 @@ document.addEventListener('DOMContentLoaded', () => {
 			});
 		});
 		tblBlocks.innerHTML = html;
+		console.info(`[ExamplePress] Blocks: ${blocks.length} blocks across ${cats.length} categories`);
 	}
 
 	/* ── Dependencies tab ───────────────────────────────────────────── */
 
 	const tblDeps = document.getElementById('tbl-dependencies');
-	if (tblDeps && dependencies && dependencies.length) {
-		let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Dependency</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
-		dependencies.forEach(p => {
-			const statusMap = {
-				active:    { cls: 'badge-on',   lbl: 'Active' },
-				installed: { cls: 'badge-warn', lbl: 'Installed' },
-				fallback:  { cls: 'badge-info', lbl: 'Free Alt.' },
-				missing:   { cls: 'badge-err',  lbl: 'Missing' },
-			};
-			const st = statusMap[p.status] || statusMap.missing;
-			const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
-			const tierCls = tierMap[p.tier] || 'tier-opt';
+	if (tblDeps) {
+		if (!dependencies || !dependencies.length) {
+			tblDeps.innerHTML = '<p class="ep-notif-empty">No dependencies declared in examplepress.json.</p>';
+			console.warn('[ExamplePress] No dependencies declared');
+		} else {
+			let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Dependency</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
+			dependencies.forEach(p => {
+				const statusMap = {
+					active:    { cls: 'badge-on',   lbl: 'Active' },
+					installed: { cls: 'badge-warn', lbl: 'Installed' },
+					fallback:  { cls: 'badge-info', lbl: 'Free Alt.' },
+					missing:   { cls: 'badge-err',  lbl: 'Missing' },
+				};
+				const st = statusMap[p.status] || statusMap.missing;
+				const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
+				const tierCls = tierMap[p.tier] || 'tier-opt';
 
-			let badges = '';
-			if (p.pricing === 'paid') badges += '<span class="ep-meta-badge meta-paid">Paid</span>';
-			if (p.cloud) badges += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
-			if (p.source === 'private') badges += '<span class="ep-meta-badge meta-private">Private</span>';
-			if (p.checkType && p.checkType !== 'plugin') badges += `<span class="ep-meta-badge meta-check">${esc(p.checkType)}</span>`;
+				let badges = '';
+				if (p.pricing === 'paid') badges += '<span class="ep-meta-badge meta-paid">Paid</span>';
+				if (p.cloud) badges += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
+				if (p.source === 'private') badges += '<span class="ep-meta-badge meta-private">Private</span>';
+				if (p.checkType && p.checkType !== 'plugin') badges += `<span class="ep-meta-badge meta-check">${esc(p.checkType)}</span>`;
 
-			let fallbackNote = '';
-			if (p.fallback) {
-				const fbSt = p.fallback.status === 'active' ? 'active' : p.fallback.status === 'installed' ? 'installed' : 'not installed';
-				fallbackNote = `<span class="ep-desc-small">Free alt: ${esc(p.fallback.slug)} (${fbSt})</span>`;
-			}
+				let fallbackNote = '';
+				if (p.fallback) {
+					const fbSt = p.fallback.status === 'active' ? 'active' : p.fallback.status === 'installed' ? 'installed' : 'not installed';
+					fallbackNote = `<span class="ep-desc-small">Free alt: ${esc(p.fallback.slug)} (${fbSt})</span>`;
+				}
 
-			let sourceLink = '';
-			if (p.url) {
-				let domain = '';
-				try { domain = new URL(p.url).hostname; } catch (e) { domain = p.url; }
-				sourceLink = `<a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a>`;
-			}
+				let sourceLink = '';
+				if (p.url) {
+					let domain = '';
+					try { domain = new URL(p.url).hostname; } catch (e) { domain = p.url; }
+					sourceLink = `<a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a>`;
+				}
 
-			html += `<div class="ep-row ep-cols-4">
-				<div class="ep-td-label"><span class="ep-name">${esc(p.name)}${badges}</span><span class="ep-id">${esc(p.slug)}</span>${fallbackNote}</div>
-				<div><span class="ep-tier ${tierCls}">${esc(p.tier)}</span></div>
-				<div><span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span></div>
-				<div>${sourceLink}</div>
-			</div>`;
-		});
-		tblDeps.innerHTML = html;
+				html += `<div class="ep-row ep-cols-4">
+					<div class="ep-td-label"><span class="ep-name">${esc(p.name)}${badges}</span><span class="ep-id">${esc(p.slug)}</span>${fallbackNote}</div>
+					<div><span class="ep-tier ${tierCls}">${esc(p.tier)}</span></div>
+					<div><span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span></div>
+					<div>${sourceLink}</div>
+				</div>`;
+			});
+			tblDeps.innerHTML = html;
+			console.info(`[ExamplePress] Dependencies: ${dependencies.length} loaded`);
+		}
 	}
 
 	/* ── Notifications tab ──────────────────────────────────────────── */
@@ -275,8 +459,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 				if (action === 'archive' && !archived.includes(id)) {
 					archived.push(id);
+					console.info(`[ExamplePress] Notification archived: ${id}`);
 				} else if (action === 'restore') {
 					archived = archived.filter(i => i !== id);
+					console.info(`[ExamplePress] Notification restored: ${id}`);
 				}
 				renderNotifications();
 				updateTabCounts();
@@ -323,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				<div class="ep-json-header"><span class="ep-json-filename">${esc(name)}</span><span class="ep-json-badge">read-only</span></div>
 				<pre class="ep-json-body">${highlightJson(configFiles[name])}</pre>
 			</div>`;
+			setUrlParams('config', name);
 		}
 
 		files.forEach(f => {
@@ -334,7 +521,13 @@ document.addEventListener('DOMContentLoaded', () => {
 			configSwitcher.appendChild(btn);
 		});
 
-		if (activeFile) renderConfig(activeFile);
+		// Restore section from URL.
+		const initSection = urlParams.tab === 'config' && urlParams.section;
+		if (initSection && files.includes(initSection)) {
+			renderConfig(initSection);
+		} else if (activeFile) {
+			renderConfig(activeFile);
+		}
 	}
 
 	/* ── Health tab ─────────────────────────────────────────────────── */
@@ -364,6 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		healthTable('tbl-health-theme', healthChecks.theme);
 		healthTable('tbl-health-router', healthChecks.router);
 		healthTable('tbl-health-security', healthChecks.security);
+		console.info(`[ExamplePress] Health: ${pass} pass, ${warn} warn, ${fail} fail, ${info} info`);
 	}
 
 	/* ── Docs tab ───────────────────────────────────────────────────── */
@@ -387,6 +581,161 @@ document.addEventListener('DOMContentLoaded', () => {
 				<span class="ep-hook-name">${esc(h.name)}</span>
 				<span class="ep-hook-desc">${esc(h.desc)}</span>
 			</div>`).join('');
+	}
+
+	/* ── Navigation tab ────────────────────────────────────────────── */
+
+	if (navigation) {
+		const tblLocs = document.getElementById('tbl-nav-locations');
+		if (tblLocs) {
+			if (!navigation.locations || !navigation.locations.length) {
+				tblLocs.innerHTML = '<p class="ep-notif-empty">No navigation locations registered. Register locations in your companion plugin via register_nav_menus().</p>';
+			} else {
+				let html = '<div class="ep-row ep-row-head ep-cols-nav"><div class="ep-th">Location</div><div class="ep-th">Slug</div><div class="ep-th">Status</div></div>';
+				navigation.locations.forEach(loc => {
+					const assigned = loc.assigned
+						? `<span class="ep-badge badge-on"><span class="ep-dot"></span>Assigned</span>`
+						: `<span class="ep-badge badge-off"><span class="ep-dot"></span>Empty</span>`;
+					html += `<div class="ep-row ep-cols-nav">
+						<div class="ep-td-label"><span class="ep-name">${esc(loc.name)}</span></div>
+						<div><span class="ep-id">${esc(loc.slug)}</span></div>
+						<div>${assigned}</div>
+					</div>`;
+				});
+				tblLocs.innerHTML = html;
+			}
+		}
+
+		const tblMenus = document.getElementById('tbl-nav-menus');
+		if (tblMenus) {
+			if (!navigation.menus || !navigation.menus.length) {
+				tblMenus.innerHTML = '<p class="ep-notif-empty">No menus created yet. Create menus via Appearance &rarr; Menus.</p>';
+			} else {
+				let html = '<div class="ep-row ep-row-head ep-cols-nav"><div class="ep-th">Menu</div><div class="ep-th">Items</div><div class="ep-th">Locations</div></div>';
+				navigation.menus.forEach(menu => {
+					const locTags = menu.locations.length
+						? menu.locations.map(l => `<span class="ep-src">${esc(l)}</span>`).join(' ')
+						: '<span class="ep-id">Unassigned</span>';
+					html += `<div class="ep-row ep-cols-nav">
+						<div class="ep-td-label"><span class="ep-name">${esc(menu.name)}</span><span class="ep-id">${esc(menu.slug)}</span></div>
+						<div><span class="ep-badge badge-info"><span class="ep-dot"></span>${menu.count}</span></div>
+						<div>${locTags}</div>
+					</div>`;
+				});
+				tblMenus.innerHTML = html;
+			}
+		}
+		console.info(`[ExamplePress] Navigation: ${navigation.menus.length} menus, ${navigation.locations.length} locations`);
+	}
+
+	/* ── Demo Companion Plugin ─────────────────────────────────────── */
+
+	const demoPanel = document.getElementById('ep-demo-panel');
+	if (demoPanel && window.ExamplePressData.demo) {
+		let demoStatus = window.ExamplePressData.demo.status || 'not-installed';
+
+		const demoBadge = document.getElementById('ep-demo-badge');
+		const demoMessage = document.getElementById('ep-demo-message');
+		const demoActions = document.getElementById('ep-demo-actions');
+
+		function renderDemo() {
+			// Badge.
+			const badgeMap = {
+				'not-installed': { cls: 'badge-off', lbl: 'Not Installed' },
+				'installed':     { cls: 'badge-warn', lbl: 'Installed' },
+				'active':        { cls: 'badge-on', lbl: 'Active' },
+				'foreign':       { cls: 'badge-err', lbl: 'Conflict' },
+			};
+			const b = badgeMap[demoStatus] || badgeMap['not-installed'];
+			demoBadge.className = `ep-badge ${b.cls}`;
+			demoBadge.innerHTML = `<span class="ep-dot"></span>${b.lbl}`;
+
+			// Message.
+			const messages = {
+				'not-installed': 'The demo companion plugin is not installed. Click Install to copy it from the theme and activate it.',
+				'installed':     'The demo plugin is installed but not active.',
+				'active':        'The demo companion plugin is running. Visit the frontend to see the routing contract in action.',
+				'foreign':       'A plugin named examplepress-demo exists but is not the ExamplePress demo. Remove it manually before installing.',
+			};
+			demoMessage.textContent = messages[demoStatus] || '';
+
+			// Actions.
+			let html = '';
+			if (demoStatus === 'not-installed') {
+				html += '<button class="ep-demo-btn ep-demo-btn-primary" id="ep-demo-install">Install &amp; Activate Demo</button>';
+			} else if (demoStatus === 'installed') {
+				html += '<button class="ep-demo-btn ep-demo-btn-primary" id="ep-demo-install">Activate</button>';
+				html += '<button class="ep-demo-btn ep-demo-btn-danger" id="ep-demo-uninstall">Remove</button>';
+			} else if (demoStatus === 'active') {
+				html += `<a class="ep-demo-btn ep-demo-btn-primary" href="${esc(window.location.origin)}" target="_blank" rel="noopener">View Frontend &rarr;</a>`;
+				html += '<button class="ep-demo-btn ep-demo-btn-danger" id="ep-demo-uninstall">Remove Demo</button>';
+			}
+			demoActions.innerHTML = html;
+
+			// Bind handlers.
+			const installBtn = document.getElementById('ep-demo-install');
+			if (installBtn) {
+				installBtn.addEventListener('click', async () => {
+					installBtn.disabled = true;
+					installBtn.textContent = 'Installing...';
+					console.info('[ExamplePress] Demo install started');
+					try {
+						const res = await fetch(window.ExamplePressData.demoInstallUrl, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
+						});
+						const data = await res.json();
+						if (res.ok && data.success) {
+							demoStatus = data.status;
+							console.info(`[ExamplePress] Demo install success: ${data.status}`);
+							renderDemo();
+						} else {
+							const msg = data.message || data.data?.message || 'Install failed.';
+							demoMessage.textContent = msg;
+							console.error(`[ExamplePress] Demo install error: ${msg}`);
+							installBtn.disabled = false;
+							installBtn.textContent = 'Retry Install';
+						}
+					} catch (err) {
+						demoMessage.textContent = 'Network error: ' + err.message;
+						installBtn.disabled = false;
+						installBtn.textContent = 'Retry Install';
+					}
+				});
+			}
+
+			const uninstallBtn = document.getElementById('ep-demo-uninstall');
+			if (uninstallBtn) {
+				uninstallBtn.addEventListener('click', async () => {
+					uninstallBtn.disabled = true;
+					uninstallBtn.textContent = 'Removing...';
+					console.info('[ExamplePress] Demo uninstall started');
+					try {
+						const res = await fetch(window.ExamplePressData.demoUninstallUrl, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
+						});
+						const data = await res.json();
+						if (res.ok && data.success) {
+							demoStatus = data.status;
+							console.info(`[ExamplePress] Demo uninstall success`);
+							renderDemo();
+						} else {
+							const msg = data.message || data.data?.message || 'Uninstall failed.';
+							demoMessage.textContent = msg;
+							uninstallBtn.disabled = false;
+							uninstallBtn.textContent = 'Retry Remove';
+						}
+					} catch (err) {
+						demoMessage.textContent = 'Network error: ' + err.message;
+						uninstallBtn.disabled = false;
+						uninstallBtn.textContent = 'Retry Remove';
+					}
+				});
+			}
+		}
+
+		renderDemo();
 	}
 
 	/* ── Build tab ──────────────────────────────────────────────────── */
@@ -487,6 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 
 			setBuildLoading(true);
+			console.info(`[ExamplePress] Build started: ${appName} (${appSlug})`);
 
 			try {
 				const res = await fetch(window.ExamplePressData.buildUrl, {
@@ -504,12 +854,14 @@ document.addEventListener('DOMContentLoaded', () => {
 					const errMsg = data.message || data.data?.message || 'An unknown error occurred.';
 					showBuildError(errMsg);
 					setBuildLoading(false);
+					console.error(`[ExamplePress] Build error: ${errMsg}`);
 					return;
 				}
 
 				// Show success card.
 				buildForm.style.display = 'none';
 				buildSuccess.style.display = '';
+				console.info(`[ExamplePress] Build success: ${data.repoUrl || appSlug}`);
 
 				const successMsg = document.getElementById('ep-build-success-msg');
 				successMsg.textContent = data.message || 'Your companion plugin repository has been created.';
@@ -535,6 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				}
 			} catch (err) {
 				showBuildError('Network error: ' + err.message);
+				console.error(`[ExamplePress] Build network error: ${err.message}`);
 			}
 
 			setBuildLoading(false);
@@ -557,11 +910,13 @@ document.addEventListener('DOMContentLoaded', () => {
 	function updateTabCounts() {
 		const activeNotifCount = (notifications || []).filter(n => !archived.includes(n.id)).length;
 		const featureCount = Object.values(features).reduce((sum, arr) => sum + (arr ? arr.length : 0), 0);
+		const navMenuCount = (navigation && navigation.menus) ? navigation.menus.length : 0;
 		const counts = {
 			't-features': featureCount,
 			't-blocks': blocks ? blocks.length : 0,
 			't-dependencies': dependencies ? dependencies.length : 0,
 			't-notifications': activeNotifCount,
+			't-navigation': navMenuCount,
 		};
 		Object.entries(counts).forEach(([tabId, count]) => {
 			const tab = document.getElementById(tabId);
@@ -581,4 +936,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	updateTabCounts();
+
+	console.info('[ExamplePress] Settings page ready.');
 });

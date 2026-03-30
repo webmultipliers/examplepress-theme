@@ -73,7 +73,7 @@ examplepress_register_feature( 'guard-template-rest', [
 
 			if ( $method === 'DELETE' ) {
 				$id = $request->get_param( 'id' );
-				if ( $id && str_contains( (string) $id, 'index' ) ) {
+				if ( $id && preg_match( '/^(examplepress-theme\/\/)?index$/', (string) $id ) ) {
 					return new WP_Error(
 						'ep_template_delete_disabled',
 						__( 'The index template cannot be deleted.', 'examplepress-theme' ),

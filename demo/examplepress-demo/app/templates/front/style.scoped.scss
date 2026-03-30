@@ -1,0 +1,203 @@
+/* Demo Front Page — scoped styles */
+
+.ep-demo {
+	--demo-bg: #0c0c0e;
+	--demo-surface: #151518;
+	--demo-border: #222228;
+	--demo-text: #e8e8ed;
+	--demo-muted: #a0a0b2;
+	--demo-dim: #6b6b80;
+	--demo-accent: #ff6b9d;
+	--demo-accent-dim: rgba(255, 107, 157, 0.08);
+	--demo-mono: 'JetBrains Mono', ui-monospace, monospace;
+	--demo-sans: 'DM Sans', system-ui, sans-serif;
+	--demo-radius: 10px;
+
+	background: var(--demo-bg);
+	color: var(--demo-text);
+	font-family: var(--demo-sans);
+	min-height: 100vh;
+	-webkit-font-smoothing: antialiased;
+}
+
+.ep-demo *, .ep-demo *::before, .ep-demo *::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+/* ── Nav ─────────────────────────────────────── */
+
+.ep-demo-nav {
+	max-width: 900px;
+	margin: 0 auto;
+	padding: 2rem 2rem 0;
+}
+
+.ep-demo-logo {
+	font-family: var(--demo-mono);
+	font-weight: 700;
+	font-size: 0.95rem;
+	color: var(--demo-text);
+
+	span { color: var(--demo-accent); }
+}
+
+.ep-demo-tag {
+	display: inline-block;
+	font-size: 0.55rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--demo-accent);
+	background: var(--demo-accent-dim);
+	border: 1px solid rgba(255, 107, 157, 0.15);
+	padding: 0.1rem 0.4rem;
+	border-radius: 100px;
+	vertical-align: middle;
+	margin-left: 0.4rem;
+}
+
+/* ── Hero ────────────────────────────────────── */
+
+.ep-demo-hero {
+	max-width: 900px;
+	margin: 0 auto;
+	padding: 5rem 2rem 3rem;
+}
+
+.ep-demo-badge {
+	display: inline-block;
+	font-family: var(--demo-mono);
+	font-size: 0.65rem;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--demo-accent);
+	background: var(--demo-accent-dim);
+	border: 1px solid rgba(255, 107, 157, 0.15);
+	padding: 0.3rem 0.8rem;
+	border-radius: 100px;
+	margin-bottom: 1.5rem;
+}
+
+.ep-demo-headline {
+	font-family: var(--demo-sans);
+	font-size: clamp(2rem, 5vw, 3.2rem);
+	font-weight: 700;
+	line-height: 1.15;
+	letter-spacing: -0.03em;
+	margin-bottom: 1.2rem;
+
+	em {
+		font-style: italic;
+		font-family: 'Instrument Serif', Georgia, serif;
+		font-weight: 400;
+		color: var(--demo-accent);
+	}
+}
+
+.ep-demo-body {
+	font-size: 1rem;
+	line-height: 1.7;
+	color: var(--demo-muted);
+	max-width: 640px;
+
+	code {
+		font-family: var(--demo-mono);
+		font-size: 0.82rem;
+		background: var(--demo-surface);
+		border: 1px solid var(--demo-border);
+		padding: 0.08rem 0.35rem;
+		border-radius: 4px;
+		color: var(--demo-accent);
+	}
+}
+
+/* ── Info / Comparison ───────────────────────── */
+
+.ep-demo-info,
+.ep-demo-next {
+	max-width: 900px;
+	margin: 0 auto;
+	padding: 0 2rem 3rem;
+}
+
+.ep-demo-info-title {
+	font-family: var(--demo-mono);
+	font-size: 0.68rem;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--demo-muted);
+	margin-bottom: 1rem;
+}
+
+.ep-demo-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.8rem;
+}
+
+@media (max-width: 600px) {
+	.ep-demo-grid { grid-template-columns: 1fr; }
+}
+
+.ep-demo-card {
+	background: var(--demo-surface);
+	border: 1px solid var(--demo-border);
+	border-radius: var(--demo-radius);
+	padding: 1.2rem 1.4rem;
+}
+
+.ep-demo-card-active {
+	border-color: rgba(255, 107, 157, 0.25);
+	background: var(--demo-accent-dim);
+}
+
+.ep-demo-card-label {
+	font-family: var(--demo-mono);
+	font-size: 0.6rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--demo-dim);
+	margin-bottom: 0.8rem;
+}
+
+.ep-demo-card-active .ep-demo-card-label {
+	color: var(--demo-accent);
+}
+
+.ep-demo-card-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.4rem 0;
+	border-bottom: 1px solid var(--demo-border);
+	font-size: 0.82rem;
+
+	&:last-child { border-bottom: none; }
+
+	code {
+		font-family: var(--demo-mono);
+		font-size: 0.72rem;
+		color: var(--demo-text);
+	}
+}
+
+.ep-demo-dim {
+	color: var(--demo-dim);
+	font-size: 0.78rem;
+}
+
+/* ── Footer ──────────────────────────────────── */
+
+.ep-demo-footer {
+	max-width: 900px;
+	margin: 0 auto;
+	padding: 3rem 2rem;
+	text-align: center;
+	font-size: 0.78rem;
+	color: var(--demo-dim);
+}

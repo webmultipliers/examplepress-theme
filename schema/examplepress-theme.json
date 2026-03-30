@@ -10,6 +10,23 @@
 			"type": "string",
 			"description": "JSON Schema reference for IDE autocompletion."
 		},
+		"admin_tabs": {
+			"type": "object",
+			"description": "Control which tabs are visible on the ExamplePress settings page. Companion plugins can also use the examplepress_admin_tabs_hidden filter.",
+			"additionalProperties": false,
+			"properties": {
+				"hidden": {
+					"type": "array",
+					"description": "Tab IDs to hide from the settings page navigation.",
+					"items": {
+						"type": "string",
+						"enum": ["features", "design", "build", "blocks", "dependencies", "notifications", "library", "navigation", "config", "health", "docs", "support"]
+					},
+					"uniqueItems": true,
+					"default": []
+				}
+			}
+		},
 		"features": {
 			"type": "object",
 			"description": "Toggle or configure registered theme features. Keys are feature IDs. Values can be a boolean (toggle) or an object with 'enabled' and 'options'.",

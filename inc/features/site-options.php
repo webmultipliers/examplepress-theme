@@ -43,9 +43,6 @@ examplepress_register_feature( 'managed-options', [
 			add_filter( "pre_option_{$option}", function () use ( $value ) {
 				return $value;
 			} );
-			add_filter( "option_{$option}", function () use ( $value ) {
-				return $value;
-			} );
 		}
 	},
 ] );

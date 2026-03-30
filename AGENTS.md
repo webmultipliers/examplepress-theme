@@ -33,6 +33,10 @@ The `design` section in `examplepress.json` is a shorthand that normalises into 
 - `design.typography.fontSizes` → `features.theme-typography.options.font_sizes`
 - `design.strict` → `features.design-strict.enabled`
 
+### Settings Page URL Routing
+
+The settings page supports deep-linking via query params: `?page=examplepress-settings&tab={id}&section={value}`. The `tab` param maps to `data-tab-id` on tab buttons. The `section` param is used within the Config tab to select a specific file subtab.
+
 ### Developer Mode
 
 Define `EP_DEV_MODE` as `true` in `wp-config.php` to auto-disable all three guards during development. The settings page displays a red warning banner when active.
@@ -52,6 +56,8 @@ Define `EP_DEV_MODE` as `true` in `wp-config.php` to auto-disable all three guar
 | `examplepress_feature_{id}_{key}` | Override a feature's option value |
 | `examplepress_allowed_block_types` | Customise allowed blocks when `restrict-block-types` is active |
 | `examplepress_features` | Modify the full feature registry |
+| `examplepress_admin_tabs_hidden` | Hide settings page tabs by ID (array of strings) |
+| `examplepress_feature_details` | Override or extend feature detail descriptions shown in the settings modal |
 
 ### Actions
 

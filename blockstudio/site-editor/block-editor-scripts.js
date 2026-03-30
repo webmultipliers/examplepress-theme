@@ -9,12 +9,21 @@
 wp.domReady(() => {
 	const hideSidebarItems = () => {
 		document.querySelectorAll('.edit-site-sidebar-navigation-item').forEach((item) => {
-			const text = item.textContent?.trim().toLowerCase();
-			if (text === 'templates' || text === 'template parts') {
-				item.style.display = 'none';
-			}
 			const id = item.getAttribute('id');
 			if (id === 'patterns-navigation-item' || id === 'page-navigation-item') {
+				item.style.display = 'none';
+				return;
+			}
+			// Templates / Template Parts lack stable IDs — match by href which uses untranslated slugs.
+			const link = item.querySelector('a[href]');
+			const href = link?.getAttribute('href') || '';
+			if (/[?&]postType=wp_template(&|$)/.test(href) || /[?&]postType=wp_template_part(&|$)/.test(href)) {
+				item.style.display = 'none';
+				return;
+			}
+			// Fallback: text match for environments where href isn't present.
+			const text = item.textContent?.trim().toLowerCase();
+			if (text === 'templates' || text === 'template parts') {
 				item.style.display = 'none';
 			}
 		});

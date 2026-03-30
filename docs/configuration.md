@@ -89,13 +89,13 @@ Documentation links shown in the settings page Docs tab. Client forks can replac
 
 The default entries point at the GitHub repo's `docs/` directory. When forking for a client, replace these with URLs to your own documentation, internal wikis, or Notion pages.
 
-#### plugins
+#### dependencies
 
-A curated plugin directory. Each entry declares a dependency with metadata for the settings page and admin notices.
+A curated dependency directory. Each entry declares a dependency with metadata for the settings page and admin notices. (The legacy `plugins` key is still accepted and normalised automatically.)
 
 ```json
 {
-  "plugins": [
+  "dependencies": [
     {
       "slug": "blockstudio",
       "name": "Blockstudio",
@@ -139,6 +139,33 @@ A curated plugin directory. Each entry declares a dependency with metadata for t
 **Fallback logic:** If a paid plugin is missing but its `fallback_slug` is installed and active, the dependency is marked as satisfied (free version). The settings page shows the fallback status, and admin notices include links to the free alternative.
 
 **Backwards compatibility:** The legacy `{ "required": [], "recommended": [] }` format is still accepted and normalised at load time.
+
+#### admin_tabs
+
+Control which tabs are visible on the ExamplePress settings page. Useful for hiding tabs that aren't relevant to a specific deployment.
+
+```json
+{
+  "admin_tabs": {
+    "hidden": ["build", "library"]
+  }
+}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `hidden` | no | Array of tab IDs to hide from the settings page navigation |
+
+Valid tab IDs: `features`, `design`, `build`, `blocks`, `dependencies`, `notifications`, `library`, `navigation`, `config`, `health`, `docs`, `support`.
+
+Companion plugins can also hide tabs programmatically via the `examplepress_admin_tabs_hidden` filter:
+
+```php
+add_filter( 'examplepress_admin_tabs_hidden', function ( $hidden ) {
+    $hidden[] = 'build';
+    return $hidden;
+} );
+```
 
 ## theme.json
 
