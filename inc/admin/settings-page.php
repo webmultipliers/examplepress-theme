@@ -85,6 +85,7 @@ function examplepress_settings_gather_data() {
 		'docs'           => examplepress_settings_get_docs(),
 		'hooks'          => examplepress_settings_get_hooks(),
 		'restUrl'        => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
+		'buildUrl'       => esc_url_raw( rest_url( 'examplepress/v1/build' ) ),
 		'nonce'          => wp_create_nonce( 'wp_rest' ),
 	];
 }
@@ -422,6 +423,7 @@ function examplepress_render_settings_page() {
 			<nav class="ep-tabs" role="tablist">
 				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-features"      id="t-features">Features<span class="ep-tab-count"></span></button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-design"         id="t-design">Design</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-build"          id="t-build">Build</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-blocks"         id="t-blocks">Blocks<span class="ep-tab-count"></span></button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-dependencies"   id="t-dependencies">Dependencies<span class="ep-tab-count"></span></button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-notifications"  id="t-notifications">Notifications<span class="ep-tab-count"></span></button>
@@ -478,6 +480,111 @@ function examplepress_render_settings_page() {
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Size Scale</span><div class="ep-section-line"></div></div>
 					<div class="ep-size-scale" id="size-scale"></div>
+				</section>
+			</div>
+
+			<!-- Build -->
+			<div class="ep-panel" id="p-build" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Scaffold Companion App</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Create a new companion plugin repository on GitHub via Troy. Your app will be pre-configured with the ExamplePress foundation, a CI/CD pipeline, and optional staging auto-sync.</p>
+
+					<!-- Build Form -->
+					<div id="ep-build-form-wrap">
+						<div class="ep-build-form">
+							<!-- GitHub Authentication -->
+							<div class="ep-build-field">
+								<label class="ep-build-label" for="ep-github-token">GitHub Personal Access Token</label>
+								<input type="password" class="ep-build-input" id="ep-github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+								<span class="ep-build-hint">Requires <code>repo</code> and <code>codespace</code> scopes. <a href="https://github.com/settings/tokens/new?scopes=repo,codespace&description=ExamplePress+Build" target="_blank" rel="noopener" class="ep-link">Generate token &rarr;</a></span>
+							</div>
+
+							<!-- App Configuration -->
+							<div class="ep-build-row">
+								<div class="ep-build-field ep-build-field-half">
+									<label class="ep-build-label" for="ep-app-name">App Name</label>
+									<input type="text" class="ep-build-input" id="ep-app-name" placeholder="Acme Corp Core" />
+								</div>
+								<div class="ep-build-field ep-build-field-half">
+									<label class="ep-build-label" for="ep-app-slug">App Slug</label>
+									<input type="text" class="ep-build-input" id="ep-app-slug" placeholder="acme-corp-core" />
+								</div>
+							</div>
+
+							<div class="ep-build-row">
+								<div class="ep-build-field ep-build-field-half">
+									<label class="ep-build-label" for="ep-troy-server">Troy Server</label>
+									<select class="ep-build-select" id="ep-troy-server">
+										<option value="cloud">Troy Cloud (Hosted)</option>
+										<option value="custom">Custom URL</option>
+									</select>
+								</div>
+								<div class="ep-build-field ep-build-field-half" id="ep-custom-url-wrap" style="display:none">
+									<label class="ep-build-label" for="ep-custom-url">Custom Server URL</label>
+									<input type="url" class="ep-build-input" id="ep-custom-url" placeholder="https://troy.yourcompany.com" />
+								</div>
+							</div>
+
+							<!-- Staging Toggle -->
+							<div class="ep-build-field">
+								<label class="ep-build-checkbox-label">
+									<input type="checkbox" id="ep-staging-toggle" />
+									<span>Connect Staging Environment (SFTP Auto-Sync on Save)</span>
+								</label>
+							</div>
+
+							<!-- Staging SFTP Fields (hidden by default) -->
+							<div id="ep-staging-fields" style="display:none">
+								<div class="ep-build-row">
+									<div class="ep-build-field ep-build-field-half">
+										<label class="ep-build-label" for="ep-sftp-host">SFTP Host</label>
+										<input type="text" class="ep-build-input" id="ep-sftp-host" placeholder="staging.example.com" />
+									</div>
+									<div class="ep-build-field ep-build-field-quarter">
+										<label class="ep-build-label" for="ep-sftp-port">Port</label>
+										<input type="number" class="ep-build-input" id="ep-sftp-port" value="22" />
+									</div>
+								</div>
+								<div class="ep-build-row">
+									<div class="ep-build-field ep-build-field-half">
+										<label class="ep-build-label" for="ep-sftp-user">Username</label>
+										<input type="text" class="ep-build-input" id="ep-sftp-user" placeholder="deploy" />
+									</div>
+									<div class="ep-build-field ep-build-field-half">
+										<label class="ep-build-label" for="ep-sftp-pass">Password</label>
+										<input type="password" class="ep-build-input" id="ep-sftp-pass" placeholder="••••••••" autocomplete="off" />
+									</div>
+								</div>
+								<div class="ep-build-field">
+									<label class="ep-build-label" for="ep-sftp-path">Remote Path</label>
+									<input type="text" class="ep-build-input" id="ep-sftp-path" placeholder="/wp-content/plugins/acme-corp-core" />
+									<span class="ep-build-hint">Auto-filled from App Slug if left empty.</span>
+								</div>
+							</div>
+
+							<!-- Error display -->
+							<div id="ep-build-error" class="ep-build-error" style="display:none"></div>
+
+							<!-- Submit -->
+							<button class="ep-build-submit" id="ep-build-submit">
+								<span class="ep-build-submit-label">Scaffold &amp; Create Repo</span>
+								<span class="ep-build-spinner" style="display:none"></span>
+							</button>
+						</div>
+					</div>
+
+					<!-- Success Card (hidden by default) -->
+					<div id="ep-build-success" class="ep-build-success" style="display:none">
+						<div class="ep-build-success-icon">&#10003;</div>
+						<div class="ep-build-success-title">Repository Created</div>
+						<p class="ep-build-success-msg" id="ep-build-success-msg"></p>
+						<div class="ep-build-success-actions">
+							<a id="ep-build-codespaces-link" class="ep-build-btn-primary" href="#" target="_blank" rel="noopener">Launch in Codespaces &#8599;</a>
+							<a id="ep-build-repo-link" class="ep-build-btn-secondary" href="#" target="_blank" rel="noopener">View Repository &rarr;</a>
+						</div>
+						<button class="ep-build-reset" id="ep-build-reset">Create Another App</button>
+					</div>
+
 				</section>
 			</div>
 

@@ -389,6 +389,169 @@ document.addEventListener('DOMContentLoaded', () => {
 			</div>`).join('');
 	}
 
+	/* ── Build tab ──────────────────────────────────────────────────── */
+
+	const buildForm = document.getElementById('ep-build-form-wrap');
+	const buildSuccess = document.getElementById('ep-build-success');
+
+	if (buildForm) {
+		const appNameInput = document.getElementById('ep-app-name');
+		const appSlugInput = document.getElementById('ep-app-slug');
+		const troySelect = document.getElementById('ep-troy-server');
+		const customUrlWrap = document.getElementById('ep-custom-url-wrap');
+		const stagingToggle = document.getElementById('ep-staging-toggle');
+		const stagingFields = document.getElementById('ep-staging-fields');
+		const submitBtn = document.getElementById('ep-build-submit');
+		const submitLabel = submitBtn.querySelector('.ep-build-submit-label');
+		const submitSpinner = submitBtn.querySelector('.ep-build-spinner');
+		const errorEl = document.getElementById('ep-build-error');
+
+		// Auto-slugify App Name → App Slug.
+		let slugManuallyEdited = false;
+		appSlugInput.addEventListener('input', () => { slugManuallyEdited = true; });
+		appNameInput.addEventListener('input', () => {
+			if (!slugManuallyEdited) {
+				appSlugInput.value = appNameInput.value
+					.toLowerCase()
+					.replace(/[^a-z0-9\s-]/g, '')
+					.replace(/\s+/g, '-')
+					.replace(/-+/g, '-')
+					.replace(/^-|-$/g, '');
+			}
+			// Auto-fill SFTP remote path.
+			const sftpPath = document.getElementById('ep-sftp-path');
+			if (sftpPath && !sftpPath.value) {
+				sftpPath.placeholder = '/wp-content/plugins/' + (appSlugInput.value || 'your-app-slug');
+			}
+		});
+
+		// Troy server toggle.
+		troySelect.addEventListener('change', () => {
+			customUrlWrap.style.display = troySelect.value === 'custom' ? '' : 'none';
+		});
+
+		// Staging toggle.
+		stagingToggle.addEventListener('change', () => {
+			stagingFields.style.display = stagingToggle.checked ? '' : 'none';
+		});
+
+		function showBuildError(msg) {
+			errorEl.textContent = msg;
+			errorEl.style.display = '';
+		}
+
+		function hideBuildError() {
+			errorEl.style.display = 'none';
+			errorEl.textContent = '';
+		}
+
+		function setBuildLoading(loading) {
+			submitBtn.disabled = loading;
+			submitLabel.textContent = loading ? 'Provisioning Repository...' : 'Scaffold & Create Repo';
+			submitSpinner.style.display = loading ? '' : 'none';
+		}
+
+		// Submit handler.
+		submitBtn.addEventListener('click', async () => {
+			hideBuildError();
+
+			const githubToken = document.getElementById('ep-github-token').value.trim();
+			const appName = appNameInput.value.trim();
+			const appSlug = appSlugInput.value.trim();
+			const troyServer = troySelect.value;
+			const customUrl = document.getElementById('ep-custom-url').value.trim();
+
+			// Client-side validation.
+			if (!githubToken) { showBuildError('A GitHub Personal Access Token is required.'); return; }
+			if (!appName) { showBuildError('App Name is required.'); return; }
+			if (!appSlug) { showBuildError('App Slug is required.'); return; }
+			if (troyServer === 'custom' && !customUrl) { showBuildError('A custom server URL is required.'); return; }
+
+			const payload = {
+				githubToken,
+				appName,
+				appSlug,
+				troyServer,
+				customServerUrl: customUrl,
+				stagingEnabled: stagingToggle.checked,
+			};
+
+			if (stagingToggle.checked) {
+				payload.sftpHost = document.getElementById('ep-sftp-host').value.trim();
+				payload.sftpPort = parseInt(document.getElementById('ep-sftp-port').value, 10) || 22;
+				payload.sftpUser = document.getElementById('ep-sftp-user').value.trim();
+				payload.sftpPass = document.getElementById('ep-sftp-pass').value;
+				payload.sftpPath = document.getElementById('ep-sftp-path').value.trim();
+
+				if (!payload.sftpHost) { showBuildError('SFTP Host is required when staging is enabled.'); return; }
+			}
+
+			setBuildLoading(true);
+
+			try {
+				const res = await fetch(window.ExamplePressData.buildUrl, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': window.ExamplePressData.nonce,
+					},
+					body: JSON.stringify(payload),
+				});
+
+				const data = await res.json();
+
+				if (!res.ok) {
+					const errMsg = data.message || data.data?.message || 'An unknown error occurred.';
+					showBuildError(errMsg);
+					setBuildLoading(false);
+					return;
+				}
+
+				// Show success card.
+				buildForm.style.display = 'none';
+				buildSuccess.style.display = '';
+
+				const successMsg = document.getElementById('ep-build-success-msg');
+				successMsg.textContent = data.message || 'Your companion plugin repository has been created.';
+
+				const codespacesLink = document.getElementById('ep-build-codespaces-link');
+				const repoLink = document.getElementById('ep-build-repo-link');
+
+				if (data.codespacesUrl) {
+					codespacesLink.href = data.codespacesUrl;
+					codespacesLink.style.display = '';
+				} else if (data.repoUrl) {
+					codespacesLink.href = data.repoUrl.replace('github.com/', 'github.com/codespaces/new?repo=');
+					codespacesLink.style.display = '';
+				} else {
+					codespacesLink.style.display = 'none';
+				}
+
+				if (data.repoUrl) {
+					repoLink.href = data.repoUrl;
+					repoLink.style.display = '';
+				} else {
+					repoLink.style.display = 'none';
+				}
+			} catch (err) {
+				showBuildError('Network error: ' + err.message);
+			}
+
+			setBuildLoading(false);
+		});
+
+		// Reset button — create another app.
+		const resetBtn = document.getElementById('ep-build-reset');
+		if (resetBtn) {
+			resetBtn.addEventListener('click', () => {
+				buildSuccess.style.display = 'none';
+				buildForm.style.display = '';
+				hideBuildError();
+				slugManuallyEdited = false;
+			});
+		}
+	}
+
 	/* ── Tab counts ─────────────────────────────────────────────────── */
 
 	function updateTabCounts() {
