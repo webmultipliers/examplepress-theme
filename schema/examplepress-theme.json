@@ -103,11 +103,27 @@
 					"$ref": "#/$defs/featureToggle"
 				},
 				"theme-typography": {
-					"description": "Inject font families and sizes into theme.json at runtime. Prefer using design.typography instead.",
+					"description": "Inject font families, sizes, and typography flags into theme.json at runtime. Prefer using design.typography instead.",
 					"$ref": "#/$defs/featureToggle"
 				},
 				"design-strict": {
 					"description": "Lock down all appearance tools in the editor. Prefer using design.strict instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"theme-spacing": {
+					"description": "Inject spacing presets, scale, and units into theme.json at runtime. Prefer using design.spacing instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"theme-borders": {
+					"description": "Inject border controls and radius presets into theme.json at runtime. Prefer using design.borders instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"theme-shadows": {
+					"description": "Inject shadow presets into theme.json at runtime. Prefer using design.shadows instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"theme-global-styles": {
+					"description": "Inject global styles (background, text, font, padding) into theme.json at runtime. Prefer using design.globalStyles instead.",
 					"$ref": "#/$defs/featureToggle"
 				},
 				"guard-template-redirect": {
@@ -120,6 +136,50 @@
 				},
 				"guard-template-resolution": {
 					"description": "Filter out user-created templates at resolution time. Safety net for pre-existing database templates.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-assets": {
+					"description": "Control whether Blockstudio assets are enqueued. Prefer using blockstudio.assets instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-asset-reset": {
+					"description": "Control Blockstudio CSS reset and full-width overrides. Prefer using blockstudio.assetReset instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-minify": {
+					"description": "Control Blockstudio CSS/JS minification. Prefer using blockstudio.minify instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-scss": {
+					"description": "Control Blockstudio SCSS processing. Prefer using blockstudio.scss instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-tailwind": {
+					"description": "Control Blockstudio Tailwind CSS integration. Prefer using blockstudio.tailwind instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-editor": {
+					"description": "Control Blockstudio editor settings (format on save, assets, markup). Prefer using blockstudio.editor instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-block-editor": {
+					"description": "Control Blockstudio block editor settings (loading, CSS classes/variables). Prefer using blockstudio.blockEditor instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-ai-context": {
+					"description": "Toggle Blockstudio AI context generation. Prefer using blockstudio.aiContext instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-block-tags": {
+					"description": "Control Blockstudio block tag rendering (allow/deny lists). Prefer using blockstudio.blockTags instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-dev": {
+					"description": "Control Blockstudio developer tools (grab, perf, canvas). Prefer using blockstudio.dev instead.",
+					"$ref": "#/$defs/featureToggle"
+				},
+				"blockstudio-users": {
+					"description": "Control which users/roles can access Blockstudio. Prefer using blockstudio.users instead.",
 					"$ref": "#/$defs/featureToggle"
 				}
 			}
@@ -207,6 +267,390 @@
 									"name": { "type": "string", "description": "Human-readable size name." }
 								}
 							}
+						},
+						"fluid": {
+							"type": "boolean",
+							"description": "Enable fluid typography scaling.",
+							"default": false
+						},
+						"lineHeight": {
+							"type": "boolean",
+							"description": "Allow custom line-height in the editor.",
+							"default": false
+						},
+						"textColumns": {
+							"type": "boolean",
+							"description": "Allow text columns in the editor.",
+							"default": false
+						},
+						"writingMode": {
+							"type": "boolean",
+							"description": "Allow writing mode changes in the editor.",
+							"default": false
+						},
+						"dropCap": {
+							"type": "boolean",
+							"description": "Show drop cap toggle in the editor.",
+							"default": true
+						},
+						"defaultFontSizes": {
+							"type": "boolean",
+							"description": "Include WordPress default font size presets.",
+							"default": true
+						}
+					}
+				},
+				"spacing": {
+					"type": "object",
+					"description": "Spacing settings injected into theme.json at runtime.",
+					"additionalProperties": false,
+					"properties": {
+						"spacingSizes": {
+							"type": "array",
+							"description": "Custom spacing size presets.",
+							"items": {
+								"type": "object",
+								"required": ["slug", "size", "name"],
+								"additionalProperties": false,
+								"properties": {
+									"slug": { "type": "string" },
+									"size": { "type": "string", "description": "CSS size value (e.g. '1rem')." },
+									"name": { "type": "string", "description": "Human-readable size name." }
+								}
+							}
+						},
+						"spacingScale": {
+							"type": "object",
+							"description": "Spacing scale configuration.",
+							"additionalProperties": true
+						},
+						"blockGap": {
+							"type": "boolean",
+							"description": "Enable block gap controls.",
+							"default": true
+						},
+						"units": {
+							"type": "array",
+							"description": "Allowed CSS units for spacing values.",
+							"items": { "type": "string" },
+							"default": ["px", "em", "rem", "vh", "vw", "%"]
+						}
+					}
+				},
+				"borders": {
+					"type": "object",
+					"description": "Border controls injected into theme.json at runtime.",
+					"additionalProperties": false,
+					"properties": {
+						"radiusSizes": {
+							"type": "array",
+							"description": "Custom border radius presets.",
+							"items": {
+								"type": "object",
+								"required": ["slug", "size", "name"],
+								"additionalProperties": false,
+								"properties": {
+									"slug": { "type": "string" },
+									"size": { "type": "string" },
+									"name": { "type": "string" }
+								}
+							}
+						},
+						"color": {
+							"type": "boolean",
+							"description": "Enable border color controls.",
+							"default": true
+						},
+						"radius": {
+							"type": "boolean",
+							"description": "Enable border radius controls.",
+							"default": true
+						},
+						"style": {
+							"type": "boolean",
+							"description": "Enable border style controls.",
+							"default": true
+						},
+						"width": {
+							"type": "boolean",
+							"description": "Enable border width controls.",
+							"default": true
+						}
+					}
+				},
+				"shadows": {
+					"type": "object",
+					"description": "Shadow presets injected into theme.json at runtime.",
+					"additionalProperties": false,
+					"properties": {
+						"presets": {
+							"type": "array",
+							"description": "Custom shadow presets.",
+							"items": {
+								"type": "object",
+								"required": ["slug", "shadow", "name"],
+								"additionalProperties": false,
+								"properties": {
+									"slug": { "type": "string" },
+									"shadow": { "type": "string", "description": "CSS shadow value." },
+									"name": { "type": "string", "description": "Human-readable shadow name." }
+								}
+							}
+						},
+						"defaultPresets": {
+							"type": "boolean",
+							"description": "Include WordPress default shadow presets.",
+							"default": true
+						}
+					}
+				},
+				"globalStyles": {
+					"type": "object",
+					"description": "Global styles (styles.* in theme.json) injected at runtime.",
+					"additionalProperties": false,
+					"properties": {
+						"background": {
+							"type": "string",
+							"description": "Global background colour (CSS value or preset reference)."
+						},
+						"text": {
+							"type": "string",
+							"description": "Global text colour (CSS value or preset reference)."
+						},
+						"fontFamily": {
+							"type": "string",
+							"description": "Global font family (CSS value or preset reference)."
+						},
+						"fontSize": {
+							"type": "string",
+							"description": "Global font size (CSS value or preset reference)."
+						},
+						"padding": {
+							"type": "object",
+							"description": "Global padding values (top, right, bottom, left).",
+							"additionalProperties": { "type": "string" }
+						}
+					}
+				}
+			}
+		},
+		"blockstudio": {
+			"type": "object",
+			"description": "Blockstudio runtime settings. Values here are normalised into features.blockstudio-* and applied via blockstudio/settings/* filters.",
+			"additionalProperties": false,
+			"properties": {
+				"assets": {
+					"type": "object",
+					"description": "Control Blockstudio asset enqueueing.",
+					"additionalProperties": false,
+					"properties": {
+						"enqueue": {
+							"type": "boolean",
+							"description": "Whether to enqueue Blockstudio assets.",
+							"default": true
+						}
+					}
+				},
+				"assetReset": {
+					"type": "object",
+					"description": "Blockstudio CSS reset settings.",
+					"additionalProperties": false,
+					"properties": {
+						"enabled": {
+							"type": "boolean",
+							"description": "Enable the CSS reset.",
+							"default": false
+						},
+						"fullWidth": {
+							"type": "array",
+							"description": "Post types where blocks render full-width.",
+							"items": { "type": "string" },
+							"default": []
+						}
+					}
+				},
+				"minify": {
+					"type": "object",
+					"description": "Blockstudio CSS/JS minification.",
+					"additionalProperties": false,
+					"properties": {
+						"css": {
+							"type": "boolean",
+							"description": "Minify CSS output.",
+							"default": false
+						},
+						"js": {
+							"type": "boolean",
+							"description": "Minify JS output.",
+							"default": false
+						}
+					}
+				},
+				"scss": {
+					"type": "object",
+					"description": "Blockstudio SCSS processing.",
+					"additionalProperties": false,
+					"properties": {
+						"scss": {
+							"type": "boolean",
+							"description": "Enable SCSS compilation.",
+							"default": false
+						},
+						"scssFiles": {
+							"type": "boolean",
+							"description": "Process external SCSS files.",
+							"default": true
+						}
+					}
+				},
+				"tailwind": {
+					"type": "object",
+					"description": "Blockstudio Tailwind CSS integration.",
+					"additionalProperties": false,
+					"properties": {
+						"enabled": {
+							"type": "boolean",
+							"description": "Enable Tailwind CSS processing.",
+							"default": false
+						},
+						"config": {
+							"type": "string",
+							"description": "Tailwind CSS configuration string (e.g. @theme directives).",
+							"default": ""
+						}
+					}
+				},
+				"editor": {
+					"type": "object",
+					"description": "Blockstudio editor behaviour.",
+					"additionalProperties": false,
+					"properties": {
+						"formatOnSave": {
+							"type": "boolean",
+							"description": "Auto-format block markup on save.",
+							"default": false
+						},
+						"assets": {
+							"type": "array",
+							"description": "Additional asset paths to load in the editor.",
+							"items": { "type": "string" },
+							"default": []
+						},
+						"markup": {
+							"description": "Editor markup processing mode.",
+							"oneOf": [
+								{ "type": "boolean" },
+								{ "type": "string" }
+							],
+							"default": false
+						}
+					}
+				},
+				"blockEditor": {
+					"type": "object",
+					"description": "Blockstudio block editor integration.",
+					"additionalProperties": false,
+					"properties": {
+						"disableLoading": {
+							"type": "boolean",
+							"description": "Disable Blockstudio loading indicator.",
+							"default": false
+						},
+						"cssClasses": {
+							"type": "array",
+							"description": "Additional CSS class paths to expose.",
+							"items": { "type": "string" },
+							"default": []
+						},
+						"cssVariables": {
+							"type": "array",
+							"description": "Additional CSS variable paths to expose.",
+							"items": { "type": "string" },
+							"default": []
+						}
+					}
+				},
+				"aiContext": {
+					"description": "Toggle Blockstudio AI context generation. Accepts a boolean or object with 'enabled'.",
+					"oneOf": [
+						{ "type": "boolean" },
+						{
+							"type": "object",
+							"additionalProperties": false,
+							"properties": {
+								"enabled": { "type": "boolean", "default": false }
+							}
+						}
+					],
+					"default": false
+				},
+				"blockTags": {
+					"type": "object",
+					"description": "Blockstudio block tag rendering control.",
+					"additionalProperties": false,
+					"properties": {
+						"enabled": {
+							"type": "boolean",
+							"description": "Enable block tag processing.",
+							"default": false
+						},
+						"allow": {
+							"type": "array",
+							"description": "Block tag patterns to allow.",
+							"items": { "type": "string" },
+							"default": []
+						},
+						"deny": {
+							"type": "array",
+							"description": "Block tag patterns to deny.",
+							"items": { "type": "string" },
+							"default": []
+						}
+					}
+				},
+				"dev": {
+					"type": "object",
+					"description": "Blockstudio developer tools (usually disabled in production).",
+					"additionalProperties": false,
+					"properties": {
+						"grab": {
+							"type": "boolean",
+							"description": "Enable grab tool.",
+							"default": false
+						},
+						"perf": {
+							"type": "boolean",
+							"description": "Enable performance overlay.",
+							"default": false
+						},
+						"canvas": {
+							"type": "boolean",
+							"description": "Enable canvas mode.",
+							"default": false
+						},
+						"canvasAdminBar": {
+							"type": "boolean",
+							"description": "Show admin bar in canvas mode.",
+							"default": true
+						}
+					}
+				},
+				"users": {
+					"type": "object",
+					"description": "Restrict Blockstudio access to specific users or roles.",
+					"additionalProperties": false,
+					"properties": {
+						"ids": {
+							"type": "array",
+							"description": "User IDs that can access Blockstudio.",
+							"items": { "type": "integer" },
+							"default": []
+						},
+						"roles": {
+							"type": "array",
+							"description": "User roles that can access Blockstudio.",
+							"items": { "type": "string" },
+							"default": []
 						}
 					}
 				}

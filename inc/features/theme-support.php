@@ -8,46 +8,51 @@
 
 examplepress_register_feature( 'title-tag', [
 	'label'   => 'Title Tag',
+	'group'   => 'theme',
 	'default' => true,
 	'setup'   => function ( $id ) {
-		if ( examplepress_feature_enabled( $id ) ) {
+		examplepress_guarded_setup( $id, function () {
 			add_theme_support( 'title-tag' );
-		}
+		} );
 	},
 ] );
 
 examplepress_register_feature( 'responsive-embeds', [
 	'label'   => 'Responsive Embeds',
+	'group'   => 'theme',
 	'default' => true,
 	'setup'   => function ( $id ) {
-		if ( examplepress_feature_enabled( $id ) ) {
+		examplepress_guarded_setup( $id, function () {
 			add_theme_support( 'responsive-embeds' );
-		}
+		} );
 	},
 ] );
 
 examplepress_register_feature( 'post-thumbnails', [
 	'label'   => 'Post Thumbnails',
+	'group'   => 'theme',
 	'default' => true,
 	'setup'   => function ( $id ) {
-		if ( examplepress_feature_enabled( $id ) ) {
+		examplepress_guarded_setup( $id, function () {
 			add_theme_support( 'post-thumbnails' );
-		}
+		} );
 	},
 ] );
 
 examplepress_register_feature( 'wp-block-styles', [
 	'label'   => 'Block Styles',
+	'group'   => 'theme',
 	'default' => true,
 	'setup'   => function ( $id ) {
-		if ( examplepress_feature_enabled( $id ) ) {
+		examplepress_guarded_setup( $id, function () {
 			add_theme_support( 'wp-block-styles' );
-		}
+		} );
 	},
 ] );
 
 examplepress_register_feature( 'html5', [
 	'label'   => 'HTML5 Markup',
+	'group'   => 'theme',
 	'default' => true,
 	'options' => [
 		'features' => [
@@ -61,12 +66,11 @@ examplepress_register_feature( 'html5', [
 		],
 	],
 	'setup'   => function ( $id ) {
-		if ( ! examplepress_feature_enabled( $id ) ) {
-			return;
-		}
-		$features = (array) examplepress_feature_option( $id, 'features', [] );
-		if ( ! empty( $features ) ) {
-			add_theme_support( 'html5', $features );
-		}
+		examplepress_guarded_setup( $id, function ( $id ) {
+			$features = (array) examplepress_feature_option( $id, 'features', [] );
+			if ( ! empty( $features ) ) {
+				add_theme_support( 'html5', $features );
+			}
+		} );
 	},
 ] );

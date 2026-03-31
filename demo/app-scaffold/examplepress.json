@@ -1,5 +1,5 @@
 {
-	"$schema": "https://www.examplepress.com/schema/examplepress-app",
+	"$schema": "https://www.examplepress.com/schema/app",
 	"name": "__NAME__",
 	"slug": "__SLUG__",
 	"description": "__DESC__",

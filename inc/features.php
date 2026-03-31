@@ -13,3 +13,4 @@ require_once __DIR__ . '/features/admin-customization.php';
 require_once __DIR__ . '/features/design-tokens.php';
 require_once __DIR__ . '/features/site-options.php';
 require_once __DIR__ . '/features/guards.php';
+require_once __DIR__ . '/features/blockstudio.php';
