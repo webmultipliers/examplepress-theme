@@ -181,6 +181,19 @@
 	},
 	"dependencies": [
 		{
+			"slug": "blockstudio",
+			"name": "Blockstudio",
+			"tier": "required",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "class",
+			"check_target": "Blockstudio\\Build",
+			"source": {
+				"type": "direct",
+				"url": "https://github.com/flavor/flavor"
+			}
+		},
+		{
 			"slug": "redirection",
 			"name": "Redirection",
 			"tier": "recommended",

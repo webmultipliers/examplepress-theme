@@ -831,7 +831,7 @@ function examplepress_render_settings_page() {
 						</div>
 						<div class="ep-overview-card" data-tab-target="support">
 							<div class="ep-overview-card-title">Support</div>
-							<p class="ep-overview-card-desc">Links to Blockstudio Plus, the GitHub repository, and contact information for enterprise deployments.</p>
+							<p class="ep-overview-card-desc">Links to Blockstudio, the GitHub repository, and contact information for enterprise deployments.</p>
 						</div>
 					</div>
 				</section>
@@ -1360,11 +1360,11 @@ function examplepress_render_settings_page() {
 					<div class="ep-doc-section-title">Support &amp; Resources</div>
 					<p class="ep-doc-section-desc">Get help, contribute, and connect with the ExamplePress ecosystem.</p>
 					<div class="ep-support-grid">
-						<a class="ep-support-card" href="https://blockstudio.dev/plus/" target="_blank" rel="noopener">
+						<a class="ep-support-card" href="https://github.com/flavor/flavor" target="_blank" rel="noopener">
 							<div class="ep-support-card-eyebrow">Framework</div>
-							<div class="ep-support-card-title">Blockstudio Plus</div>
-							<div class="ep-support-card-desc">The premium tier of the block framework ExamplePress is built on. Priority support, advanced fields, and early access to new features.</div>
-							<div class="ep-support-card-link">blockstudio.dev &rarr;</div>
+							<div class="ep-support-card-title">Blockstudio</div>
+							<div class="ep-support-card-desc">The open-source block framework ExamplePress is built on. Block registration, fields, rendering, SCSS/Tailwind, and developer tools.</div>
+							<div class="ep-support-card-link">GitHub &rarr;</div>
 						</a>
 						<div class="ep-support-card">
 							<div class="ep-support-card-eyebrow">Coming Soon</div>

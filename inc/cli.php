@@ -87,11 +87,11 @@ class ExamplePress_CLI {
 					'slug'            => 'blockstudio',
 					'name'            => 'Blockstudio',
 					'tier'            => 'required',
-					'pricing'         => 'paid',
+					'pricing'         => 'free',
 					'cloud_dependent' => false,
 					'check_type'      => 'class',
 					'check_target'    => 'Blockstudio\\Build',
-					'source'          => [ 'type' => 'direct', 'url' => 'https://blockstudio.dev/' ],
+					'source'          => [ 'type' => 'direct', 'url' => 'https://github.com/flavor/flavor' ],
 				],
 			],
 		];

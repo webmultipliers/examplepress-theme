@@ -258,16 +258,29 @@ class ExamplePress_Updater {
 	/**
 	 * Call the GitHub releases API.
 	 *
+	 * Uses an authenticated request when a GitHub token is available
+	 * (PAT or Troy read token) to avoid the 60 req/hr unauthenticated
+	 * rate limit — critical for shared hosting with many WP sites on
+	 * the same IP.
+	 *
 	 * @return array|null  Decoded JSON, or null on HTTP/decode failure.
 	 */
 	private function fetch_releases(): ?array {
-		$url      = sprintf( 'https://api.github.com/repos/%s/releases', $this->github_repo );
+		$url     = sprintf( 'https://api.github.com/repos/%s/releases', $this->github_repo );
+		$headers = [
+			'Accept'     => 'application/vnd.github+json',
+			'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . home_url(),
+		];
+
+		// Authenticate if a token is available (5,000 req/hr vs 60).
+		$token = $this->get_api_token();
+		if ( $token ) {
+			$headers['Authorization'] = 'Bearer ' . $token;
+		}
+
 		$response = wp_remote_get( $url, [
 			'timeout' => 10,
-			'headers' => [
-				'Accept'     => 'application/vnd.github+json',
-				'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . home_url(),
-			],
+			'headers' => $headers,
 		] );
 
 		if ( is_wp_error( $response ) ) {
@@ -436,6 +449,39 @@ class ExamplePress_Updater {
 		$body = $release['body'] ?? '';
 		$body = wp_kses_post( $body );
 		return $body ?: '<p>See the <a href="' . esc_url( $release['html_url'] ) . '">release page</a> for details.</p>';
+	}
+
+	/**
+	 * Retrieve a GitHub API token for authenticated requests.
+	 *
+	 * Checks (in order): Troy read token, GitHub PAT, GitHub App
+	 * installation token. Returns null if none are available —
+	 * the request will fall back to unauthenticated (60 req/hr).
+	 *
+	 * @return string|null
+	 */
+	private function get_api_token(): ?string {
+		// Troy read token (read-only, ideal for public release checks).
+		$token = get_option( 'ep_troy_github_pat', '' );
+		if ( $token ) {
+			return $token;
+		}
+
+		// GitHub PAT (write-capable, but works).
+		$token = get_option( 'ep_github_pat', '' );
+		if ( $token ) {
+			return $token;
+		}
+
+		// GitHub App installation token.
+		if ( function_exists( 'examplepress_github_app_get_installation_token' ) ) {
+			$token = examplepress_github_app_get_installation_token();
+			if ( $token && ! is_wp_error( $token ) ) {
+				return $token;
+			}
+		}
+
+		return null;
 	}
 
 	/**

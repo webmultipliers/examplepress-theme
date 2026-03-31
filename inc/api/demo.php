@@ -62,68 +62,85 @@ function examplepress_get_demo_status() {
 }
 
 /**
- * Recursively copy a directory.
+ * Initialise the WP_Filesystem and return it.
+ *
+ * @return WP_Filesystem_Base|false
+ */
+function examplepress_get_filesystem() {
+	global $wp_filesystem;
+
+	if ( $wp_filesystem instanceof WP_Filesystem_Base ) {
+		return $wp_filesystem;
+	}
+
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+
+	if ( ! WP_Filesystem() ) {
+		return false;
+	}
+
+	return $wp_filesystem;
+}
+
+/**
+ * Recursively copy a directory using WP_Filesystem.
+ *
+ * Compatible with managed hosting environments that restrict
+ * direct PHP file operations (WPEngine, Pantheon, etc.).
  */
 function examplepress_copy_dir( $src, $dst ) {
-	if ( ! is_dir( $src ) ) {
+	$fs = examplepress_get_filesystem();
+
+	if ( ! $fs ) {
 		return false;
 	}
 
-	wp_mkdir_p( $dst );
-
-	$dir = opendir( $src );
-	if ( ! $dir ) {
+	if ( ! $fs->is_dir( $src ) ) {
 		return false;
 	}
 
-	while ( false !== ( $entry = readdir( $dir ) ) ) {
-		if ( $entry === '.' || $entry === '..' ) {
-			continue;
-		}
+	if ( ! $fs->is_dir( $dst ) ) {
+		$fs->mkdir( $dst );
+	}
 
-		$src_path = $src . '/' . $entry;
-		$dst_path = $dst . '/' . $entry;
+	$entries = $fs->dirlist( $src );
+	if ( ! is_array( $entries ) ) {
+		return false;
+	}
 
-		if ( is_dir( $src_path ) ) {
+	foreach ( $entries as $name => $info ) {
+		$src_path = trailingslashit( $src ) . $name;
+		$dst_path = trailingslashit( $dst ) . $name;
+
+		if ( 'd' === $info['type'] ) {
 			if ( ! examplepress_copy_dir( $src_path, $dst_path ) ) {
-				closedir( $dir );
 				return false;
 			}
 		} else {
-			if ( ! copy( $src_path, $dst_path ) ) {
-				closedir( $dir );
+			if ( ! $fs->copy( $src_path, $dst_path, true ) ) {
 				return false;
 			}
 		}
 	}
 
-	closedir( $dir );
 	return true;
 }
 
 /**
- * Recursively delete a directory.
+ * Recursively delete a directory using WP_Filesystem.
  */
 function examplepress_delete_dir( $dir ) {
-	if ( ! is_dir( $dir ) ) {
+	$fs = examplepress_get_filesystem();
+
+	if ( ! $fs ) {
+		return false;
+	}
+
+	if ( ! $fs->is_dir( $dir ) ) {
 		return true;
 	}
 
-	$items = scandir( $dir );
-	foreach ( $items as $item ) {
-		if ( $item === '.' || $item === '..' ) {
-			continue;
-		}
-
-		$path = $dir . '/' . $item;
-		if ( is_dir( $path ) ) {
-			examplepress_delete_dir( $path );
-		} else {
-			unlink( $path );
-		}
-	}
-
-	return rmdir( $dir );
+	return $fs->delete( $dir, true );
 }
 
 /**
