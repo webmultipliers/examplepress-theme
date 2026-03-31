@@ -130,8 +130,21 @@ function examplepress_scaffold_replace_remote_placeholders(
 
 	$base_url = "https://api.github.com/repos/{$full_name}";
 
+	// Resolve the default branch — template repos may use 'development', not 'main'.
+	$repo_response = wp_remote_get( $base_url, [
+		'headers' => $headers,
+		'timeout' => 10,
+	] );
+
+	if ( is_wp_error( $repo_response ) ) {
+		return $repo_response;
+	}
+
+	$repo_data      = json_decode( wp_remote_retrieve_body( $repo_response ), true );
+	$default_branch = $repo_data['default_branch'] ?? 'development';
+
 	// Get the full file tree so we know which files to check.
-	$tree_response = wp_remote_get( "{$base_url}/git/trees/main?recursive=1", [
+	$tree_response = wp_remote_get( "{$base_url}/git/trees/{$default_branch}?recursive=1", [
 		'headers' => $headers,
 		'timeout' => 15,
 	] );

@@ -95,21 +95,16 @@ function examplepress_handle_apps_list() {
 /**
  * Scaffold a new ExamplePress app.
  *
- * Supports two modes via the `mode` parameter:
+ * Creates a repo from the official GitHub template repository
+ * (webmultipliers/examplepress-theme-app), replaces placeholders
+ * remotely, optionally registers with Troy, and returns the repo
+ * URL + Codespaces link. No local files are written.
  *
- * **template** (default): Creates a repo from the official GitHub template
- * repository (examplepress-theme-app), replaces placeholders remotely,
- * and returns the repo URL + Codespaces link. No local files are written.
  * Requires a GitHub write token.
- *
- * **local**: Legacy mode. Copies demo/app-scaffold into wp-content/plugins,
- * optionally creates a GitHub repo, pushes code, and registers with Troy.
- * Falls back to this mode if no GitHub token is configured.
  */
 function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	$name = sanitize_text_field( $request->get_param( 'name' ) ?? '' );
 	$desc = sanitize_text_field( $request->get_param( 'description' ) ?? '' );
-	$mode = sanitize_text_field( $request->get_param( 'mode' ) ?? 'template' );
 
 	if ( ! $name ) {
 		return new WP_Error(
@@ -129,14 +124,15 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 		);
 	}
 
-	// Route to the appropriate scaffold mode.
-	$has_token = (bool) examplepress_github_get_write_token();
-
-	if ( $mode === 'template' && $has_token ) {
-		return examplepress_scaffold_template_mode( $slug, $name, $desc );
+	if ( ! examplepress_github_get_write_token() ) {
+		return new WP_Error(
+			'no_github_token',
+			'A GitHub write token is required to scaffold apps. Install the GitHub App or configure a write access token.',
+			[ 'status' => 403 ]
+		);
 	}
 
-	return examplepress_scaffold_local_mode( $slug, $name, $desc );
+	return examplepress_scaffold_template_mode( $slug, $name, $desc );
 }
 
 /**
@@ -224,213 +220,6 @@ function examplepress_scaffold_template_mode( string $slug, string $name, string
 		'warnings'       => $warnings,
 		'steps'          => $steps,
 	] );
-}
-
-/**
- * Local mode: copy scaffold files into wp-content/plugins.
- *
- * Legacy flow — scaffold locally, optionally push to GitHub and register
- * with Troy.
- */
-function examplepress_scaffold_local_mode( string $slug, string $name, string $desc ) {
-	$source = EP_THEME_PATH . '/demo/app-scaffold';
-	$dest   = WP_PLUGIN_DIR . '/' . $slug;
-
-	if ( is_dir( $dest ) ) {
-		return new WP_Error(
-			'app_exists',
-			'A plugin directory with this slug already exists.',
-			[ 'status' => 409 ]
-		);
-	}
-
-	if ( ! is_dir( $source ) ) {
-		return new WP_Error(
-			'scaffold_missing',
-			'App scaffold template not found in the theme.',
-			[ 'status' => 500 ]
-		);
-	}
-
-	// ── Step 1: Scaffold locally ────────────────────────────────
-
-	if ( ! examplepress_copy_dir( $source, $dest ) ) {
-		examplepress_delete_dir( $dest );
-		return new WP_Error(
-			'scaffold_failed',
-			'Failed to copy the scaffold template.',
-			[ 'status' => 500 ]
-		);
-	}
-
-	$description = $desc ?: 'An ExamplePress app.';
-
-	examplepress_scaffold_replace_placeholders( $dest, $name, $slug, $description );
-
-	$template_file = $dest . '/__SLUG__.php';
-	$plugin_file   = $dest . '/' . $slug . '.php';
-
-	if ( file_exists( $template_file ) ) {
-		rename( $template_file, $plugin_file );
-	}
-
-	$plugin_path = $dest;
-	$org         = get_option( 'ep_github_org', 'webmultipliers' );
-	$owner_repo  = $org . '/' . $slug;
-	$troy_data   = [];
-	$github_data = [];
-	$warnings    = [];
-	$steps       = [ 'scaffold' => true ];
-
-	// ── Step 2: Create GitHub repo ──────────────────────────────
-
-	$write_token = examplepress_github_get_write_token();
-
-	if ( $write_token ) {
-		$repo_result = examplepress_github_create_repo( $slug, $description );
-
-		if ( is_wp_error( $repo_result ) ) {
-			$err_code = $repo_result->get_error_code();
-
-			if ( $err_code === 'repo_exists' ) {
-				$steps['github_repo'] = true;
-			} else {
-				$warnings[]           = 'GitHub repo: ' . $repo_result->get_error_message();
-				$steps['github_repo'] = false;
-			}
-		} else {
-			$github_data          = $repo_result;
-			$owner_repo           = $repo_result['owner_repo'];
-			$steps['github_repo'] = true;
-		}
-
-		// ── Step 3: Push scaffold to repo ───────────────────────
-
-		if ( ! empty( $github_data['owner_repo'] ) ) {
-			$push_result = examplepress_github_push_scaffold( $github_data['owner_repo'], $plugin_path );
-
-			if ( is_wp_error( $push_result ) ) {
-				$warnings[]           = 'GitHub push: ' . $push_result->get_error_message();
-				$steps['github_push'] = false;
-			} else {
-				$steps['github_push'] = true;
-			}
-		} else {
-			$steps['github_push'] = null;
-		}
-	} else {
-		$steps['github_repo'] = null;
-		$steps['github_push'] = null;
-	}
-
-	// ── Steps 4+5: Register on Troy + connect GitHub ────────────
-
-	$troy_url = get_option( 'ep_troy_server_url', '' );
-
-	if ( $troy_url && get_option( 'ep_troy_credentials', '' ) ) {
-		$troy_result = examplepress_troy_register_and_connect(
-			$slug,
-			$name,
-			$description,
-			$owner_repo
-		);
-
-		if ( is_wp_error( $troy_result ) ) {
-			$troy_err_code = $troy_result->get_error_code();
-
-			if ( $troy_err_code === 'troy_slug_exists' ) {
-				$steps['troy_register'] = true;
-				$steps['troy_connect']  = false;
-			} else {
-				$warnings[]              = 'Troy: ' . $troy_result->get_error_message();
-				$steps['troy_register']  = false;
-				$steps['troy_connect']   = false;
-			}
-		} else {
-			$steps['troy_register'] = true;
-
-			$integration_ok = ! empty( $troy_result['integration'] );
-			$steps['troy_connect'] = $integration_ok;
-
-			if ( ! $integration_ok && ! empty( $troy_result['warning'] ) ) {
-				$warnings[] = 'Troy integration: ' . $troy_result['warning'];
-			}
-		}
-
-		$troy_data = [
-			'server_url' => str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) ),
-			'repo'       => $owner_repo,
-			'repo_id'    => (string) ( $github_data['repo_id'] ?? '' ),
-		];
-	} else {
-		$steps['troy_register'] = null;
-		$steps['troy_connect']  = null;
-	}
-
-	// ── Step 6: Write back Troy data to local JSON ──────────────
-
-	if ( ! empty( $troy_data ) ) {
-		$write_ok                = examplepress_update_app_troy_data( $slug, $troy_data );
-		$steps['troy_writeback'] = $write_ok;
-
-		if ( ! $write_ok ) {
-			$warnings[] = 'Failed to write Troy data back to examplepress.json.';
-		}
-	} else {
-		$steps['troy_writeback'] = null;
-	}
-
-	// ── Activate the plugin ─────────────────────────────────────
-
-	$relative = $slug . '/' . $slug . '.php';
-	$result   = activate_plugin( $relative );
-	$status   = is_wp_error( $result ) ? 'installed' : 'active';
-
-	$app = examplepress_parse_app( $slug, $dest . '/examplepress.json', $dest );
-
-	return rest_ensure_response( [
-		'success'  => true,
-		'mode'     => 'local',
-		'status'   => $status,
-		'message'  => "App \"{$name}\" created.",
-		'app'      => $app,
-		'warnings' => $warnings,
-		'steps'    => $steps,
-		'github'   => $github_data,
-	] );
-}
-
-/**
- * Replace placeholders in all scaffold files.
- */
-function examplepress_scaffold_replace_placeholders( string $dir, string $name, string $slug, string $description ): void {
-	$iterator = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator( $dir, RecursiveDirectoryIterator::SKIP_DOTS ),
-		RecursiveIteratorIterator::SELF_FIRST
-	);
-
-	foreach ( $iterator as $file ) {
-		if ( $file->isDir() ) {
-			continue;
-		}
-
-		$path    = $file->getPathname();
-		$content = file_get_contents( $path );
-
-		if ( $content === false ) {
-			continue;
-		}
-
-		$replaced = str_replace(
-			[ '__NAME__', '__SLUG__', '__DESC__' ],
-			[ $name, $slug, $description ],
-			$content
-		);
-
-		if ( $replaced !== $content ) {
-			file_put_contents( $path, $replaced );
-		}
-	}
 }
 
 /**
