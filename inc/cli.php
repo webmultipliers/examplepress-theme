@@ -63,6 +63,17 @@ class ExamplePress_CLI {
 					'fontSizes'    => (array) examplepress_feature_option( 'theme-typography', 'font_sizes', [] ),
 				],
 			],
+			'updater'  => [
+				'github_repo'     => 'webmultipliers/examplepress-theme',
+				'asset_filename'  => 'examplepress-theme.zip',
+				'theme_slug'      => 'examplepress-theme',
+				'default_channel' => 'stable',
+				'requires_wp'     => '6.9',
+				'requires_php'    => '8.4',
+			],
+			'routing'  => [
+				'priority' => 10,
+			],
 			'docs'     => [
 				[ 'title' => 'Companion Plugin Guide', 'description' => 'Build your first companion plugin: hook the router, register blocks, and take ownership of the frontend.', 'url' => 'https://github.com/webmultipliers/examplepress-theme/blob/development/docs/companion-plugin.md', 'category' => 'Start Here' ],
 				[ 'title' => 'Router & Routing',       'description' => 'How the single-entry-point router works, the filter chain, and routing cascade.', 'url' => 'https://github.com/webmultipliers/examplepress-theme/blob/development/docs/routing.md',          'category' => 'Architecture' ],

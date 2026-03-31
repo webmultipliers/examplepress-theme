@@ -369,6 +369,7 @@ function examplepress_settings_get_health() {
 				'note'   => examplepress_feature_enabled( 'restrict-block-types' ) ? '' : 'Not active — companion plugin can enable',
 			],
 		],
+		'connections' => examplepress_settings_get_connection_health(),
 	];
 }
 
@@ -417,6 +418,66 @@ function examplepress_settings_get_router_health() {
 
 	$checks[] = [ 'name' => 'Current Route',   'detail' => examplepress_get_current_route(),   'req' => 'Non-empty string', 'status' => ! empty( examplepress_get_current_route() ) ? 'pass' : 'fail' ];
 	$checks[] = [ 'name' => 'Template Prefix', 'detail' => examplepress_get_template_prefix(), 'req' => 'Non-empty string', 'status' => 'pass' ];
+
+	return $checks;
+}
+
+/**
+ * Connection health checks — GitHub App and Troy Server status.
+ */
+function examplepress_settings_get_connection_health() {
+	$checks = [];
+
+	// GitHub App configuration.
+	$github_app_configured = function_exists( 'examplepress_github_app_is_configured' )
+		&& examplepress_github_app_is_configured();
+	$github_app_installed  = $github_app_configured
+		&& function_exists( 'examplepress_github_app_is_installed' )
+		&& examplepress_github_app_is_installed();
+
+	$checks[] = [
+		'name'   => 'GitHub App',
+		'detail' => $github_app_installed ? 'Installed' : ( $github_app_configured ? 'Configured but not installed' : 'Not configured' ),
+		'req'    => 'Installed',
+		'status' => $github_app_installed ? 'pass' : ( $github_app_configured ? 'warn' : 'warn' ),
+		'note'   => ! $github_app_configured ? 'Install the GitHub App from the Connections tab for one-click scaffolding' : '',
+	];
+
+	// GitHub write token (PAT or App).
+	$has_write_token = function_exists( 'examplepress_github_get_write_token' )
+		&& (bool) examplepress_github_get_write_token();
+
+	$checks[] = [
+		'name'   => 'GitHub Write Token',
+		'detail' => $has_write_token ? 'Available' : 'Not available',
+		'req'    => 'Available',
+		'status' => $has_write_token ? 'pass' : 'warn',
+		'note'   => ! $has_write_token ? 'Required for scaffolding — install GitHub App or configure a PAT' : '',
+	];
+
+	// Troy Server URL.
+	$troy_url = get_option( 'ep_troy_server_url', '' );
+
+	$checks[] = [
+		'name'   => 'Troy Server URL',
+		'detail' => $troy_url ? preg_replace( '#^https?://#', '', rtrim( $troy_url, '/' ) ) : 'Not configured',
+		'req'    => 'Configured',
+		'status' => $troy_url ? 'pass' : 'info',
+		'note'   => ! $troy_url ? 'Optional — configure in Connections tab to enable Troy integration' : '',
+	];
+
+	// Troy credentials.
+	$troy_auth = get_option( 'ep_troy_credentials', '' );
+
+	if ( $troy_url ) {
+		$checks[] = [
+			'name'   => 'Troy Credentials',
+			'detail' => $troy_auth ? 'Stored' : 'Not authorized',
+			'req'    => 'Authorized',
+			'status' => $troy_auth ? 'pass' : 'warn',
+			'note'   => ! $troy_auth ? 'Click "Authorize with Troy" in the Connections tab' : '',
+		];
+	}
 
 	return $checks;
 }

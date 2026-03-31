@@ -20,6 +20,24 @@ add_action( 'rest_api_init', function () {
 		'permission_callback' => function () {
 			return current_user_can( 'manage_options' );
 		},
+		'args' => [
+			'id' => [
+				'required'          => true,
+				'type'              => 'string',
+				'description'       => 'Notification ID to archive or restore.',
+				'sanitize_callback' => 'sanitize_text_field',
+				'validate_callback' => function ( $value ) {
+					return is_string( $value ) && strlen( $value ) > 0 && strlen( $value ) <= 200;
+				},
+			],
+			'action' => [
+				'required'          => true,
+				'type'              => 'string',
+				'description'       => 'Action to perform.',
+				'enum'              => [ 'archive', 'restore' ],
+				'sanitize_callback' => 'sanitize_text_field',
+			],
+		],
 	] );
 } );
 
