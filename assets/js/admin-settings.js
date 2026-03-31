@@ -90,6 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 	});
 
+	/* ── Overview card navigation ───────────────────────────────────── */
+
+	document.querySelectorAll('.ep-overview-card[data-tab-target]').forEach(card => {
+		card.setAttribute('role', 'link');
+		card.addEventListener('click', () => activateTab(card.dataset.tabTarget));
+	});
+
 	/* ── Tab visibility ─────────────────────────────────────────────── */
 
 	const hiddenTabs = (adminTabs && adminTabs.hidden) || [];
@@ -196,26 +203,143 @@ document.addEventListener('DOMContentLoaded', () => {
 		el.innerHTML = html;
 	}
 
+	/* ── Datatable renderer ─────────────────────────────────────────── */
+
+	function renderDatatable(containerId, config) {
+		const el = document.getElementById(containerId);
+		if (!el) return;
+
+		const { columns, data, searchKeys, searchPlaceholder, gridClass, onRowClick, groupBy, emptyMessage } = config;
+
+		// Build search box.
+		let searchHtml = '';
+		if (searchKeys && searchKeys.length) {
+			searchHtml = `<div class="ep-datatable-search"><input type="text" placeholder="${esc(searchPlaceholder || 'Search...')}" aria-label="${esc(searchPlaceholder || 'Search')}" role="searchbox" /></div>`;
+		}
+
+		// Build header row.
+		let headerHtml = `<div class="ep-row ep-row-head ${gridClass}">`;
+		columns.forEach(c => { headerHtml += `<div class="ep-th">${esc(c.label)}</div>`; });
+		headerHtml += '</div>';
+
+		function buildRows(items) {
+			if (!items || !items.length) return `<div class="ep-datatable-no-results">${emptyMessage || 'No items found.'}</div>`;
+			let html = '';
+			if (groupBy) {
+				const groups = [];
+				const seen = new Set();
+				items.forEach(item => {
+					const g = groupBy(item);
+					if (!seen.has(g)) { seen.add(g); groups.push(g); }
+				});
+				groups.forEach(g => {
+					html += `<div class="ep-block-cat">${esc(g)}</div>`;
+					items.filter(item => groupBy(item) === g).forEach(item => {
+						html += buildRow(item);
+					});
+				});
+			} else {
+				items.forEach(item => { html += buildRow(item); });
+			}
+			return html;
+		}
+
+		function buildRow(item) {
+			const clickable = onRowClick ? ' ep-row-clickable' : '';
+			let html = `<div class="ep-row ${gridClass}${clickable}">`;
+			columns.forEach(c => { html += `<div>${c.render(item)}</div>`; });
+			html += '</div>';
+			return html;
+		}
+
+		// Mount.
+		el.innerHTML = searchHtml + '<div class="ep-datatable-table">' + headerHtml + '<div class="ep-datatable-rows">' + buildRows(data) + '</div></div>';
+
+		// Bind search.
+		const searchInput = el.querySelector('.ep-datatable-search input');
+		const rowsContainer = el.querySelector('.ep-datatable-rows');
+		if (searchInput && rowsContainer) {
+			searchInput.addEventListener('input', () => {
+				const q = searchInput.value.toLowerCase().trim();
+				const filtered = q ? data.filter(item => searchKeys.some(key => {
+					const val = item[key];
+					return val != null && String(val).toLowerCase().includes(q);
+				})) : data;
+				rowsContainer.innerHTML = buildRows(filtered);
+				if (onRowClick) bindRowClicks(rowsContainer);
+			});
+		}
+
+		// Bind row clicks.
+		function bindRowClicks(container) {
+			container.querySelectorAll('.ep-row-clickable').forEach((row, idx) => {
+				const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+				const visibleData = q ? data.filter(item => searchKeys.some(key => {
+					const val = item[key];
+					return val != null && String(val).toLowerCase().includes(q);
+				})) : data;
+				// Flatten with groups to get correct index.
+				if (groupBy) {
+					const groups = [];
+					const seen = new Set();
+					visibleData.forEach(item => {
+						const g = groupBy(item);
+						if (!seen.has(g)) { seen.add(g); groups.push(g); }
+					});
+					let rowCount = 0;
+					for (const g of groups) {
+						const groupItems = visibleData.filter(item => groupBy(item) === g);
+						for (const item of groupItems) {
+							if (rowCount === idx) {
+								row.addEventListener('click', () => onRowClick(item));
+								return;
+							}
+							rowCount++;
+						}
+					}
+				} else {
+					if (visibleData[idx]) {
+						row.addEventListener('click', () => onRowClick(visibleData[idx]));
+					}
+				}
+			});
+		}
+		if (onRowClick) bindRowClicks(el.querySelector('.ep-datatable-rows') || el);
+	}
+
 	/* ── Features tab ───────────────────────────────────────────────── */
 
-	featureTable('tbl-theme-support', features['theme-support']);
-	featureTable('tbl-editor', features.editor);
-	featureTable('tbl-guards', features.guards);
-	featureTable('tbl-admin', features.admin);
-	featureTable('tbl-options', features.options);
-	featureTable('tbl-design-features', features.design);
-
-	// Bind feature row click handlers for modal.
-	document.querySelectorAll('.ep-row-clickable[data-feature-id]').forEach(row => {
-		row.addEventListener('click', () => {
-			const id = row.dataset.featureId;
-			if (featureDetails && featureDetails[id]) {
-				openFeatureModal(id);
-			}
-		});
+	const categoryLabels = {
+		'theme-support': 'Theme Support',
+		'editor': 'Editor & Content Controls',
+		'guards': 'Guards',
+		'admin': 'Admin Customization',
+		'options': 'Site Options',
+		'design': 'Design Tokens',
+	};
+	const allFeatures = [];
+	Object.entries(features).forEach(([cat, items]) => {
+		(items || []).forEach(f => allFeatures.push({ ...f, category: cat, categoryLabel: categoryLabels[cat] || cat }));
 	});
 
-	const featureCount = Object.values(features).reduce((sum, arr) => sum + (arr ? arr.length : 0), 0);
+	renderDatatable('tbl-features', {
+		columns: [
+			{ key: 'name', label: 'Feature', render: f => `<div class="ep-td-label"><span class="ep-name">${esc(f.name)}</span><span class="ep-id">${esc(f.id)}</span>${f.opts ? `<span class="ep-opt"><em>${esc(f.opts)}</em></span>` : ''}</div>` },
+			{ key: 'status', label: 'Status', render: f => badge(f.on) },
+			{ key: 'source', label: 'Source', render: f => srcTag(f.src, f.srcDetail) },
+		],
+		data: allFeatures,
+		searchKeys: ['name', 'id', 'categoryLabel'],
+		searchPlaceholder: 'Search features...',
+		gridClass: 'ep-cols-3',
+		groupBy: f => categoryLabels[f.category] || f.category,
+		onRowClick: f => {
+			if (featureDetails && featureDetails[f.id]) openFeatureModal(f.id);
+		},
+		emptyMessage: 'No features match your search.',
+	});
+
+	const featureCount = allFeatures.length;
 	const catCount = Object.keys(features).length;
 	log.info(`[ExamplePress] Features rendered: ${featureCount} features across ${catCount} categories`);
 
@@ -311,7 +435,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	document.addEventListener('keydown', (e) => {
 		if (e.key === 'Escape') {
 			closeFeatureModal();
-			closeBuildModal();
+			closeAppModal('ep-apps-scaffold-modal');
+			closeAppModal('ep-apps-troy-modal');
+			closeAppModal('ep-apps-codespace-modal');
 		}
 	});
 
@@ -374,32 +500,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	/* ── Blocks tab ─────────────────────────────────────────────────── */
 
-	const tblBlocks = document.getElementById('tbl-blocks');
-	if (tblBlocks && blocks.length) {
-		let html = '<div class="ep-row ep-row-head ep-cols-blocks"><div class="ep-th">Block</div><div class="ep-th">Category</div><div class="ep-th">Source</div><div class="ep-th">Type</div></div>';
-		// Group by namespace (text before the /).
-		const namespaces = [...new Set(blocks.map(b => b.name.split('/')[0]))];
-		namespaces.forEach(ns => {
-			html += `<div class="ep-block-cat">${esc(ns)}</div>`;
-			blocks.filter(b => b.name.startsWith(ns + '/')).forEach(b => {
-				const typeCls = b.type === 'template' ? 'badge-on' : b.type === 'system' ? 'badge-info' : 'badge-off';
-				html += `<div class="ep-row ep-cols-blocks ep-row-clickable" data-block-name="${esc(b.name)}">
-					<div class="ep-td-label"><span class="ep-name">${esc(b.title)}</span><span class="ep-id">${esc(b.name)}</span></div>
-					<div><span class="ep-id">${esc(b.cat)}</span></div>
-					<div><span class="ep-src">${esc(b.source)}</span></div>
-					<div><span class="ep-badge ${typeCls}"><span class="ep-dot"></span>${esc(b.type)}</span></div>
-				</div>`;
-			});
-		});
-		tblBlocks.innerHTML = html;
-		log.info(`[ExamplePress] Blocks: ${blocks.length} blocks across ${namespaces.length} namespaces`);
-
-		// Block detail modals.
-		tblBlocks.querySelectorAll('.ep-row-clickable[data-block-name]').forEach(row => {
-			row.addEventListener('click', () => {
-				const name = row.dataset.blockName;
-				const b = blocks.find(bl => bl.name === name);
-				if (!b) return;
+	if (blocks && blocks.length) {
+		renderDatatable('tbl-blocks', {
+			columns: [
+				{ key: 'title', label: 'Block', render: b => `<div class="ep-td-label"><span class="ep-name">${esc(b.title)}</span><span class="ep-id">${esc(b.name)}</span></div>` },
+				{ key: 'cat', label: 'Category', render: b => `<span class="ep-id">${esc(b.cat)}</span>` },
+				{ key: 'source', label: 'Source', render: b => `<span class="ep-src">${esc(b.source)}</span>` },
+				{ key: 'type', label: 'Type', render: b => { const cls = b.type === 'template' ? 'badge-on' : b.type === 'system' ? 'badge-info' : 'badge-off'; return `<span class="ep-badge ${cls}"><span class="ep-dot"></span>${esc(b.type)}</span>`; } },
+			],
+			data: blocks,
+			searchKeys: ['title', 'name', 'cat', 'source', 'type'],
+			searchPlaceholder: 'Search blocks...',
+			gridClass: 'ep-cols-blocks',
+			groupBy: b => b.name.split('/')[0],
+			onRowClick: b => {
 				const typeCls = b.type === 'template' ? 'badge-on' : b.type === 'system' ? 'badge-info' : 'badge-off';
 				let body = '<div class="ep-modal-status">';
 				body += `<span class="ep-badge ${typeCls}"><span class="ep-dot"></span>${esc(b.type)}</span>`;
@@ -416,20 +530,69 @@ document.addEventListener('DOMContentLoaded', () => {
 					body += '<p class="ep-modal-text">This is a template block &mdash; the router can dispatch requests to it based on the resolved route.</p></div>';
 				}
 				openGenericModal(b.title, b.name, body);
-			});
+			},
+			emptyMessage: 'No blocks match your search.',
 		});
+		const namespaces = [...new Set(blocks.map(b => b.name.split('/')[0]))];
+		log.info(`[ExamplePress] Blocks: ${blocks.length} blocks across ${namespaces.length} namespaces`);
 	}
 
 	/* ── Dependencies tab ───────────────────────────────────────────── */
 
-	const tblDeps = document.getElementById('tbl-dependencies');
-	if (tblDeps) {
-		if (!dependencies || !dependencies.length) {
-			tblDeps.innerHTML = '<p class="ep-notif-empty">No dependencies declared in examplepress.json.</p>';
-			log.warn('[ExamplePress] No dependencies declared');
-		} else {
-			let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Dependency</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
-			dependencies.forEach(p => {
+	function renderDepTable(containerId, deps) {
+		const el = document.getElementById(containerId);
+		if (!el) return;
+		if (!deps || !deps.length) {
+			el.innerHTML = '<p class="ep-notif-empty">No dependencies in this category.</p>';
+			return;
+		}
+		let html = '<div class="ep-row ep-row-head ep-cols-4"><div class="ep-th">Dependency</div><div class="ep-th">Tier</div><div class="ep-th">Status</div><div class="ep-th">Source</div></div>';
+		deps.forEach(p => {
+			const statusMap = {
+				active:    { cls: 'badge-on',   lbl: 'Active' },
+				installed: { cls: 'badge-warn', lbl: 'Installed' },
+				fallback:  { cls: 'badge-info', lbl: 'Free Alt.' },
+				missing:   { cls: 'badge-err',  lbl: 'Missing' },
+			};
+			const st = statusMap[p.status] || statusMap.missing;
+			const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
+			const tierCls = tierMap[p.tier] || 'tier-opt';
+
+			let badges = '';
+			if (p.pricing === 'paid') badges += '<span class="ep-meta-badge meta-paid">Paid</span>';
+			if (p.cloud) badges += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
+			if (p.source === 'private') badges += '<span class="ep-meta-badge meta-private">Private</span>';
+			if (p.checkType && p.checkType !== 'plugin') badges += `<span class="ep-meta-badge meta-check">${esc(p.checkType)}</span>`;
+
+			let fallbackNote = '';
+			if (p.fallback) {
+				const fbSt = p.fallback.status === 'active' ? 'active' : p.fallback.status === 'installed' ? 'installed' : 'not installed';
+				fallbackNote = `<span class="ep-desc-small">Free alt: ${esc(p.fallback.slug)} (${fbSt})</span>`;
+			}
+
+			let sourceLink = '';
+			if (p.url) {
+				let domain = '';
+				try { domain = new URL(p.url).hostname; } catch (e) { domain = p.url; }
+				sourceLink = `<a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a>`;
+			}
+
+			html += `<div class="ep-row ep-cols-4 ep-row-clickable" data-dep-slug="${esc(p.slug)}">
+				<div class="ep-td-label"><span class="ep-name">${esc(p.name)}${badges}</span><span class="ep-id">${esc(p.slug)}</span>${fallbackNote}</div>
+				<div><span class="ep-tier ${tierCls}">${esc(p.tier)}</span></div>
+				<div><span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span></div>
+				<div>${sourceLink}</div>
+			</div>`;
+		});
+		el.innerHTML = html;
+
+		// Dependency detail modals.
+		el.querySelectorAll('.ep-row-clickable[data-dep-slug]').forEach(row => {
+			row.addEventListener('click', (e) => {
+				if (e.target.closest('a')) return;
+				const slug = row.dataset.depSlug;
+				const p = deps.find(d => d.slug === slug);
+				if (!p) return;
 				const statusMap = {
 					active:    { cls: 'badge-on',   lbl: 'Active' },
 					installed: { cls: 'badge-warn', lbl: 'Installed' },
@@ -440,83 +603,58 @@ document.addEventListener('DOMContentLoaded', () => {
 				const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
 				const tierCls = tierMap[p.tier] || 'tier-opt';
 
-				let badges = '';
-				if (p.pricing === 'paid') badges += '<span class="ep-meta-badge meta-paid">Paid</span>';
-				if (p.cloud) badges += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
-				if (p.source === 'private') badges += '<span class="ep-meta-badge meta-private">Private</span>';
-				if (p.checkType && p.checkType !== 'plugin') badges += `<span class="ep-meta-badge meta-check">${esc(p.checkType)}</span>`;
+				let body = '<div class="ep-modal-status">';
+				body += `<span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span>`;
+				body += `<span class="ep-tier ${tierCls}">${esc(p.tier)}</span>`;
+				if (p.pricing === 'paid') body += '<span class="ep-meta-badge meta-paid">Paid</span>';
+				if (p.cloud) body += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
+				body += '</div>';
 
-				let fallbackNote = '';
+				body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Slug</div>';
+				body += `<pre class="ep-modal-code">${esc(p.slug)}</pre></div>`;
+
+				if (p.checkType) {
+					body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Detection Method</div>';
+					body += `<p class="ep-modal-text">${esc(p.checkType === 'plugin' ? 'WordPress plugin registry scan' : p.checkType === 'class' ? 'class_exists() check (Composer)' : 'function_exists() check')}</p></div>`;
+				}
+
 				if (p.fallback) {
-					const fbSt = p.fallback.status === 'active' ? 'active' : p.fallback.status === 'installed' ? 'installed' : 'not installed';
-					fallbackNote = `<span class="ep-desc-small">Free alt: ${esc(p.fallback.slug)} (${fbSt})</span>`;
+					body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Free Alternative</div>';
+					body += `<p class="ep-modal-text">${esc(p.fallback.slug)} &mdash; ${esc(p.fallback.status || 'unknown')}</p></div>`;
 				}
 
-				let sourceLink = '';
 				if (p.url) {
-					let domain = '';
-					try { domain = new URL(p.url).hostname; } catch (e) { domain = p.url; }
-					sourceLink = `<a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(domain)} &rarr;</a>`;
+					body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Source</div>';
+					body += `<p class="ep-modal-text"><a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(p.url)} &rarr;</a></p></div>`;
 				}
 
-				html += `<div class="ep-row ep-cols-4 ep-row-clickable" data-dep-slug="${esc(p.slug)}">
-					<div class="ep-td-label"><span class="ep-name">${esc(p.name)}${badges}</span><span class="ep-id">${esc(p.slug)}</span>${fallbackNote}</div>
-					<div><span class="ep-tier ${tierCls}">${esc(p.tier)}</span></div>
-					<div><span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span></div>
-					<div>${sourceLink}</div>
-				</div>`;
+				openGenericModal(p.name, p.slug, body);
 			});
-			tblDeps.innerHTML = html;
-			log.info(`[ExamplePress] Dependencies: ${dependencies.length} loaded`);
-
-			// Dependency detail modals.
-			tblDeps.querySelectorAll('.ep-row-clickable[data-dep-slug]').forEach(row => {
-				row.addEventListener('click', (e) => {
-					// Don't open modal if clicking a link.
-					if (e.target.closest('a')) return;
-					const slug = row.dataset.depSlug;
-					const p = dependencies.find(d => d.slug === slug);
-					if (!p) return;
-					const statusMap = {
-						active:    { cls: 'badge-on',   lbl: 'Active' },
-						installed: { cls: 'badge-warn', lbl: 'Installed' },
-						fallback:  { cls: 'badge-info', lbl: 'Free Alt.' },
-						missing:   { cls: 'badge-err',  lbl: 'Missing' },
-					};
-					const st = statusMap[p.status] || statusMap.missing;
-					const tierMap = { required: 'tier-req', recommended: 'tier-rec', optional: 'tier-opt' };
-					const tierCls = tierMap[p.tier] || 'tier-opt';
-
-					let body = '<div class="ep-modal-status">';
-					body += `<span class="ep-badge ${st.cls}"><span class="ep-dot"></span>${st.lbl}</span>`;
-					body += `<span class="ep-tier ${tierCls}">${esc(p.tier)}</span>`;
-					if (p.pricing === 'paid') body += '<span class="ep-meta-badge meta-paid">Paid</span>';
-					if (p.cloud) body += '<span class="ep-meta-badge meta-cloud">Cloud</span>';
-					body += '</div>';
-
-					body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Slug</div>';
-					body += `<pre class="ep-modal-code">${esc(p.slug)}</pre></div>`;
-
-					if (p.checkType) {
-						body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Detection Method</div>';
-						body += `<p class="ep-modal-text">${esc(p.checkType === 'plugin' ? 'WordPress plugin registry scan' : p.checkType === 'class' ? 'class_exists() check (Composer)' : 'function_exists() check')}</p></div>`;
-					}
-
-					if (p.fallback) {
-						body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Free Alternative</div>';
-						body += `<p class="ep-modal-text">${esc(p.fallback.slug)} &mdash; ${esc(p.fallback.status || 'unknown')}</p></div>`;
-					}
-
-					if (p.url) {
-						body += '<div class="ep-modal-section"><div class="ep-modal-section-title">Source</div>';
-						body += `<p class="ep-modal-text"><a href="${esc(p.url)}" class="ep-link" target="_blank" rel="noopener">${esc(p.url)} &rarr;</a></p></div>`;
-					}
-
-					openGenericModal(p.name, p.slug, body);
-				});
-			});
-		}
+		});
 	}
+
+	if (dependencies && dependencies.length) {
+		const requiredDeps = dependencies.filter(d => d.tier === 'required');
+		const recommendedDeps = dependencies.filter(d => d.tier === 'recommended' || d.tier === 'optional');
+		renderDepTable('deps-required', requiredDeps);
+		renderDepTable('deps-recommended', recommendedDeps);
+		log.info(`[ExamplePress] Dependencies: ${dependencies.length} loaded (${requiredDeps.length} required, ${recommendedDeps.length} recommended/optional)`);
+	} else {
+		const reqEl = document.getElementById('deps-required');
+		if (reqEl) reqEl.innerHTML = '<p class="ep-notif-empty">No dependencies declared in examplepress.json.</p>';
+		log.warn('[ExamplePress] No dependencies declared');
+	}
+
+	// Dependency sub-tab switching.
+	document.querySelectorAll('#dep-subtabs .ep-notif-subtab').forEach(btn => {
+		btn.addEventListener('click', () => {
+			document.querySelectorAll('#dep-subtabs .ep-notif-subtab').forEach(b => b.classList.remove('active'));
+			btn.classList.add('active');
+			const target = btn.dataset.target;
+			document.getElementById('deps-required').style.display = target === 'deps-required' ? '' : 'none';
+			document.getElementById('deps-recommended').style.display = target === 'deps-recommended' ? '' : 'none';
+		});
+	});
 
 	/* ── Notifications tab ──────────────────────────────────────────── */
 
@@ -657,6 +795,61 @@ document.addEventListener('DOMContentLoaded', () => {
 		healthTable('tbl-health-router', healthChecks.router);
 		healthTable('tbl-health-security', healthChecks.security);
 		log.info(`[ExamplePress] Health: ${pass} pass, ${warn} warn, ${fail} fail, ${info} info`);
+
+		// Collapsible section toggles.
+		document.querySelectorAll('.ep-collapsible-header .ep-collapse-toggle').forEach(btn => {
+			const section = btn.closest('.ep-collapsible');
+			const body = section ? section.querySelector('.ep-collapsible-body') : null;
+			if (!body) return;
+			btn.addEventListener('click', () => {
+				const expanded = btn.getAttribute('aria-expanded') === 'true';
+				btn.setAttribute('aria-expanded', String(!expanded));
+				if (expanded) {
+					body.style.maxHeight = body.scrollHeight + 'px';
+					requestAnimationFrame(() => { body.style.maxHeight = '0'; });
+				} else {
+					body.style.maxHeight = body.scrollHeight + 'px';
+					const onEnd = () => { body.style.maxHeight = ''; body.removeEventListener('transitionend', onEnd); };
+					body.addEventListener('transitionend', onEnd);
+				}
+			});
+		});
+
+		// Health search filter.
+		const healthSearch = document.getElementById('ep-health-search');
+		if (healthSearch) {
+			const healthSections = [
+				{ key: 'env', items: healthChecks.env || [] },
+				{ key: 'theme', items: healthChecks.theme || [] },
+				{ key: 'router', items: healthChecks.router || [] },
+				{ key: 'security', items: healthChecks.security || [] },
+			];
+			healthSearch.addEventListener('input', () => {
+				const q = healthSearch.value.toLowerCase().trim();
+				healthSections.forEach(({ key, items }) => {
+					const filtered = q ? items.filter(h =>
+						(h.name || '').toLowerCase().includes(q) ||
+						(h.detail || '').toLowerCase().includes(q) ||
+						(h.req || '').toLowerCase().includes(q) ||
+						(h.note || '').toLowerCase().includes(q)
+					) : items;
+					healthTable(`tbl-health-${key}`, filtered);
+					const section = document.querySelector(`[data-health-section="${key}"]`);
+					if (section) {
+						section.style.display = filtered.length || !q ? '' : 'none';
+						// Ensure visible sections are expanded when searching.
+						if (q && filtered.length) {
+							const toggle = section.querySelector('.ep-collapse-toggle');
+							const body = section.querySelector('.ep-collapsible-body');
+							if (toggle && body && toggle.getAttribute('aria-expanded') === 'false') {
+								toggle.setAttribute('aria-expanded', 'true');
+								body.style.maxHeight = '';
+							}
+						}
+					}
+				});
+			});
+		}
 	}
 
 	/* ── Docs tab ───────────────────────────────────────────────────── */
@@ -1030,7 +1223,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// ── Scaffold step indicators ────────────────────────────────────
 
-	function renderScaffoldSteps() {
+	function renderScaffoldSteps(results) {
 		const stepsEl = document.getElementById('ep-scaffold-steps');
 		if (!stepsEl) return;
 
@@ -1039,14 +1232,25 @@ document.addEventListener('DOMContentLoaded', () => {
 		const githubSkip = !hasGithub ? 'Install GitHub App or configure a write token' : '';
 
 		const steps = [
-			{ label: 'Scaffold plugin locally', ok: true },
-			{ label: 'Create GitHub repo', ok: hasGithub, skip: githubSkip },
-			{ label: 'Push scaffold code', ok: hasGithub, skip: githubSkip },
-			{ label: 'Register on Troy', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip },
-			{ label: 'Connect Troy &harr; GitHub', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip },
+			{ label: 'Scaffold plugin locally', ok: true, key: 'scaffold' },
+			{ label: 'Create GitHub repo', ok: hasGithub, skip: githubSkip, key: 'github_repo' },
+			{ label: 'Push scaffold code', ok: hasGithub, skip: githubSkip, key: 'github_push' },
+			{ label: 'Register on Troy', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip, key: 'troy_register' },
+			{ label: 'Connect Troy &harr; GitHub', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip, key: 'troy_connect' },
+			{ label: 'Write Troy config locally', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip, key: 'troy_writeback' },
 		];
 
 		stepsEl.innerHTML = steps.map(s => {
+			if (results && s.key in results) {
+				const val = results[s.key];
+				if (val === true) {
+					return `<div class="ep-scaffold-step ep-scaffold-step-ok"><span class="ep-scaffold-step-icon">&#10003;</span> ${s.label}</div>`;
+				}
+				if (val === false) {
+					return `<div class="ep-scaffold-step ep-scaffold-step-fail"><span class="ep-scaffold-step-icon">&#10007;</span> ${s.label}</div>`;
+				}
+				return `<div class="ep-scaffold-step ep-scaffold-step-skip"><span class="ep-scaffold-step-icon">&mdash;</span> ${s.label} <span class="ep-scaffold-step-reason">Skipped</span></div>`;
+			}
 			if (s.ok) {
 				return `<div class="ep-scaffold-step ep-scaffold-step-ok"><span class="ep-scaffold-step-icon">&#10003;</span> ${s.label}</div>`;
 			}
@@ -1101,6 +1305,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				if (res.ok && data.success && data.app) {
 					apps.unshift(data.app);
 					renderAppsTable();
+					if (data.steps) renderScaffoldSteps(data.steps);
 
 					// Show warnings if any steps failed.
 					if (data.warnings && data.warnings.length) {
@@ -1166,8 +1371,17 @@ document.addEventListener('DOMContentLoaded', () => {
 	function handleCodespaceOpen(repoId) {
 		const url = `https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=${repoId}`;
 		const urlEl = document.getElementById('ep-apps-codespace-url');
-		if (urlEl) urlEl.textContent = url;
+		if (urlEl) {
+			urlEl.innerHTML = '';
+			const link = document.createElement('a');
+			link.href = url;
+			link.target = '_blank';
+			link.rel = 'noopener';
+			link.textContent = url;
+			urlEl.appendChild(link);
+		}
 		openAppModal('ep-apps-codespace-modal');
+		window.open(url, '_blank');
 	}
 
 	// Deactivate.
@@ -1187,6 +1401,61 @@ document.addEventListener('DOMContentLoaded', () => {
 		} catch (err) {
 			showAppsNotice('Error deactivating app: ' + err.message);
 		}
+	}
+
+	// Troy Connect modal: radio toggle for custom URL field.
+	document.querySelectorAll('[name="ep-apps-troy-target"]').forEach(radio => {
+		radio.addEventListener('change', () => {
+			const customUrl = document.getElementById('ep-apps-troy-custom-url');
+			if (customUrl) customUrl.style.display = radio.value === 'custom' && radio.checked ? '' : 'none';
+		});
+	});
+
+	// Troy Connect modal: submit handler.
+	const troySubmit = document.getElementById('ep-apps-troy-submit');
+	if (troySubmit) {
+		troySubmit.addEventListener('click', async () => {
+			const slugEl = document.getElementById('ep-apps-troy-target-slug');
+			const errEl = document.getElementById('ep-apps-troy-error');
+			const slug = slugEl ? slugEl.value : '';
+			const troyType = document.querySelector('[name="ep-apps-troy-target"]:checked')?.value || 'cloud';
+
+			if (errEl) errEl.style.display = 'none';
+			troySubmit.disabled = true;
+			troySubmit.textContent = 'Connecting...';
+
+			try {
+				if (troyType === 'cloud') {
+					closeAppModal('ep-apps-troy-modal');
+					await handleConnect(slug);
+				} else {
+					const customUrl = document.getElementById('ep-apps-troy-custom-url')?.value || '';
+					if (!customUrl) {
+						if (errEl) { errEl.textContent = 'Please enter a Troy server URL.'; errEl.style.display = ''; }
+						return;
+					}
+					const res = await fetch(`${window.ExamplePressData.appsDeactivateUrl}/${slug}/troy-bind`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
+						body: JSON.stringify({ troy_type: 'custom', custom_url: customUrl }),
+					});
+					const data = await res.json();
+					if (res.ok && data.success && data.redirect_url) {
+						closeAppModal('ep-apps-troy-modal');
+						window.open(data.redirect_url, '_blank');
+						showAppsNotice(`Opened Troy scaffold page for <strong>${esc(slug)}</strong>. Complete setup in the new tab.`);
+					} else {
+						const msg = data.message || data.data?.message || 'Troy bind failed.';
+						if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
+					}
+				}
+			} catch (err) {
+				if (errEl) { errEl.textContent = 'Network error: ' + err.message; errEl.style.display = ''; }
+			} finally {
+				troySubmit.disabled = false;
+				troySubmit.textContent = 'Connect to Troy \u2192';
+			}
+		});
 	}
 
 	// Initial render.

@@ -37,6 +37,7 @@ function examplepress_register_feature( $id, $args = [] ) {
 
 	$examplepress_features[ $id ] = wp_parse_args( $args, [
 		'label'    => '',
+		'group'    => '',
 		'default'  => true,
 		'options'  => [],
 		'hook'     => '',
@@ -95,6 +96,24 @@ function examplepress_feature_option( $id, $key, $fallback = NULL ) {
 }
 
 /**
+ * Guard wrapper for complex feature setup callables.
+ *
+ * Checks whether the feature is enabled before invoking the callback,
+ * eliminating the duplicated `if ( ! examplepress_feature_enabled() )`
+ * preamble in every setup callable.
+ *
+ * @param string   $id Feature identifier.
+ * @param callable $fn Callback to invoke when the feature is enabled.
+ *                     Receives ($id).
+ */
+function examplepress_guarded_setup( $id, callable $fn ) {
+	if ( ! examplepress_feature_enabled( $id ) ) {
+		return;
+	}
+	$fn( $id );
+}
+
+/**
  * Return every registered feature.
  *
  * Filterable via `examplepress_features`.
@@ -103,6 +122,18 @@ function examplepress_get_features() {
 	global $examplepress_features;
 
 	return apply_filters( 'examplepress_features', $examplepress_features );
+}
+
+/**
+ * Return features belonging to a specific group.
+ *
+ * @param string $group Group slug (e.g. 'design', 'editor', 'blockstudio').
+ * @return array Associative array of feature_id => feature_args.
+ */
+function examplepress_get_features_by_group( $group ) {
+	$features = examplepress_get_features();
+
+	return array_filter( $features, fn( $f ) => ( $f['group'] ?? '' ) === $group );
 }
 
 /**

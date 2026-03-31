@@ -1,0 +1,26 @@
+name: Release Plugin
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild even if release exists'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    uses: webmultipliers/examplepress-github-actions/.github/workflows/plugin-release.yml@main
+    with:
+      slug: __SLUG__
+      version-file: __SLUG__.php
+      force: ${{ inputs.force || false }}
+    secrets: inherit

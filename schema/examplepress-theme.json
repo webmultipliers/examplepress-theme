@@ -20,7 +20,7 @@
 					"description": "Tab IDs to hide from the settings page navigation.",
 					"items": {
 						"type": "string",
-						"enum": ["features", "design", "build", "blocks", "dependencies", "notifications", "library", "navigation", "config", "health", "docs", "support"]
+						"enum": ["features", "design", "connections", "build", "blocks", "dependencies", "notifications", "library", "navigation", "config", "health", "docs", "support"]
 					},
 					"uniqueItems": true,
 					"default": []

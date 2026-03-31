@@ -611,6 +611,70 @@ ul#adminmenu>li.current>a.current:after {
   font-size: 0.82rem;
 }
 
+/* ── Datatable search ──────────────────────────────────────────── */
+
+.ep-datatable-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.ep-datatable-search input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  font-family: var(--sans);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  max-width: 320px;
+  transition: border-color 0.15s var(--ease);
+}
+
+.ep-datatable-search input:focus {
+  outline: none;
+  border-color: var(--accent-ui);
+  box-shadow: 0 0 0 1px var(--accent-ui);
+}
+
+.ep-datatable-no-results {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+
+/* ── Collapsible sections ─────────────────────────────────────────── */
+
+.ep-collapsible-body {
+  transition: max-height 0.3s var(--ease);
+  overflow: hidden;
+}
+
+.ep-collapse-toggle {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+}
+
+.ep-collapse-icon::before {
+  content: '\25BC';
+  font-size: 0.65rem;
+  display: inline-block;
+  transition: transform 0.2s var(--ease);
+}
+
+.ep-collapse-toggle[aria-expanded="false"] .ep-collapse-icon::before {
+  transform: rotate(-90deg);
+}
+
 /* ── Badges ───────────────────────────────────────────────────────── */
 
 .ep-settings-wrapper .ep-badge {
@@ -1855,9 +1919,15 @@ ul#adminmenu>li.current>a.current:after {
   padding: 1.25rem 1.5rem;
 }
 
+.ep-overview-card[data-tab-target] {
+  cursor: pointer;
+}
 .ep-overview-card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--border-strong);
+}
+.ep-overview-card[data-tab-target]:hover {
+  border-color: var(--accent-ui);
 }
 
 .ep-overview-card-title {
@@ -2580,6 +2650,10 @@ ul#adminmenu>li.current>a.current:after {
 
 .ep-scaffold-step-ok {
   color: var(--green);
+}
+
+.ep-scaffold-step-fail {
+  color: var(--red, #d63638);
 }
 
 .ep-scaffold-step-skip {
