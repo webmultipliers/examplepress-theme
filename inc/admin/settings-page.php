@@ -356,17 +356,7 @@ function examplepress_settings_get_health() {
 			[ 'name' => 'blockstudio.json',     'detail' => $has_bs ? 'Found and valid' : 'Not found',       'req' => 'File exists',           'status' => $has_bs ? 'pass' : 'warn' ],
 			[ 'name' => 'templates/index.html', 'detail' => $router_only ? 'Router block only' : 'Non-standard', 'req' => 'Single router block', 'status' => $router_only ? 'pass' : 'warn' ],
 		],
-		'router'   => [
-			[
-				'name'   => 'Active Namespace',
-				'detail' => examplepress_get_theme_namespace(),
-				'req'    => 'Changed via filter',
-				'status' => examplepress_get_theme_namespace() !== 'examplepress-theme' ? 'pass' : 'warn',
-				'note'   => examplepress_get_theme_namespace() === 'examplepress-theme' ? 'Still using the theme default — a companion plugin should override this' : '',
-			],
-			[ 'name' => 'Current Route',     'detail' => examplepress_get_current_route(),     'req' => 'Non-empty string', 'status' => ! empty( examplepress_get_current_route() ) ? 'pass' : 'fail' ],
-			[ 'name' => 'Template Prefix',   'detail' => examplepress_get_template_prefix(),   'req' => 'Non-empty string', 'status' => 'pass' ],
-		],
+		'router'   => examplepress_settings_get_router_health(),
 		'security' => [
 			[ 'name' => 'REST Template Guard',       'detail' => examplepress_feature_enabled( 'guard-template-rest' ) ? 'Active' : 'Disabled',       'req' => 'Enabled', 'status' => examplepress_feature_enabled( 'guard-template-rest' ) ? 'pass' : 'warn' ],
 			[ 'name' => 'Template Resolution Guard', 'detail' => examplepress_feature_enabled( 'guard-template-resolution' ) ? 'Active' : 'Disabled', 'req' => 'Enabled', 'status' => examplepress_feature_enabled( 'guard-template-resolution' ) ? 'pass' : 'warn' ],
@@ -380,6 +370,55 @@ function examplepress_settings_get_health() {
 			],
 		],
 	];
+}
+
+/**
+ * Router-specific health checks — multi-origin aware.
+ */
+function examplepress_settings_get_router_health() {
+	$checks = [];
+	$has_origins = examplepress_has_route_origins();
+
+	if ( $has_origins ) {
+		$namespaces = examplepress_get_route_origin_namespaces();
+		$checks[] = [
+			'name'   => 'Routing Mode',
+			'detail' => 'Multi-origin registry',
+			'req'    => 'Registry or legacy',
+			'status' => 'pass',
+			'note'   => count( $namespaces ) . ' origin(s): ' . implode( ', ', $namespaces ),
+		];
+
+		$resolved = examplepress_resolve_route();
+		$checks[] = [
+			'name'   => 'Resolved Origin',
+			'detail' => $resolved['namespace'] . ' → ' . $resolved['slug'],
+			'req'    => 'Non-empty',
+			'status' => 'pass',
+		];
+	} else {
+		$ns = examplepress_get_theme_namespace();
+		$checks[] = [
+			'name'   => 'Routing Mode',
+			'detail' => 'Legacy (single namespace)',
+			'req'    => 'Registry or legacy',
+			'status' => $ns !== 'examplepress-theme' ? 'pass' : 'warn',
+			'note'   => $ns === 'examplepress-theme'
+				? 'Still using the theme default — register route origins or hook examplepress_theme_namespace'
+				: '',
+		];
+		$checks[] = [
+			'name'   => 'Active Namespace',
+			'detail' => $ns,
+			'req'    => 'Changed via filter',
+			'status' => $ns !== 'examplepress-theme' ? 'pass' : 'warn',
+		];
+	}
+
+	$checks[] = [ 'name' => 'Current Route',   'detail' => examplepress_get_current_route(),   'req' => 'Non-empty string', 'status' => ! empty( examplepress_get_current_route() ) ? 'pass' : 'fail' ];
+	$checks[] = [ 'name' => 'Template Prefix', 'detail' => examplepress_get_template_prefix(), 'req' => 'Non-empty string', 'status' => 'pass' ];
+
+	return $checks;
 }
 
 /**
@@ -419,10 +458,11 @@ function examplepress_settings_get_docs() {
  */
 function examplepress_settings_get_hooks() {
 	return [
-		[ 'name' => 'examplepress_route_context',        'type' => 'filter', 'desc' => 'Override the resolved route slug. This is the primary routing hook for companion plugins.' ],
+		[ 'name' => 'examplepress_route_context',        'type' => 'filter', 'desc' => 'Override the resolved route slug. Legacy single-origin routing hook.' ],
 		[ 'name' => 'examplepress_route_data',           'type' => 'filter', 'desc' => 'Enrich the data payload passed to template blocks via bs_block().' ],
 		[ 'name' => 'examplepress_route_resolved',       'type' => 'action', 'desc' => 'Fires after route resolution, before dispatch. Set up route-specific state here.' ],
-		[ 'name' => 'examplepress_theme_namespace',      'type' => 'filter', 'desc' => 'Override the block namespace. Companion plugins use this to point the router at their own blocks.' ],
+		[ 'name' => 'examplepress_resolved_origin',      'type' => 'filter', 'desc' => 'Filter the registry-resolved route origin (namespace + slug) before dispatch.' ],
+		[ 'name' => 'examplepress_theme_namespace',      'type' => 'filter', 'desc' => 'Override the block namespace. Legacy single-origin fallback when no registry match.' ],
 		[ 'name' => 'examplepress_template_prefix',      'type' => 'filter', 'desc' => 'Override the template block prefix. Default: "template".' ],
 		[ 'name' => 'examplepress_template_block_name',  'type' => 'filter', 'desc' => 'Override the fully assembled block name before dispatch.' ],
 		[ 'name' => 'examplepress_allowed_block_types',  'type' => 'filter', 'desc' => 'Allowlist of block types when restrict-block-types feature is enabled.' ],

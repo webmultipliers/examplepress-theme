@@ -126,6 +126,10 @@ function examplepress_parse_app( string $slug, string $json_path, string $plugin
 
 	$relative_file = $slug . '/' . $plugin_file;
 
+	// Extract routing config.
+	$routing  = $config['routing'] ?? [];
+	$priority = (int) ( $routing['priority'] ?? 10 );
+
 	return [
 		'id'          => $slug,
 		'name'        => $config['name'] ?? $headers['name'] ?? $slug,
@@ -134,6 +138,9 @@ function examplepress_parse_app( string $slug, string $json_path, string $plugin
 		'version'     => $config['version'] ?? $headers['version'] ?? '0.0.0',
 		'status'      => $is_connected ? 'connected' : 'disconnected',
 		'active'      => is_plugin_active( $relative_file ),
+		'routing'     => [
+			'priority' => $priority,
+		],
 		'troy'        => [
 			'server_url' => $troy_server,
 			'repo'       => $troy_repo,

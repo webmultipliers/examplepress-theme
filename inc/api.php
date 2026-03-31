@@ -93,22 +93,23 @@ function examplepress_handle_apps_list() {
 }
 
 /**
- * Scaffold a new ExamplePress app from the template.
+ * Scaffold a new ExamplePress app.
  *
- * Orchestrates up to six steps in one request:
- *   1. Scaffold plugin locally
- *   2. Create GitHub repo (if PAT configured)
- *   3. Push scaffold code to GitHub
- *   4. Register plugin on Troy
- *   5. Connect Troy ↔ GitHub
- *   6. Write back Troy data to local JSON
+ * Supports two modes via the `mode` parameter:
  *
- * Degrades gracefully — if GitHub PAT or Troy credentials are missing,
- * those steps are skipped and reported as warnings.
+ * **template** (default): Creates a repo from the official GitHub template
+ * repository (examplepress-theme-app), replaces placeholders remotely,
+ * and returns the repo URL + Codespaces link. No local files are written.
+ * Requires a GitHub write token.
+ *
+ * **local**: Legacy mode. Copies demo/app-scaffold into wp-content/plugins,
+ * optionally creates a GitHub repo, pushes code, and registers with Troy.
+ * Falls back to this mode if no GitHub token is configured.
  */
 function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	$name = sanitize_text_field( $request->get_param( 'name' ) ?? '' );
 	$desc = sanitize_text_field( $request->get_param( 'description' ) ?? '' );
+	$mode = sanitize_text_field( $request->get_param( 'mode' ) ?? 'template' );
 
 	if ( ! $name ) {
 		return new WP_Error(
@@ -118,9 +119,7 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 		);
 	}
 
-	$slug   = examplepress_slugify_app_name( $name );
-	$source = EP_THEME_PATH . '/demo/app-scaffold';
-	$dest   = WP_PLUGIN_DIR . '/' . $slug;
+	$slug = examplepress_slugify_app_name( $name );
 
 	if ( ! $slug ) {
 		return new WP_Error(
@@ -129,6 +128,113 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 			[ 'status' => 400 ]
 		);
 	}
+
+	// Route to the appropriate scaffold mode.
+	$has_token = (bool) examplepress_github_get_write_token();
+
+	if ( $mode === 'template' && $has_token ) {
+		return examplepress_scaffold_template_mode( $slug, $name, $desc );
+	}
+
+	return examplepress_scaffold_local_mode( $slug, $name, $desc );
+}
+
+/**
+ * Template mode: create repo from GitHub template, replace placeholders remotely.
+ */
+function examplepress_scaffold_template_mode( string $slug, string $name, string $desc ) {
+	$description = $desc ?: 'An ExamplePress companion plugin.';
+	$org         = get_option( 'ep_github_org', 'webmultipliers' );
+	$warnings    = [];
+	$steps       = [];
+
+	// ── Step 1: Create repo from template ───────────────────────
+
+	$repo_result = examplepress_scaffold_from_template( $slug, $description, $org );
+
+	if ( is_wp_error( $repo_result ) ) {
+		// If repo already exists, this is not fatal — report and continue.
+		if ( $repo_result->get_error_code() === 'repo_exists' ) {
+			$steps['template_create'] = false;
+			$warnings[] = $repo_result->get_error_message();
+
+			return rest_ensure_response( [
+				'success'  => false,
+				'message'  => $repo_result->get_error_message(),
+				'warnings' => $warnings,
+				'steps'    => $steps,
+			] );
+		}
+
+		return $repo_result;
+	}
+
+	$steps['template_create'] = true;
+
+	$full_name = $repo_result['full_name'];
+	$repo_id   = $repo_result['id'];
+	$html_url  = $repo_result['html_url'];
+
+	// ── Step 2: Replace placeholders in the new repo ────────────
+
+	$troy_url     = get_option( 'ep_troy_server_url', '' );
+	$troy_display = $troy_url
+		? str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) )
+		: '';
+
+	$replace_result = examplepress_scaffold_replace_remote_placeholders(
+		$full_name, $slug, $name, $description, $troy_display
+	);
+
+	if ( is_wp_error( $replace_result ) ) {
+		$warnings[]                     = 'Placeholder replacement: ' . $replace_result->get_error_message();
+		$steps['placeholder_replace'] = false;
+	} else {
+		$steps['placeholder_replace'] = true;
+	}
+
+	// ── Step 3: Register with Troy (optional) ───────────────────
+
+	if ( $troy_url && get_option( 'ep_troy_credentials', '' ) ) {
+		$troy_result = examplepress_troy_register_and_connect(
+			$slug, $name, $description, $full_name
+		);
+
+		if ( is_wp_error( $troy_result ) ) {
+			if ( $troy_result->get_error_code() === 'troy_slug_exists' ) {
+				$steps['troy_register'] = true;
+			} else {
+				$warnings[]             = 'Troy: ' . $troy_result->get_error_message();
+				$steps['troy_register'] = false;
+			}
+		} else {
+			$steps['troy_register'] = true;
+		}
+	} else {
+		$steps['troy_register'] = null;
+	}
+
+	return rest_ensure_response( [
+		'success'        => true,
+		'mode'           => 'template',
+		'message'        => "App \"{$name}\" created from template.",
+		'repo_url'       => $html_url,
+		'codespaces_url' => examplepress_codespaces_url( $full_name, $repo_id ),
+		'owner_repo'     => $full_name,
+		'warnings'       => $warnings,
+		'steps'          => $steps,
+	] );
+}
+
+/**
+ * Local mode: copy scaffold files into wp-content/plugins.
+ *
+ * Legacy flow — scaffold locally, optionally push to GitHub and register
+ * with Troy.
+ */
+function examplepress_scaffold_local_mode( string $slug, string $name, string $desc ) {
+	$source = EP_THEME_PATH . '/demo/app-scaffold';
+	$dest   = WP_PLUGIN_DIR . '/' . $slug;
 
 	if ( is_dir( $dest ) ) {
 		return new WP_Error(
@@ -168,13 +274,6 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 		rename( $template_file, $plugin_file );
 	}
 
-	$block_json = $dest . '/app/templates/front/block.json';
-	if ( file_exists( $block_json ) ) {
-		$block_content = file_get_contents( $block_json );
-		$block_content = str_replace( '__SLUG__', $slug, $block_content );
-		file_put_contents( $block_json, $block_content );
-	}
-
 	$plugin_path = $dest;
 	$org         = get_option( 'ep_github_org', 'webmultipliers' );
 	$owner_repo  = $org . '/' . $slug;
@@ -194,7 +293,6 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 			$err_code = $repo_result->get_error_code();
 
 			if ( $err_code === 'repo_exists' ) {
-				// Repo already exists — that's fine, proceed with it.
 				$steps['github_repo'] = true;
 			} else {
 				$warnings[]           = 'GitHub repo: ' . $repo_result->get_error_message();
@@ -207,7 +305,6 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 		}
 
 		// ── Step 3: Push scaffold to repo ───────────────────────
-		// Only push if repo was just created (not if it already existed).
 
 		if ( ! empty( $github_data['owner_repo'] ) ) {
 			$push_result = examplepress_github_push_scaffold( $github_data['owner_repo'], $plugin_path );
@@ -227,9 +324,6 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	}
 
 	// ── Steps 4+5: Register on Troy + connect GitHub ────────────
-	// Troy registration is independent of GitHub — always attempt
-	// if Troy is configured. Pass owner_repo so Troy can connect
-	// the integration (even if we didn't create the repo ourselves).
 
 	$troy_url = get_option( 'ep_troy_server_url', '' );
 
@@ -245,7 +339,6 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 			$troy_err_code = $troy_result->get_error_code();
 
 			if ( $troy_err_code === 'troy_slug_exists' ) {
-				// Slug already registered on Troy — that's fine.
 				$steps['troy_register'] = true;
 				$steps['troy_connect']  = false;
 			} else {
@@ -264,8 +357,6 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 			}
 		}
 
-		// Always write Troy data to local JSON if we have a Troy URL,
-		// even if the provision returned 409 (slug exists).
 		$troy_data = [
 			'server_url' => str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) ),
 			'repo'       => $owner_repo,
@@ -279,7 +370,7 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	// ── Step 6: Write back Troy data to local JSON ──────────────
 
 	if ( ! empty( $troy_data ) ) {
-		$write_ok              = examplepress_update_app_troy_data( $slug, $troy_data );
+		$write_ok                = examplepress_update_app_troy_data( $slug, $troy_data );
 		$steps['troy_writeback'] = $write_ok;
 
 		if ( ! $write_ok ) {
@@ -295,11 +386,11 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	$result   = activate_plugin( $relative );
 	$status   = is_wp_error( $result ) ? 'installed' : 'active';
 
-	// Re-read the app data (now includes Troy connection if successful).
 	$app = examplepress_parse_app( $slug, $dest . '/examplepress.json', $dest );
 
 	return rest_ensure_response( [
 		'success'  => true,
+		'mode'     => 'local',
 		'status'   => $status,
 		'message'  => "App \"{$name}\" created.",
 		'app'      => $app,

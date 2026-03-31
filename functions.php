@@ -22,12 +22,14 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 require_once EP_THEME_PATH . '/inc/config.php';
 require_once EP_THEME_PATH . '/inc/feature-registry.php';
 require_once EP_THEME_PATH . '/inc/features.php';
+require_once EP_THEME_PATH . '/inc/route-registry.php';
 require_once EP_THEME_PATH . '/inc/router.php';
 require_once EP_THEME_PATH . '/inc/dependencies.php';
 require_once EP_THEME_PATH . '/inc/notifications.php';
 require_once EP_THEME_PATH . '/inc/apps.php';
 require_once EP_THEME_PATH . '/inc/github.php';
 require_once EP_THEME_PATH . '/inc/github-app.php';
+require_once EP_THEME_PATH . '/inc/scaffolder.php';
 require_once EP_THEME_PATH . '/inc/api.php';
 
 if ( is_admin() ) {
@@ -63,10 +65,18 @@ add_filter( 'blockstudio/blocks/components/inner_blocks/frontend/wrap', function
 	}
 
 	$template_prefix = examplepress_get_template_prefix();
-	$theme_ns        = examplepress_get_theme_namespace();
 
-	if ( strpos( $block->name, sprintf( '%s/%s-', $theme_ns, $template_prefix ) ) === 0 ) {
-		$render = false;
+	// Exempt template blocks from ALL registered namespaces, not just one.
+	$namespaces   = examplepress_get_route_origin_namespaces();
+	$namespaces[] = 'examplepress-theme'; // Always include the theme itself.
+	$namespaces[] = examplepress_get_theme_namespace(); // Legacy filter value.
+	$namespaces   = array_unique( $namespaces );
+
+	foreach ( $namespaces as $ns ) {
+		if ( strpos( $block->name, sprintf( '%s/%s-', $ns, $template_prefix ) ) === 0 ) {
+			$render = false;
+			break;
+		}
 	}
 
 	return $render;

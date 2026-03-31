@@ -124,10 +124,12 @@ function examplepress_github_push_scaffold( string $owner_repo, string $plugin_p
 			return $blob_response;
 		}
 
-		$blob = json_decode( wp_remote_retrieve_body( $blob_response ), true );
+		$blob_code = wp_remote_retrieve_response_code( $blob_response );
+		$blob      = json_decode( wp_remote_retrieve_body( $blob_response ), true );
 
 		if ( empty( $blob['sha'] ) ) {
-			return new WP_Error( 'blob_failed', "Failed to create blob for {$relative_path}." );
+			$api_msg = $blob['message'] ?? "HTTP {$blob_code}";
+			return new WP_Error( 'blob_failed', "Failed to create blob for {$relative_path}: {$api_msg}" );
 		}
 
 		$tree_items[] = [
@@ -149,10 +151,12 @@ function examplepress_github_push_scaffold( string $owner_repo, string $plugin_p
 		return $tree_response;
 	}
 
-	$tree = json_decode( wp_remote_retrieve_body( $tree_response ), true );
+	$tree_code = wp_remote_retrieve_response_code( $tree_response );
+	$tree      = json_decode( wp_remote_retrieve_body( $tree_response ), true );
 
 	if ( empty( $tree['sha'] ) ) {
-		return new WP_Error( 'tree_failed', 'Failed to create git tree.' );
+		$api_msg = $tree['message'] ?? "HTTP {$tree_code}";
+		return new WP_Error( 'tree_failed', "Failed to create git tree: {$api_msg}" );
 	}
 
 	// Step 3: Create an initial commit (no parent).
@@ -169,10 +173,12 @@ function examplepress_github_push_scaffold( string $owner_repo, string $plugin_p
 		return $commit_response;
 	}
 
-	$commit = json_decode( wp_remote_retrieve_body( $commit_response ), true );
+	$commit_code = wp_remote_retrieve_response_code( $commit_response );
+	$commit      = json_decode( wp_remote_retrieve_body( $commit_response ), true );
 
 	if ( empty( $commit['sha'] ) ) {
-		return new WP_Error( 'commit_failed', 'Failed to create initial commit.' );
+		$api_msg = $commit['message'] ?? "HTTP {$commit_code}";
+		return new WP_Error( 'commit_failed', "Failed to create initial commit: {$api_msg}" );
 	}
 
 	// Step 4: Create refs/heads/main pointing to the commit.

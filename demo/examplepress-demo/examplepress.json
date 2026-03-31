@@ -1,0 +1,15 @@
+{
+	"$schema": "https://www.examplepress.com/schema/app",
+	"name": "ExamplePress Demo",
+	"slug": "examplepress-demo",
+	"description": "Disposable demo companion plugin showing the routing contract, namespace handoff, and template block pattern.",
+	"version": "1.0.0",
+	"routing": {
+		"priority": 10
+	},
+	"troy": {
+		"server_url": "",
+		"repo": "",
+		"repo_id": ""
+	}
+}

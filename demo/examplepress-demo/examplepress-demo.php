@@ -13,33 +13,46 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// ── Namespace Handoff ─────────────────────────────────────────────
-// Point the theme router at this plugin's blocks instead of the theme's.
+// ── Route Origin Registration ────────────────────────────────────
+// Register which routes this plugin handles and under what namespace.
+// Multiple companion plugins can coexist — each declares only the
+// routes it owns. The router evaluates conditions and picks the first
+// matching origin per request.
+
+if ( function_exists( 'examplepress_register_route_origin' ) ) {
+	$__ep_config   = json_decode( file_get_contents( __DIR__ . '/examplepress.json' ), true ) ?: [];
+	$__ep_priority = (int) ( $__ep_config['routing']['priority'] ?? 10 );
+
+	examplepress_register_route_origin( 'examplepress-demo', [
+		'front'  => fn() => is_front_page() || is_home(),
+		'single' => fn() => is_singular(),
+		'404'    => fn() => is_404(),
+	], $__ep_priority );
+
+	unset( $__ep_config, $__ep_priority );
+}
+
+// ── Legacy Namespace Handoff (backward compat) ───────────────────
+// Still set the namespace filter so the legacy path works if the
+// registry isn't available. The registry takes precedence when present.
 
 add_filter( 'examplepress_theme_namespace', fn() => 'examplepress-demo' );
 
-// ── Routing Cascade ───────────────────────────────────────────────
-// EXAMPLE CODE — Replace this with your own routing logic.
-// Every slug returned here must have a matching template block:
-//   app/templates/{slug}/block.json → examplepress-demo/template-{slug}
+// ── Legacy Routing Cascade (backward compat) ─────────────────────
 
 add_filter( 'examplepress_route_context', function ( $slug ) {
-	// Front page / blog home.
 	if ( is_front_page() || is_home() ) {
 		return 'front';
 	}
 
-	// Single posts & pages.
 	if ( is_singular() ) {
 		return 'single';
 	}
 
-	// 404.
 	if ( is_404() ) {
 		return '404';
 	}
 
-	// Fall back to whatever the theme resolved (get-started).
 	return $slug;
 } );
 

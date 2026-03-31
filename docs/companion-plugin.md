@@ -1,6 +1,8 @@
 # Companion Plugin Guide
 
-ExamplePress is an infrastructure theme. It provides the router, guards, and feature registry. Your companion plugin provides the application — routing logic, template blocks, patterns, and frontend assets.
+ExamplePress is an immutable infrastructure theme. It provides the router, guards, and feature registry. Your companion plugin provides the application — routing logic, template blocks, patterns, and frontend assets.
+
+The theme is never modified. All customization happens through companion plugins via filters, route origins, and the feature registry.
 
 ## Scaffolding
 
@@ -13,30 +15,83 @@ wp-content/plugins/my-site-core/
 │       └── front/
 │           ├── block.json
 │           └── index.php
+├── examplepress.json
 ├── my-site-core.php
 └── composer.json (optional)
 ```
 
+## App Manifest (examplepress.json)
+
+Every companion plugin includes an `examplepress.json` that declares identity, routing priority, and Troy connection data:
+
+```json
+{
+    "$schema": "https://www.examplepress.com/schema/app",
+    "name": "My Site Core",
+    "slug": "my-site-core",
+    "description": "Main companion plugin for my site.",
+    "version": "1.0.0",
+    "routing": {
+        "priority": 10
+    },
+    "troy": {
+        "server_url": "",
+        "repo": "",
+        "repo_id": ""
+    }
+}
+```
+
+### Routing Priority
+
+The `routing.priority` value controls evaluation order when multiple companion plugins are active. Lower numbers are evaluated first:
+
+| Priority | Use Case |
+|---|---|
+| 1-5 | Core application routes (front page, main navigation) |
+| 10 | Default — standard companion plugin |
+| 20-50 | Add-on plugins that extend the core companion |
+| 90-99 | Catch-all / fallback route handlers |
+
 ## Plugin Bootstrap
+
+### Multi-Origin (recommended)
+
+Register route origins so multiple companion plugins can coexist:
 
 ```php
 <?php
 /**
  * Plugin Name: My Site Core
  * Description: Companion plugin for ExamplePress.
+ * Theme: examplepress-theme
  * Requires Plugins: blockstudio
  */
 
-// 1. Point the theme router at this plugin's blocks.
+// 1. Register route origins with conditions.
+if ( function_exists( 'examplepress_register_route_origin' ) ) {
+    $config   = json_decode( file_get_contents( __DIR__ . '/examplepress.json' ), true ) ?: [];
+    $priority = (int) ( $config['routing']['priority'] ?? 10 );
+
+    examplepress_register_route_origin( 'my-site-core', [
+        'front'  => fn() => is_front_page() || is_home(),
+        'single' => fn() => is_singular( 'post' ),
+        'page'   => fn() => is_singular( 'page' ),
+        'archive' => fn() => is_archive(),
+        '404'    => fn() => is_404(),
+    ], $priority );
+
+    unset( $config, $priority );
+}
+
+// 2. Legacy fallback (still set for single-origin compat).
 add_filter( 'examplepress_theme_namespace', fn() => 'my-site-core' );
 
-// 2. Define your routing cascade.
 add_filter( 'examplepress_route_context', function ( $slug ) {
     if ( is_front_page() || is_home() ) return 'front';
     if ( is_singular( 'post' ) )        return 'single';
     if ( is_singular( 'page' ) )        return 'page';
     if ( is_archive() )                 return 'archive';
-    if ( is_search() )                  return 'search';
     if ( is_404() )                     return '404';
     return $slug;
 } );
@@ -45,6 +100,34 @@ add_filter( 'examplepress_route_context', function ( $slug ) {
 add_action( 'init', fn() => Blockstudio\Build::init( [
     'dir' => plugin_dir_path( __FILE__ ) . 'app',
 ] ) );
+```
+
+### Multi-Plugin Example
+
+A blog add-on that handles archive and search while the core plugin handles everything else:
+
+```php
+// In my-blog-addon.php
+if ( function_exists( 'examplepress_register_route_origin' ) ) {
+    examplepress_register_route_origin( 'my-blog-addon', [
+        'archive' => fn() => is_post_type_archive( 'post' ),
+        'search'  => fn() => is_search(),
+        'author'  => fn() => is_author(),
+    ], 20 ); // Evaluated after core plugin (priority 10)
+}
+```
+
+The core plugin at priority 10 is evaluated first. If it doesn't match (e.g., the request is a search page and the core plugin doesn't claim `search`), the blog add-on at priority 20 gets a chance.
+
+### Checking for Conflicts
+
+Before registering a route, you can check if another plugin already claims it:
+
+```php
+$owner = examplepress_route_slug_owner( 'archive' );
+if ( $owner && $owner !== 'my-blog-addon' ) {
+    // Another plugin already owns 'archive'
+}
 ```
 
 ## Template Blocks
@@ -78,6 +161,10 @@ For a route slug of `front` with namespace `my-site-core`, the router looks for 
     <p>This is rendered by the companion plugin.</p>
 </main>
 ```
+
+### Fallback Behaviour
+
+If your plugin claims a route but the template block doesn't exist yet, the router falls back to `examplepress-theme/template-{slug}` before showing an error. This lets you build templates incrementally without breaking the site.
 
 ## Enriching Route Data
 
@@ -142,13 +229,15 @@ add_filter( 'examplepress_feature_guard-template-redirect', '__return_false' );
 
 ## What Belongs Where
 
-| In the theme | In the companion plugin |
+| In the theme (immutable) | In the companion plugin |
 |---|---|
-| Router dispatch | Routing logic (`examplepress_route_context`) |
+| Router dispatch + fallback chain | Route origin registration |
+| Route origin registry API | Route conditions and priority |
 | Feature registry API | Feature overrides via filters |
 | Guard system | Guard toggling for specific workflows |
 | Design token injection | Color/layout values in `examplepress.json` |
 | Admin settings page | Application-specific admin pages |
+| Template lockdown | — |
 | — | Template blocks |
 | — | Block patterns |
 | — | Frontend assets and styles |

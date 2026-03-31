@@ -103,13 +103,15 @@ function examplepress_gather_notifications() {
 		];
 	}
 
-	// 3. Namespace not overridden.
-	if ( examplepress_get_theme_namespace() === 'examplepress-theme' ) {
+	// 3. No routing configured (neither registry nor legacy namespace).
+	$has_origins = examplepress_has_route_origins();
+
+	if ( ! $has_origins && examplepress_get_theme_namespace() === 'examplepress-theme' ) {
 		$notifications[] = [
 			'id'      => 'namespace_default',
 			'type'    => 'info',
-			'title'   => 'Default Namespace',
-			'message' => 'The router is still using the theme default namespace. A companion plugin should hook examplepress_theme_namespace to claim routing.',
+			'title'   => 'No Routing Configured',
+			'message' => 'No companion plugin has registered route origins or overridden the namespace. Use examplepress_register_route_origin() or hook examplepress_theme_namespace.',
 		];
 	}
 
