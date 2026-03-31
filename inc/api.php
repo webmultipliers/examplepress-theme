@@ -14,6 +14,260 @@
 // No data is proxied through WordPress — this eliminates the need
 // for slug availability checks and credential forwarding.
 
+// ── App Endpoints ────────────────────────────────────────────────
+
+add_action( 'rest_api_init', 'examplepress_register_app_routes' );
+
+function examplepress_register_app_routes() {
+	register_rest_route( 'examplepress/v1', '/apps', [
+		'methods'             => 'GET',
+		'callback'            => 'examplepress_handle_apps_list',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	] );
+
+	register_rest_route( 'examplepress/v1', '/apps/scaffold', [
+		'methods'             => 'POST',
+		'callback'            => 'examplepress_handle_app_scaffold',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	] );
+
+	register_rest_route( 'examplepress/v1', '/apps/(?P<slug>[a-z0-9-]+)/troy-bind', [
+		'methods'             => 'POST',
+		'callback'            => 'examplepress_handle_app_troy_bind',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	] );
+
+	register_rest_route( 'examplepress/v1', '/apps/(?P<slug>[a-z0-9-]+)/deactivate', [
+		'methods'             => 'POST',
+		'callback'            => 'examplepress_handle_app_deactivate',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	] );
+}
+
+/**
+ * List all discovered ExamplePress apps.
+ */
+function examplepress_handle_apps_list() {
+	return rest_ensure_response( examplepress_get_apps() );
+}
+
+/**
+ * Scaffold a new ExamplePress app from the template.
+ */
+function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
+	$name = sanitize_text_field( $request->get_param( 'name' ) ?? '' );
+	$desc = sanitize_text_field( $request->get_param( 'description' ) ?? '' );
+
+	if ( ! $name ) {
+		return new WP_Error(
+			'missing_name',
+			'App name is required.',
+			[ 'status' => 400 ]
+		);
+	}
+
+	$slug   = examplepress_slugify_app_name( $name );
+	$source = EP_THEME_PATH . '/demo/app-scaffold';
+	$dest   = WP_PLUGIN_DIR . '/' . $slug;
+
+	if ( ! $slug ) {
+		return new WP_Error(
+			'invalid_name',
+			'Could not generate a valid slug from the provided name.',
+			[ 'status' => 400 ]
+		);
+	}
+
+	if ( is_dir( $dest ) ) {
+		return new WP_Error(
+			'app_exists',
+			'A plugin directory with this slug already exists.',
+			[ 'status' => 409 ]
+		);
+	}
+
+	if ( ! is_dir( $source ) ) {
+		return new WP_Error(
+			'scaffold_missing',
+			'App scaffold template not found in the theme.',
+			[ 'status' => 500 ]
+		);
+	}
+
+	// Copy scaffold template.
+	if ( ! examplepress_copy_dir( $source, $dest ) ) {
+		examplepress_delete_dir( $dest );
+		return new WP_Error(
+			'scaffold_failed',
+			'Failed to copy the scaffold template.',
+			[ 'status' => 500 ]
+		);
+	}
+
+	$description = $desc ?: 'An ExamplePress app.';
+
+	// Replace placeholders in all files.
+	examplepress_scaffold_replace_placeholders( $dest, $name, $slug, $description );
+
+	// Rename __SLUG__.php to {slug}.php.
+	$template_file = $dest . '/__SLUG__.php';
+	$plugin_file   = $dest . '/' . $slug . '.php';
+
+	if ( file_exists( $template_file ) ) {
+		rename( $template_file, $plugin_file );
+	}
+
+	// Also fix block.json name field.
+	$block_json = $dest . '/app/templates/front/block.json';
+	if ( file_exists( $block_json ) ) {
+		$block_content = file_get_contents( $block_json );
+		$block_content = str_replace( '__SLUG__', $slug, $block_content );
+		file_put_contents( $block_json, $block_content );
+	}
+
+	// Activate the plugin.
+	$relative = $slug . '/' . $slug . '.php';
+	$result   = activate_plugin( $relative );
+	$status   = is_wp_error( $result ) ? 'installed' : 'active';
+
+	// Re-read the app data.
+	$app = examplepress_parse_app( $slug, $dest . '/examplepress.json', $dest );
+
+	return rest_ensure_response( [
+		'success' => true,
+		'status'  => $status,
+		'message' => $status === 'active'
+			? "App \"{$name}\" scaffolded and activated."
+			: "App \"{$name}\" scaffolded but could not be auto-activated.",
+		'app'     => $app,
+	] );
+}
+
+/**
+ * Replace placeholders in all scaffold files.
+ */
+function examplepress_scaffold_replace_placeholders( string $dir, string $name, string $slug, string $description ): void {
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $dir, RecursiveDirectoryIterator::SKIP_DOTS ),
+		RecursiveIteratorIterator::SELF_FIRST
+	);
+
+	foreach ( $iterator as $file ) {
+		if ( $file->isDir() ) {
+			continue;
+		}
+
+		$path    = $file->getPathname();
+		$content = file_get_contents( $path );
+
+		if ( $content === false ) {
+			continue;
+		}
+
+		$replaced = str_replace(
+			[ '__NAME__', '__SLUG__', '__DESC__' ],
+			[ $name, $slug, $description ],
+			$content
+		);
+
+		if ( $replaced !== $content ) {
+			file_put_contents( $path, $replaced );
+		}
+	}
+}
+
+/**
+ * Prepare Troy binding for an app.
+ *
+ * Returns the Troy scaffold URL for client-side redirect.
+ * The actual repo provisioning happens on Troy's side.
+ */
+function examplepress_handle_app_troy_bind( WP_REST_Request $request ) {
+	$slug      = $request->get_param( 'slug' );
+	$troy_type = sanitize_text_field( $request->get_param( 'troy_type' ) ?? 'cloud' );
+	$custom_url = esc_url_raw( $request->get_param( 'custom_url' ) ?? '' );
+
+	$plugin_path = WP_PLUGIN_DIR . '/' . $slug;
+	$json_path   = $plugin_path . '/examplepress.json';
+
+	if ( ! file_exists( $json_path ) ) {
+		return new WP_Error(
+			'app_not_found',
+			'App not found or missing examplepress.json.',
+			[ 'status' => 404 ]
+		);
+	}
+
+	$troy_server = 'cloud' === $troy_type
+		? 'internal.repo.mustuse.com'
+		: rtrim( str_replace( [ 'https://', 'http://' ], '', $custom_url ), '/' );
+
+	if ( empty( $troy_server ) ) {
+		return new WP_Error(
+			'missing_troy_url',
+			'Troy server URL is required for custom server binding.',
+			[ 'status' => 400 ]
+		);
+	}
+
+	$redirect_url = 'https://' . $troy_server . '/scaffold?' . http_build_query( [
+		'slug'  => $slug,
+		'theme' => 'examplepress-theme',
+	] );
+
+	return rest_ensure_response( [
+		'success'      => true,
+		'troy_server'  => $troy_server,
+		'redirect_url' => $redirect_url,
+	] );
+}
+
+/**
+ * Deactivate an ExamplePress app.
+ */
+function examplepress_handle_app_deactivate( WP_REST_Request $request ) {
+	$slug = $request->get_param( 'slug' );
+	$apps = examplepress_get_apps();
+	$app  = null;
+
+	foreach ( $apps as $a ) {
+		if ( $a['slug'] === $slug ) {
+			$app = $a;
+			break;
+		}
+	}
+
+	if ( ! $app ) {
+		return new WP_Error(
+			'app_not_found',
+			'App not found.',
+			[ 'status' => 404 ]
+		);
+	}
+
+	if ( ! $app['active'] ) {
+		return rest_ensure_response( [
+			'success' => true,
+			'message' => 'App is already inactive.',
+		] );
+	}
+
+	deactivate_plugins( $app['plugin_file'] );
+
+	return rest_ensure_response( [
+		'success' => true,
+		'message' => "App \"{$app['name']}\" deactivated.",
+	] );
+}
+
 // ── Demo Companion Plugin Endpoints ──────────────────────────────
 
 add_action( 'rest_api_init', 'examplepress_register_demo_routes' );

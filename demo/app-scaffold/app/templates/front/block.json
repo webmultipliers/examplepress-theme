@@ -1,0 +1,8 @@
+{
+	"$schema": "https://blockstudio.dev/schema/block",
+	"name": "__SLUG__/template-front",
+	"title": "Front Page",
+	"description": "Front page template block.",
+	"category": "theme",
+	"blockstudio": true
+}

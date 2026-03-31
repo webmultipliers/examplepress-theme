@@ -325,27 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		modalOverlay.style.display = '';
 	}
 
-	/* ── Build Modal ───────────────────────────────────────────────── */
-
-	const buildModal = document.getElementById('ep-build-modal');
-	const buildModalClose = document.getElementById('ep-build-modal-close');
-	const buildOpenBtn = document.getElementById('ep-build-open-modal');
-
-	function openBuildModal() {
-		if (buildModal) buildModal.style.display = '';
-	}
-
-	function closeBuildModal() {
-		if (buildModal) buildModal.style.display = 'none';
-	}
-
-	if (buildOpenBtn) buildOpenBtn.addEventListener('click', openBuildModal);
-	if (buildModalClose) buildModalClose.addEventListener('click', closeBuildModal);
-	if (buildModal) {
-		buildModal.addEventListener('click', (e) => {
-			if (e.target === buildModal) closeBuildModal();
-		});
-	}
+	/* ── Build Modal (replaced by Apps scaffold/troy/codespace modals) ── */
 
 	/* ── Design tab ─────────────────────────────────────────────────── */
 
@@ -890,65 +870,307 @@ document.addEventListener('DOMContentLoaded', () => {
 		renderDemo();
 	}
 
-	/* ── Build tab ──────────────────────────────────────────────────── */
+	/* ── Build tab (legacy Troy handoff removed — replaced by Apps system) ── */
 
-	const customOption = document.getElementById('ep-build-option-custom');
-	const customWrap = document.getElementById('ep-build-custom-wrap');
-	const customUrlInput = document.getElementById('ep-custom-server-url');
-	const customGoBtn = document.getElementById('ep-build-custom-go');
-	const buildErrorEl = document.getElementById('ep-build-error');
+	/* ── Apps Management ───────────────────────────────────────────── */
 
-	if (customOption && customWrap) {
-		// Toggle custom server URL input.
-		customOption.addEventListener('click', () => {
-			const isVisible = customWrap.style.display !== 'none';
-			customWrap.style.display = isVisible ? 'none' : '';
-			customOption.classList.toggle('ep-build-option-active', !isVisible);
-			if (!isVisible && customUrlInput) customUrlInput.focus();
-		});
+	let apps = (window.ExamplePressData.apps || []).slice();
+	const appsTable = document.getElementById('ep-apps-table');
+	const appsStats = document.getElementById('ep-apps-stats');
+	const appsNoticeEl = document.getElementById('ep-apps-notice');
 
-		// Validate and set the custom server link.
-		if (customGoBtn && customUrlInput) {
-			function validateCustomUrl() {
-				const url = customUrlInput.value.trim();
-				if (buildErrorEl) {
-					buildErrorEl.style.display = 'none';
-					buildErrorEl.textContent = '';
+	// Modal helpers.
+	function openAppModal(id) {
+		const el = document.getElementById(id);
+		if (el) el.style.display = 'flex';
+	}
+	function closeAppModal(id) {
+		const el = document.getElementById(id);
+		if (el) el.style.display = 'none';
+	}
+
+	// Close modals via close buttons and overlay click.
+	document.querySelectorAll('[data-modal]').forEach(btn => {
+		btn.addEventListener('click', () => closeAppModal(btn.dataset.modal));
+	});
+	['ep-apps-scaffold-modal', 'ep-apps-troy-modal', 'ep-apps-codespace-modal'].forEach(id => {
+		const overlay = document.getElementById(id);
+		if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) closeAppModal(id); });
+	});
+
+	// Stats bar.
+	function renderAppsStats() {
+		if (!appsStats) return;
+		const connected = apps.filter(a => a.status === 'connected').length;
+		const disconnected = apps.filter(a => a.status === 'disconnected').length;
+		appsStats.innerHTML = `
+			<span class="ep-apps-stat"><span class="ep-apps-dot ep-apps-dot-connected"></span><strong>${connected}</strong> Connected</span>
+			<span class="ep-apps-stat"><span class="ep-apps-dot ep-apps-dot-disconnected"></span><strong>${disconnected}</strong> Disconnected</span>
+			<span class="ep-apps-stat ep-apps-stat-right">Troy Cloud + GitHub Codespaces</span>
+		`;
+	}
+
+	// Apps table.
+	function renderAppsTable() {
+		if (!appsTable) return;
+		renderAppsStats();
+
+		if (!apps.length) {
+			appsTable.innerHTML = '<p class="ep-section-desc">No apps discovered. Click <strong>New App</strong> to scaffold one, or install a plugin with an <code>examplepress.json</code>.</p>';
+			return;
+		}
+
+		let html = '<table class="ep-apps-list-table">';
+		html += '<thead><tr>';
+		html += '<th class="ep-apps-col-plugin">Plugin</th>';
+		html += '<th class="ep-apps-col-status">Status</th>';
+		html += '<th class="ep-apps-col-repo">Repository</th>';
+		html += '<th class="ep-apps-col-version">Version</th>';
+		html += '<th class="ep-apps-col-desc">Description</th>';
+		html += '</tr></thead><tbody>';
+
+		apps.forEach(app => {
+			const isConnected = app.status === 'connected';
+
+			// Status badge.
+			const statusBadge = isConnected
+				? '<span class="ep-apps-status-badge ep-apps-status-connected">&#10003; Connected</span>'
+				: '<span class="ep-apps-status-badge ep-apps-status-disconnected">&#11046; Disconnected</span>';
+
+			// Repo cell.
+			let repoCell = '<span class="ep-apps-empty">&mdash;</span>';
+			if (isConnected && app.troy.repo) {
+				repoCell = `<a href="https://github.com/${esc(app.troy.repo)}" target="_blank" rel="noopener" class="ep-apps-repo-link">${esc(app.troy.repo)}</a>`;
+				if (app.troy.server_url) {
+					const label = app.troy.server_url === 'internal.repo.mustuse.com' ? 'TROY CLOUD' : 'TROY SELF-HOSTED';
+					repoCell += `<span class="ep-apps-troy-chip">${label}</span>`;
 				}
-
-				if (!url) {
-					customGoBtn.removeAttribute('href');
-					return false;
-				}
-				if (!url.startsWith('https://')) {
-					if (buildErrorEl) {
-						buildErrorEl.textContent = 'Custom server URL must use HTTPS.';
-						buildErrorEl.style.display = '';
-					}
-					customGoBtn.removeAttribute('href');
-					return false;
-				}
-
-				const scaffoldUrl = url.replace(/\/+$/, '') + '/scaffold';
-				customGoBtn.href = scaffoldUrl;
-				return true;
 			}
 
-			customUrlInput.addEventListener('input', validateCustomUrl);
+			// Version cell.
+			const versionCell = isConnected && app.version && app.version !== '0.1.0'
+				? `<strong>v${esc(app.version)}</strong>`
+				: '<span class="ep-apps-empty">Not released</span>';
 
-			customGoBtn.addEventListener('click', (e) => {
-				if (!validateCustomUrl()) {
-					e.preventDefault();
-					if (buildErrorEl && !customUrlInput.value.trim()) {
-						buildErrorEl.textContent = 'Please enter your custom server URL.';
-						buildErrorEl.style.display = '';
-					}
-				} else {
-					log.info(`[ExamplePress] Handoff to custom Troy server: ${customUrlInput.value.trim()}`);
-				}
+			// Row actions.
+			let actions = '';
+			if (isConnected) {
+				actions = `
+					<span class="ep-apps-action"><a href="#" data-action="deactivate" data-slug="${esc(app.slug)}">Deactivate</a></span>
+					<span class="ep-apps-sep">|</span>
+					<span class="ep-apps-action"><a href="${esc(window.ExamplePressData.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Locate</a></span>
+					<span class="ep-apps-sep">|</span>
+					<span class="ep-apps-action"><a href="https://github.com/${esc(app.troy.repo)}" target="_blank" rel="noopener" class="ep-apps-action-repo">Repo</a></span>
+					${app.troy.repo_id ? `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="#" data-action="codespace" data-repo-id="${esc(app.troy.repo_id)}" class="ep-apps-action-edit">Edit</a></span>` : ''}
+				`;
+			} else {
+				actions = `
+					<span class="ep-apps-action"><a href="#" data-action="deactivate" data-slug="${esc(app.slug)}">Deactivate</a></span>
+					<span class="ep-apps-sep">|</span>
+					<span class="ep-apps-action"><a href="${esc(window.ExamplePressData.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Locate</a></span>
+					<span class="ep-apps-sep">|</span>
+					<span class="ep-apps-action"><a href="#" data-action="manage" data-slug="${esc(app.slug)}" class="ep-apps-action-manage">Manage</a></span>
+				`;
+			}
+
+			html += `<tr>
+				<td class="ep-apps-col-plugin">
+					<span class="ep-apps-plugin-name">${esc(app.name)}</span>
+					<span class="ep-apps-plugin-slug">${esc(app.slug)}</span>
+					<div class="ep-apps-row-actions">${actions}</div>
+				</td>
+				<td class="ep-apps-col-status">${statusBadge}</td>
+				<td class="ep-apps-col-repo">${repoCell}</td>
+				<td class="ep-apps-col-version">${versionCell}</td>
+				<td class="ep-apps-col-desc">${esc(app.description)}</td>
+			</tr>`;
+		});
+
+		html += '</tbody></table>';
+		appsTable.innerHTML = html;
+
+		// Bind row actions.
+		appsTable.querySelectorAll('[data-action]').forEach(link => {
+			link.addEventListener('click', e => {
+				e.preventDefault();
+				const action = link.dataset.action;
+				if (action === 'manage') handleTroyOpen(link.dataset.slug);
+				if (action === 'codespace') handleCodespaceOpen(link.dataset.repoId);
+				if (action === 'deactivate') handleDeactivate(link.dataset.slug);
 			});
+		});
+	}
+
+	// Notice.
+	let appsNoticeTimer;
+	function showAppsNotice(html) {
+		const el = document.getElementById('ep-apps-notice');
+		if (!el) {
+			// Create notice element if not present.
+			const notice = document.createElement('div');
+			notice.id = 'ep-apps-notice';
+			notice.className = 'ep-apps-notice';
+			const tableSection = appsTable?.closest('.ep-section');
+			if (tableSection) tableSection.parentNode.insertBefore(notice, tableSection);
+		}
+		const noticeEl = document.getElementById('ep-apps-notice');
+		if (!noticeEl) return;
+		noticeEl.innerHTML = html;
+		noticeEl.style.display = 'flex';
+		clearTimeout(appsNoticeTimer);
+		appsNoticeTimer = setTimeout(() => { noticeEl.style.display = 'none'; }, 6000);
+	}
+
+	// Scaffold modal.
+	const appsNewBtn = document.getElementById('ep-apps-new-btn');
+	if (appsNewBtn) {
+		appsNewBtn.addEventListener('click', () => {
+			document.getElementById('ep-apps-scaffold-name').value = '';
+			document.getElementById('ep-apps-scaffold-desc').value = '';
+			const errEl = document.getElementById('ep-apps-scaffold-error');
+			if (errEl) errEl.style.display = 'none';
+			openAppModal('ep-apps-scaffold-modal');
+			setTimeout(() => document.getElementById('ep-apps-scaffold-name')?.focus(), 80);
+		});
+	}
+
+	const scaffoldSubmit = document.getElementById('ep-apps-scaffold-submit');
+	if (scaffoldSubmit) {
+		scaffoldSubmit.addEventListener('click', async () => {
+			const nameInput = document.getElementById('ep-apps-scaffold-name');
+			const descInput = document.getElementById('ep-apps-scaffold-desc');
+			const errEl = document.getElementById('ep-apps-scaffold-error');
+			const name = nameInput.value.trim();
+			const desc = descInput.value.trim();
+
+			if (!name) {
+				if (errEl) { errEl.textContent = 'App name is required.'; errEl.style.display = ''; }
+				return;
+			}
+
+			scaffoldSubmit.disabled = true;
+			scaffoldSubmit.textContent = 'Scaffolding...';
+			if (errEl) errEl.style.display = 'none';
+
+			try {
+				const res = await fetch(window.ExamplePressData.appsScaffoldUrl, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
+					body: JSON.stringify({ name, description: desc }),
+				});
+				const data = await res.json();
+
+				if (res.ok && data.success && data.app) {
+					apps.unshift(data.app);
+					closeAppModal('ep-apps-scaffold-modal');
+					renderAppsTable();
+					showAppsNotice(`App <strong>${esc(name)}</strong> scaffolded at <code>wp-content/plugins/${esc(data.app.slug)}/</code>.`);
+				} else {
+					const msg = data.message || data.data?.message || 'Scaffold failed.';
+					if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
+				}
+			} catch (err) {
+				if (errEl) { errEl.textContent = 'Network error: ' + err.message; errEl.style.display = ''; }
+			} finally {
+				scaffoldSubmit.disabled = false;
+				scaffoldSubmit.textContent = 'Scaffold Plugin';
+			}
+		});
+	}
+
+	// Troy connect modal.
+	function handleTroyOpen(slug) {
+		document.getElementById('ep-apps-troy-target-slug').value = slug;
+		document.getElementById('ep-apps-troy-custom-url').style.display = 'none';
+		const cloud = document.querySelector('input[name="ep-apps-troy-target"][value="cloud"]');
+		if (cloud) cloud.checked = true;
+		const errEl = document.getElementById('ep-apps-troy-error');
+		if (errEl) errEl.style.display = 'none';
+		openAppModal('ep-apps-troy-modal');
+	}
+
+	// Toggle custom URL field.
+	document.querySelectorAll('input[name="ep-apps-troy-target"]').forEach(radio => {
+		radio.addEventListener('change', () => {
+			const customUrl = document.getElementById('ep-apps-troy-custom-url');
+			if (customUrl) {
+				customUrl.style.display = radio.value === 'custom' ? '' : 'none';
+				if (radio.value === 'custom') customUrl.focus();
+			}
+		});
+	});
+
+	const troySubmit = document.getElementById('ep-apps-troy-submit');
+	if (troySubmit) {
+		troySubmit.addEventListener('click', async () => {
+			const slug = document.getElementById('ep-apps-troy-target-slug').value;
+			const troyType = document.querySelector('input[name="ep-apps-troy-target"]:checked')?.value || 'cloud';
+			const customUrl = document.getElementById('ep-apps-troy-custom-url')?.value.trim() || '';
+			const errEl = document.getElementById('ep-apps-troy-error');
+
+			if (troyType === 'custom' && !customUrl.startsWith('https://')) {
+				if (errEl) { errEl.textContent = 'Custom server URL must use HTTPS.'; errEl.style.display = ''; }
+				return;
+			}
+
+			troySubmit.disabled = true;
+			troySubmit.textContent = 'Connecting...';
+			if (errEl) errEl.style.display = 'none';
+
+			try {
+				const res = await fetch(`${window.ExamplePressData.appsTroyBindUrl}/${slug}/troy-bind`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
+					body: JSON.stringify({ troy_type: troyType, custom_url: customUrl }),
+				});
+				const data = await res.json();
+
+				if (res.ok && data.success && data.redirect_url) {
+					closeAppModal('ep-apps-troy-modal');
+					showAppsNotice(`Redirecting to Troy for <strong>${esc(slug)}</strong>. Complete setup there to finish binding.`);
+					window.open(data.redirect_url, '_blank');
+				} else {
+					const msg = data.message || data.data?.message || 'Troy binding failed.';
+					if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
+				}
+			} catch (err) {
+				if (errEl) { errEl.textContent = 'Network error: ' + err.message; errEl.style.display = ''; }
+			} finally {
+				troySubmit.disabled = false;
+				troySubmit.textContent = 'Connect to Troy →';
+			}
+		});
+	}
+
+	// Codespace modal.
+	function handleCodespaceOpen(repoId) {
+		const url = `https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=${repoId}`;
+		const urlEl = document.getElementById('ep-apps-codespace-url');
+		if (urlEl) urlEl.textContent = url;
+		openAppModal('ep-apps-codespace-modal');
+	}
+
+	// Deactivate.
+	async function handleDeactivate(slug) {
+		try {
+			const res = await fetch(`${window.ExamplePressData.appsDeactivateUrl}/${slug}/deactivate`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
+			});
+			const data = await res.json();
+			if (res.ok && data.success) {
+				const idx = apps.findIndex(a => a.slug === slug);
+				if (idx >= 0) apps[idx].active = false;
+				renderAppsTable();
+				showAppsNotice(data.message);
+			}
+		} catch (err) {
+			showAppsNotice('Error deactivating app: ' + err.message);
 		}
 	}
+
+	// Initial render.
+	renderAppsTable();
 
 	/* ── Tab counts ─────────────────────────────────────────────────── */
 

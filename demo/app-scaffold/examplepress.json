@@ -1,0 +1,12 @@
+{
+	"$schema": "https://www.examplepress.com/schema/examplepress-app",
+	"name": "__NAME__",
+	"slug": "__SLUG__",
+	"description": "__DESC__",
+	"version": "0.1.0",
+	"troy": {
+		"server_url": "",
+		"repo": "",
+		"repo_id": ""
+	}
+}

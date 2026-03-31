@@ -1,5 +1,8 @@
 # ExamplePress
 
+> ⚠️ **Under Construction:**  
+> This project is in active development and not intended for production use. Please check back for updates or follow progress on [GitHub](https://github.com/webmultipliers/examplepress-theme).
+
 A code-first WordPress theme built on Blockstudio. ExamplePress replaces the traditional template hierarchy with a single-entry-point router that dispatches to modular Blockstudio blocks. The theme is an **infrastructure layer** — it owns the engine (router, guards, feature registry, configuration pipeline, and scaffolding). Companion plugins own the application (routing logic, template blocks, patterns, frontend assets).
 
 ## How It Works

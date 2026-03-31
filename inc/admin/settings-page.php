@@ -100,11 +100,18 @@ function examplepress_settings_gather_data() {
 		'navigation'     => examplepress_settings_get_navigation(),
 		'adminTabs'      => examplepress_settings_get_admin_tabs(),
 		'featureDetails' => examplepress_settings_get_feature_details(),
-		'demo'           => [ 'status' => function_exists( 'examplepress_get_demo_status' ) ? examplepress_get_demo_status() : 'not-installed' ],
-		'restUrl'        => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
-		'demoInstallUrl' => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
-		'demoUninstallUrl' => esc_url_raw( rest_url( 'examplepress/v1/demo/uninstall' ) ),
-		'nonce'          => wp_create_nonce( 'wp_rest' ),
+		'demo'              => [ 'status' => function_exists( 'examplepress_get_demo_status' ) ? examplepress_get_demo_status() : 'not-installed' ],
+		'apps'              => function_exists( 'examplepress_get_apps' ) ? examplepress_get_apps() : [],
+		'appsScaffoldUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps/scaffold' ) ),
+		'appsTroyBindUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
+		'appsDeactivateUrl' => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
+		'adminUrl'          => esc_url( admin_url() ),
+		'troyCloudUrl'      => 'https://internal.repo.mustuse.com',
+		'githubOrg'         => 'webmultipliers',
+		'restUrl'           => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
+		'demoInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
+		'demoUninstallUrl'  => esc_url_raw( rest_url( 'examplepress/v1/demo/uninstall' ) ),
+		'nonce'             => wp_create_nonce( 'wp_rest' ),
 	];
 }
 
@@ -800,14 +807,56 @@ function examplepress_render_settings_page() {
 
 			<!-- Build -->
 			<div class="ep-panel" id="p-build" role="tabpanel" aria-hidden="true">
+
+				<!-- Workflow Explanation -->
 				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Scaffold Companion App</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Launch the Troy scaffolding service to create a new companion plugin repository. All configuration — naming, GitHub setup, and deployment options — is handled on the Troy side.</p>
-					<button class="ep-build-submit" id="ep-build-open-modal">
-						<span class="ep-build-submit-label">Create App</span>
+					<div class="ep-apps-workflow">
+						<div class="ep-apps-workflow-step">
+							<div class="ep-apps-step-num">1</div>
+							<div class="ep-apps-step-title">Scaffold App</div>
+							<p class="ep-apps-step-desc">Create a new local plugin directory inheriting ExamplePress design standards.</p>
+							<span class="ep-apps-step-sys ep-apps-sys-wp">Local WordPress</span>
+						</div>
+						<div class="ep-apps-workflow-step">
+							<div class="ep-apps-step-num">2</div>
+							<div class="ep-apps-step-title">Connect to Troy</div>
+							<p class="ep-apps-step-desc">Provision a GitHub repo, push the initial scaffold, and register to an update channel.</p>
+							<span class="ep-apps-step-sys ep-apps-sys-troy">Troy Network</span>
+						</div>
+						<div class="ep-apps-workflow-step">
+							<div class="ep-apps-step-num">3</div>
+							<div class="ep-apps-step-title">Edit Code</div>
+							<p class="ep-apps-step-desc">Launch a GitHub Codespace to write code without local dev environments.</p>
+							<span class="ep-apps-step-sys ep-apps-sys-codespace">Codespaces</span>
+						</div>
+						<div class="ep-apps-workflow-step">
+							<div class="ep-apps-step-num">4</div>
+							<div class="ep-apps-step-title">Ship Updates</div>
+							<p class="ep-apps-step-desc">GitHub Actions tags releases. Troy detects and pushes updates natively to WordPress.</p>
+							<span class="ep-apps-step-sys ep-apps-sys-gh">Native WP Update</span>
+						</div>
+					</div>
+				</section>
+
+				<!-- Platform Stats -->
+				<section class="ep-section">
+					<div class="ep-apps-stats" id="ep-apps-stats"></div>
+				</section>
+
+				<!-- Toolbar -->
+				<section class="ep-section">
+					<button class="ep-build-submit" id="ep-apps-new-btn">
+						<span class="ep-build-submit-label">+ New App</span>
 					</button>
 				</section>
 
+				<!-- Apps Table -->
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Apps</span><div class="ep-section-line"></div></div>
+					<div id="ep-apps-table"></div>
+				</section>
+
+				<!-- Demo Section -->
 				<section class="ep-section" id="ep-demo-section">
 					<div class="ep-section-header"><span class="ep-section-title">Demo Companion Plugin</span><div class="ep-section-line"></div></div>
 					<p class="ep-section-desc">Install a working demo companion plugin to see the routing contract in action. The demo claims its own namespace, defines a routing cascade, and renders distinct template blocks. Inspect the source, then remove it when you're ready to scaffold your own.</p>
@@ -967,51 +1016,79 @@ function examplepress_render_settings_page() {
 			</div>
 		</div>
 
-		<!-- Build Modal -->
-		<div class="ep-modal-overlay" id="ep-build-modal" style="display:none">
-			<div class="ep-modal" style="max-width:520px">
+		<!-- App Scaffold Modal -->
+		<div class="ep-modal-overlay" id="ep-apps-scaffold-modal" style="display:none">
+			<div class="ep-modal" style="max-width:440px">
 				<div class="ep-modal-header">
 					<div>
-						<span class="ep-modal-title">Scaffold Companion App</span>
-						<span class="ep-modal-id">Choose where to create your app</span>
+						<span class="ep-modal-title">New App</span>
+						<span class="ep-modal-id">Scaffolds a plugin in <code>wp-content/plugins/</code></span>
 					</div>
-					<button class="ep-modal-close" id="ep-build-modal-close">&times;</button>
+					<button class="ep-modal-close" data-modal="ep-apps-scaffold-modal">&times;</button>
 				</div>
 				<div class="ep-modal-body">
-					<p class="ep-build-handoff-desc">Select a Troy server to handle the scaffolding. You'll complete setup — including naming, configuration, and repository creation — on the Troy side.</p>
-
-					<div class="ep-build-options">
-						<a class="ep-build-option" id="ep-build-option-cloud" href="https://cloud.troy.dev/scaffold" target="_blank" rel="noopener">
-							<div class="ep-build-option-icon">&#9729;</div>
-							<div class="ep-build-option-content">
-								<div class="ep-build-option-title">Troy Cloud</div>
-								<div class="ep-build-option-desc">Hosted scaffolding service. No setup required &mdash; authenticate with GitHub and create your companion plugin in seconds.</div>
-							</div>
-							<span class="ep-build-option-arrow">&rarr;</span>
-						</a>
-
-						<div class="ep-build-option ep-build-option-custom" id="ep-build-option-custom">
-							<div class="ep-build-option-icon">&#9881;</div>
-							<div class="ep-build-option-content">
-								<div class="ep-build-option-title">Custom Server</div>
-								<div class="ep-build-option-desc">Self-hosted Troy instance for teams with private infrastructure or custom scaffolding requirements.</div>
-							</div>
-							<span class="ep-build-option-arrow">&rarr;</span>
-						</div>
+					<div class="ep-build-field">
+						<label class="ep-build-label" for="ep-apps-scaffold-name">App Name</label>
+						<input type="text" class="ep-build-input" id="ep-apps-scaffold-name" placeholder="e.g., ExamplePress Analytics" />
 					</div>
-
-					<!-- Custom Server URL (shown when Custom Server is selected) -->
-					<div id="ep-build-custom-wrap" class="ep-build-custom-wrap" style="display:none">
-						<div class="ep-build-field">
-							<label class="ep-build-label" for="ep-custom-server-url">Server URL</label>
-							<input type="url" class="ep-build-input" id="ep-custom-server-url" placeholder="https://troy.yourcompany.com" />
-							<span class="ep-build-hint">Must use HTTPS. You'll complete setup on your Troy server.</span>
-						</div>
-						<div id="ep-build-error" class="ep-build-error" style="display:none"></div>
-						<a class="ep-build-submit" id="ep-build-custom-go" href="#" target="_blank" rel="noopener">
-							<span class="ep-build-submit-label">Continue to Server &rarr;</span>
-						</a>
+					<div class="ep-build-field">
+						<label class="ep-build-label" for="ep-apps-scaffold-desc">Description</label>
+						<input type="text" class="ep-build-input" id="ep-apps-scaffold-desc" placeholder="What does this app do?" />
 					</div>
+					<div id="ep-apps-scaffold-error" class="ep-build-error" style="display:none"></div>
+				</div>
+				<div class="ep-apps-modal-foot">
+					<button class="ep-apps-btn ep-apps-btn-cancel" data-modal="ep-apps-scaffold-modal">Cancel</button>
+					<button class="ep-apps-btn ep-apps-btn-primary" id="ep-apps-scaffold-submit">Scaffold Plugin</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Troy Connect Modal -->
+		<div class="ep-modal-overlay" id="ep-apps-troy-modal" style="display:none">
+			<div class="ep-modal" style="max-width:440px">
+				<div class="ep-modal-header">
+					<div>
+						<span class="ep-modal-title">Manage App</span>
+						<span class="ep-modal-id">Connect to Troy for repo provisioning and automatic updates</span>
+					</div>
+					<button class="ep-modal-close" data-modal="ep-apps-troy-modal">&times;</button>
+				</div>
+				<div class="ep-modal-body">
+					<div class="ep-apps-troy-info">
+						<div class="ep-apps-troy-info-label">Troy &mdash; Decentralized Directory</div>
+						<div class="ep-apps-troy-info-sub">Tagged GitHub releases will serve updates automatically after initialization.</div>
+					</div>
+					<div class="ep-apps-radio-group">
+						<label class="ep-apps-radio-label">
+							<input type="radio" name="ep-apps-troy-target" value="cloud" checked />
+							Troy Cloud (hosted)
+						</label>
+						<label class="ep-apps-radio-label">
+							<input type="radio" name="ep-apps-troy-target" value="custom" />
+							Self-hosted Troy instance
+						</label>
+						<input type="url" class="ep-build-input" id="ep-apps-troy-custom-url" placeholder="https://troy.yourdomain.com" style="display:none; margin-top:4px;" />
+					</div>
+					<div id="ep-apps-troy-error" class="ep-build-error" style="display:none"></div>
+					<input type="hidden" id="ep-apps-troy-target-slug" />
+				</div>
+				<div class="ep-apps-modal-foot">
+					<button class="ep-apps-btn ep-apps-btn-cancel" data-modal="ep-apps-troy-modal">Cancel</button>
+					<button class="ep-apps-btn ep-apps-btn-troy" id="ep-apps-troy-submit">Connect to Troy &rarr;</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Codespace Modal -->
+		<div class="ep-modal-overlay" id="ep-apps-codespace-modal" style="display:none">
+			<div class="ep-modal" style="max-width:440px">
+				<div class="ep-modal-body" style="padding:24px 20px;text-align:center;">
+					<svg width="40" height="40" viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:12px"><path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" fill="#24292f"/></svg>
+					<h2 style="margin:0 0 6px;font-size:17px;font-weight:600;">Launching Codespace</h2>
+					<p style="color:#646970;font-size:13px;margin:0 0 14px;">You'll be redirected to GitHub with the repo pre-selected.</p>
+					<div class="ep-apps-codespace-url" id="ep-apps-codespace-url"></div>
+					<button class="ep-apps-btn ep-apps-btn-cancel" data-modal="ep-apps-codespace-modal">Close</button>
 				</div>
 			</div>
 		</div>
