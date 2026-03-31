@@ -1,7 +1,6 @@
 # ExamplePress
 
-> ⚠️ **Under Construction:**  
-> This project is in active development and not intended for production use. Please check back for updates or follow progress on [GitHub](https://github.com/webmultipliers/examplepress-theme).
+> **Beta** — ExamplePress is in public beta. Core architecture is stable. APIs and configuration may evolve based on feedback. Report issues on [GitHub](https://github.com/webmultipliers/examplepress-theme/issues).
 
 A code-first WordPress theme built on Blockstudio. ExamplePress replaces the traditional template hierarchy with a single-entry-point router that dispatches to modular Blockstudio blocks. The theme is an **infrastructure layer** — it owns the engine (router, guards, feature registry, configuration pipeline, and scaffolding). Companion plugins own the application (routing logic, template blocks, patterns, frontend assets).
 
@@ -92,8 +91,8 @@ When resolving a feature toggle or option, the registry checks in this priority 
       "slug": "blockstudio",
       "name": "Blockstudio",
       "tier": "required",
-      "pricing": "paid",
-      "source": { "type": "direct", "url": "https://blockstudio.dev/" }
+      "pricing": "free",
+      "source": { "type": "direct", "url": "https://github.com/flavor/flavor" }
     }
   ]
 }
@@ -101,7 +100,7 @@ When resolving a feature toggle or option, the registry checks in this priority 
 
 A JSON Schema is available at `schema/examplepress-theme.json` for IDE autocompletion.
 
-## Registered Features (22 Total)
+## Registered Features (37 Total)
 
 ### Theme Support
 
@@ -137,12 +136,33 @@ A JSON Schema is available at `schema/examplepress-theme.json` for IDE autocompl
 - `permalink-structure`
 - `managed-options`
 
+### Spacing, Borders & Shadows
+
+- `theme-spacing`
+- `theme-borders`
+- `theme-shadows`
+- `theme-global-styles`
+
 ### Guards
 
 - `guard-template-redirect`
 - `guard-template-rest`
 - `guard-template-resolution`  
   A three-layer lockdown preventing template creation that would bypass the router.
+
+### Blockstudio Controls
+
+- `blockstudio-assets`
+- `blockstudio-asset-reset`
+- `blockstudio-minify`
+- `blockstudio-scss`
+- `blockstudio-tailwind`
+- `blockstudio-editor`
+- `blockstudio-block-editor`
+- `blockstudio-ai-context`
+- `blockstudio-block-tags`
+- `blockstudio-dev`
+- `blockstudio-users`
 
 All features are toggleable via `examplepress.json` or PHP filters:
 
@@ -183,11 +203,16 @@ A read-only settings page is available at **ExamplePress** in the admin menu. It
 
 - **Features** — All registered features with their resolved state and source
 - **Design** — Color palette swatches, layout dimensions, typography preview
-- **Build & Demo** — Interface for scaffolding companion apps to a Troy Server and managing the local Demo plugin
+- **Connections** — GitHub App installation, PAT configuration, Troy Server authorization with live connection tests
+- **Build & Demo** — Interface for scaffolding companion apps via GitHub template repos and managing the local Demo plugin
 - **Blocks** — All discovered Blockstudio blocks
-- **Dependencies** — Status for required/recommended plugins
+- **Dependencies** — Status for required/recommended plugins with tier and pricing info
+- **Notifications** — Aggregated system warnings (missing dependencies, health failures, routing issues) with per-user archiving
+- **Library** — Component library (coming in v1.1)
 - **Config** — Raw JSON viewer for configuration files
-- **Health** — Environment checks, theme integrity, router status, guard state
+- **Health** — Environment checks, theme integrity, router status, guard state, and connection health
+- **Docs** — Documentation links configurable via examplepress.json
+- **Support** — Blockstudio, GitHub repository, and contact links
 
 > Define `EP_DEV_MODE` as `true` in `wp-config.php` to automatically disable all template guards during development.
 

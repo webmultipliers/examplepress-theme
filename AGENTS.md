@@ -92,7 +92,7 @@ Define `EP_DEV_MODE` as `true` in `wp-config.php` to auto-disable all three guar
 |---|---|
 | `wp examplepress init` | Generate a starter `examplepress.json` pre-populated with all registration defaults |
 
-## Feature Inventory (38 features)
+## Feature Inventory (37 features)
 
 Every feature has a `group` key used by the settings page to auto-sort into tabs.
 
@@ -125,9 +125,16 @@ Every feature has a `group` key used by the settings page to auto-sort into tabs
 ```
 inc/
 ├── admin/
-│   └── settings-page.php   # Read-only admin dashboard
+│   └── settings-page.php   # Read-only admin dashboard (features, design, connections, build, health, etc.)
+├── api.php                 # REST API loader — requires api/*.php modules
+├── api/
+│   ├── apps.php            # App listing, scaffolding, troy-bind, deactivate, connect endpoints
+│   ├── connections.php     # Connection settings, GitHub/Troy tests, OAuth callbacks
+│   └── demo.php            # Demo companion plugin install/uninstall (WP_Filesystem)
+├── apps.php                # App discovery — parses companion plugin examplepress.json files
 ├── config.php              # examplepress_get_config(), JSON reader + design/blockstudio normalisation + EP_DEV_MODE
 ├── cli.php                 # WP-CLI commands (wp examplepress init)
+├── dependencies.php        # Plugin dependency checker and status resolution
 ├── feature-registry.php    # Registry API (register, enabled, option, guarded_setup, boot, get_by_group)
 ├── features.php            # Loader for domain-specific feature files
 ├── features/
@@ -138,8 +145,13 @@ inc/
 │   ├── site-options.php
 │   ├── guards.php
 │   └── blockstudio.php     # 11 Blockstudio integration features
+├── github.php              # GitHub API helpers (repo creation, push, Troy registration)
+├── github-app.php          # GitHub App JWT signing + installation token management
+├── notifications.php       # Notification hub — aggregates warnings, per-user archiving via REST
+├── route-registry.php      # Multi-origin route registry (register_route_origin, resolve)
 ├── router.php              # Routing helper functions
-└── plugins.php             # Plugin dependency checker (admin notice)
+├── scaffolder.php          # GitHub template repo scaffolding + placeholder replacement
+└── updater.php             # GitHub Releases auto-updater (authenticated, channel-aware)
 
 blockstudio/
 ├── router/                 # Single-entry dispatch block
@@ -147,8 +159,13 @@ blockstudio/
 ├── templates/              # Template blocks (get-started fallback)
 └── patterns/               # Block pattern directory
 
-examplepress.json           # Declarative configuration (features, design, blockstudio, plugins)
-schema/examplepress-theme.json  # JSON Schema for IDE autocompletion
+demo/
+└── examplepress-demo/      # Bundled demo companion plugin (3 template blocks)
+
+examplepress.json           # Declarative configuration (features, design, updater, dependencies)
+schema/examplepress-theme.json  # JSON Schema for IDE autocompletion (covers theme + companion plugin configs)
+languages/
+└── examplepress-theme.pot  # Translation template
 ```
 
 ## Rules for Contributors

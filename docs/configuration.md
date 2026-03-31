@@ -100,9 +100,9 @@ A curated dependency directory. Each entry declares a dependency with metadata f
       "slug": "blockstudio",
       "name": "Blockstudio",
       "tier": "required",
-      "pricing": "paid",
+      "pricing": "free",
       "cloud_dependent": false,
-      "source": { "type": "direct", "url": "https://blockstudio.dev/" }
+      "source": { "type": "direct", "url": "https://github.com/flavor/flavor" }
     },
     {
       "slug": "admin-columns-pro",
