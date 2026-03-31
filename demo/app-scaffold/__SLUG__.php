@@ -4,6 +4,7 @@
  * Description: __DESC__
  * Version: 0.1.0
  * Theme: examplepress-theme
+ * Troy:
  * Requires at least: 6.9
  * Requires PHP: 8.4
  * Author: ExamplePress

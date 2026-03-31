@@ -3,16 +3,16 @@
  * ExamplePress REST API
  *
  * REST endpoints for the ExamplePress admin dashboard.
- * Handles demo companion plugin management (install / uninstall).
+ * Handles app scaffolding (with GitHub + Troy orchestration),
+ * connection settings, and demo companion plugin management.
  */
 
 // ── Build / Scaffold ─────────────────────────────────────────────
 //
-// Scaffolding is now a direct handoff to the Troy server.
-// The user picks Troy Cloud or enters a custom server URL in the
-// admin modal, then completes all creation steps on the Troy side.
-// No data is proxied through WordPress — this eliminates the need
-// for slug availability checks and credential forwarding.
+// One-click orchestration: scaffold locally → create GitHub repo →
+// push scaffold code → register on Troy → connect Troy ↔ GitHub →
+// write back to local JSON. Degrades gracefully when credentials
+// are not configured (local-only scaffold still works).
 
 // ── App Endpoints ────────────────────────────────────────────────
 
@@ -50,6 +50,14 @@ function examplepress_register_app_routes() {
 			return current_user_can( 'manage_options' );
 		},
 	] );
+
+	register_rest_route( 'examplepress/v1', '/settings/connections', [
+		'methods'             => 'POST',
+		'callback'            => 'examplepress_handle_save_connections',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	] );
 }
 
 /**
@@ -61,6 +69,17 @@ function examplepress_handle_apps_list() {
 
 /**
  * Scaffold a new ExamplePress app from the template.
+ *
+ * Orchestrates up to six steps in one request:
+ *   1. Scaffold plugin locally
+ *   2. Create GitHub repo (if PAT configured)
+ *   3. Push scaffold code to GitHub
+ *   4. Register plugin on Troy
+ *   5. Connect Troy ↔ GitHub
+ *   6. Write back Troy data to local JSON
+ *
+ * Degrades gracefully — if GitHub PAT or Troy credentials are missing,
+ * those steps are skipped and reported as warnings.
  */
 function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	$name = sanitize_text_field( $request->get_param( 'name' ) ?? '' );
@@ -102,7 +121,8 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 		);
 	}
 
-	// Copy scaffold template.
+	// ── Step 1: Scaffold locally ────────────────────────────────
+
 	if ( ! examplepress_copy_dir( $source, $dest ) ) {
 		examplepress_delete_dir( $dest );
 		return new WP_Error(
@@ -114,10 +134,8 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 
 	$description = $desc ?: 'An ExamplePress app.';
 
-	// Replace placeholders in all files.
 	examplepress_scaffold_replace_placeholders( $dest, $name, $slug, $description );
 
-	// Rename __SLUG__.php to {slug}.php.
 	$template_file = $dest . '/__SLUG__.php';
 	$plugin_file   = $dest . '/' . $slug . '.php';
 
@@ -125,7 +143,6 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 		rename( $template_file, $plugin_file );
 	}
 
-	// Also fix block.json name field.
 	$block_json = $dest . '/app/templates/front/block.json';
 	if ( file_exists( $block_json ) ) {
 		$block_content = file_get_contents( $block_json );
@@ -133,21 +150,112 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 		file_put_contents( $block_json, $block_content );
 	}
 
-	// Activate the plugin.
+	$plugin_path = $dest;
+	$troy_data   = [];
+	$github_data = [];
+	$warnings    = [];
+	$steps       = [ 'scaffold' => true ];
+
+	// ── Step 2: Create GitHub repo ──────────────────────────────
+
+	$pat = get_option( 'ep_github_pat', '' );
+
+	if ( $pat ) {
+		$repo_result = examplepress_github_create_repo( $slug, $description );
+
+		if ( is_wp_error( $repo_result ) ) {
+			$warnings[]           = 'GitHub repo creation failed: ' . $repo_result->get_error_message();
+			$steps['github_repo'] = false;
+		} else {
+			$github_data          = $repo_result;
+			$steps['github_repo'] = true;
+
+			// ── Step 3: Push scaffold to repo ───────────────────
+
+			$push_result = examplepress_github_push_scaffold( $repo_result['owner_repo'], $plugin_path );
+
+			if ( is_wp_error( $push_result ) ) {
+				$warnings[]           = 'GitHub push failed: ' . $push_result->get_error_message();
+				$steps['github_push'] = false;
+			} else {
+				$steps['github_push'] = true;
+			}
+		}
+	} else {
+		$steps['github_repo'] = null;
+		$steps['github_push'] = null;
+	}
+
+	// ── Steps 4+5: Register on Troy + connect GitHub ────────────
+
+	$troy_url = get_option( 'ep_troy_server_url', '' );
+
+	if ( $troy_url && ! empty( $github_data['owner_repo'] ) ) {
+		$troy_result = examplepress_troy_register_and_connect(
+			$slug,
+			$name,
+			$description,
+			$github_data['owner_repo']
+		);
+
+		if ( is_wp_error( $troy_result ) ) {
+			$warnings[]              = 'Troy registration failed: ' . $troy_result->get_error_message();
+			$steps['troy_register']  = false;
+			$steps['troy_connect']   = false;
+		} else {
+			$steps['troy_register'] = true;
+
+			// Troy may create the plugin but fail the integration.
+			// integration: null + warning field means slug is reserved
+			// but GitHub connect didn't work (Troy's own auth issue, etc.).
+			$integration_ok = ! empty( $troy_result['integration'] );
+			$steps['troy_connect'] = $integration_ok;
+
+			if ( ! $integration_ok && ! empty( $troy_result['warning'] ) ) {
+				$warnings[] = 'Troy integration: ' . $troy_result['warning'];
+			}
+
+			$troy_data = [
+				'server_url' => str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) ),
+				'repo'       => $github_data['owner_repo'],
+				'repo_id'    => (string) ( $github_data['repo_id'] ?? '' ),
+			];
+		}
+	} else {
+		$steps['troy_register'] = null;
+		$steps['troy_connect']  = null;
+	}
+
+	// ── Step 6: Write back Troy data to local JSON ──────────────
+
+	if ( ! empty( $troy_data ) ) {
+		$write_ok              = examplepress_update_app_troy_data( $slug, $troy_data );
+		$steps['troy_writeback'] = $write_ok;
+
+		if ( ! $write_ok ) {
+			$warnings[] = 'Failed to write Troy data back to examplepress.json.';
+		}
+	} else {
+		$steps['troy_writeback'] = null;
+	}
+
+	// ── Activate the plugin ─────────────────────────────────────
+
 	$relative = $slug . '/' . $slug . '.php';
 	$result   = activate_plugin( $relative );
 	$status   = is_wp_error( $result ) ? 'installed' : 'active';
 
-	// Re-read the app data.
+	// Re-read the app data (now includes Troy connection if successful).
 	$app = examplepress_parse_app( $slug, $dest . '/examplepress.json', $dest );
 
 	return rest_ensure_response( [
-		'success' => true,
-		'status'  => $status,
-		'message' => $status === 'active'
-			? "App \"{$name}\" scaffolded and activated."
-			: "App \"{$name}\" scaffolded but could not be auto-activated.",
-		'app'     => $app,
+		'success'  => true,
+		'status'   => $status,
+		'message'  => "App \"{$name}\" created.",
+		'app'      => $app,
+		'warnings' => $warnings,
+		'steps'    => $steps,
+		'github'   => $github_data,
 	] );
 }
 
@@ -265,6 +373,49 @@ function examplepress_handle_app_deactivate( WP_REST_Request $request ) {
 	return rest_ensure_response( [
 		'success' => true,
 		'message' => "App \"{$app['name']}\" deactivated.",
+	] );
+}
+
+// ── Connection Settings ──────────────────────────────────────────
+
+/**
+ * Save connection settings (GitHub PAT, org, Troy credentials).
+ */
+function examplepress_handle_save_connections( WP_REST_Request $request ) {
+	$fields = [
+		'ep_github_pat'      => 'github_pat',
+		'ep_github_org'      => 'github_org',
+		'ep_troy_server_url' => 'troy_server_url',
+		'ep_troy_credentials' => 'troy_credentials',
+	];
+
+	$updated = [];
+
+	foreach ( $fields as $option_key => $param_key ) {
+		$value = $request->get_param( $param_key );
+
+		if ( $value === null ) {
+			continue;
+		}
+
+		$value = sanitize_text_field( $value );
+
+		// Normalize Troy URL to always have https://.
+		if ( $option_key === 'ep_troy_server_url' && $value ) {
+			if ( ! str_starts_with( $value, 'http' ) ) {
+				$value = 'https://' . $value;
+			}
+			$value = rtrim( $value, '/' );
+		}
+
+		update_option( $option_key, $value );
+		$updated[] = $param_key;
+	}
+
+	return rest_ensure_response( [
+		'success' => true,
+		'updated' => $updated,
+		'message' => 'Connection settings saved.',
 	] );
 }
 

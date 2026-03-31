@@ -1021,6 +1021,94 @@ document.addEventListener('DOMContentLoaded', () => {
 		appsNoticeTimer = setTimeout(() => { noticeEl.style.display = 'none'; }, 6000);
 	}
 
+	// ── Connection settings ─────────────────────────────────────────
+
+	const connSaveBtn = document.getElementById('ep-conn-save-btn');
+	if (connSaveBtn) {
+		// Populate fields with current values (masked — we only know booleans for secrets).
+		const conn = window.ExamplePressData.connections || {};
+		const orgInput = document.getElementById('ep-conn-github-org');
+		const troyUrlInput = document.getElementById('ep-conn-troy-url');
+		if (orgInput && conn.githubOrg) orgInput.value = conn.githubOrg;
+		if (troyUrlInput && conn.troyServerUrl) troyUrlInput.value = conn.troyServerUrl;
+
+		// Show placeholder hints for configured secrets.
+		const patInput = document.getElementById('ep-conn-github-pat');
+		const credsInput = document.getElementById('ep-conn-troy-creds');
+		if (patInput && conn.hasGithubPat) patInput.placeholder = '••••••••  (configured)';
+		if (credsInput && conn.hasTroyCreds) credsInput.placeholder = '••••••••  (configured)';
+
+		connSaveBtn.addEventListener('click', async () => {
+			const statusEl = document.getElementById('ep-conn-status');
+			connSaveBtn.disabled = true;
+			connSaveBtn.textContent = 'Saving...';
+			if (statusEl) { statusEl.textContent = ''; statusEl.className = 'ep-conn-status'; }
+
+			const body = {};
+			const patVal = document.getElementById('ep-conn-github-pat')?.value.trim();
+			const orgVal = document.getElementById('ep-conn-github-org')?.value.trim();
+			const troyUrl = document.getElementById('ep-conn-troy-url')?.value.trim();
+			const troyCreds = document.getElementById('ep-conn-troy-creds')?.value.trim();
+
+			// Only send non-empty fields (empty means "don't change").
+			if (patVal) body.github_pat = patVal;
+			if (orgVal) body.github_org = orgVal;
+			if (troyUrl) body.troy_server_url = troyUrl;
+			if (troyCreds) body.troy_credentials = troyCreds;
+
+			try {
+				const res = await fetch(window.ExamplePressData.connectionsUrl, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
+					body: JSON.stringify(body),
+				});
+				const data = await res.json();
+
+				if (res.ok && data.success) {
+					if (statusEl) { statusEl.textContent = 'Saved'; statusEl.className = 'ep-conn-status ep-conn-status-ok'; }
+					// Update local state.
+					if (patVal) { conn.hasGithubPat = true; if (patInput) patInput.value = ''; patInput.placeholder = '••••••••  (configured)'; }
+					if (orgVal) conn.githubOrg = orgVal;
+					if (troyUrl) { conn.hasTroyUrl = true; conn.troyServerUrl = troyUrl; }
+					if (troyCreds) { conn.hasTroyCreds = true; if (credsInput) credsInput.value = ''; credsInput.placeholder = '••••••••  (configured)'; }
+				} else {
+					if (statusEl) { statusEl.textContent = data.message || 'Save failed.'; statusEl.className = 'ep-conn-status ep-conn-status-err'; }
+				}
+			} catch (err) {
+				if (statusEl) { statusEl.textContent = 'Network error.'; statusEl.className = 'ep-conn-status ep-conn-status-err'; }
+			} finally {
+				connSaveBtn.disabled = false;
+				connSaveBtn.textContent = 'Save Connections';
+			}
+		});
+	}
+
+	// ── Scaffold step indicators ────────────────────────────────────
+
+	function renderScaffoldSteps() {
+		const stepsEl = document.getElementById('ep-scaffold-steps');
+		if (!stepsEl) return;
+
+		const conn = window.ExamplePressData.connections || {};
+		const hasGithub = conn.hasGithubPat;
+		const hasTroy = conn.hasTroyUrl && conn.hasTroyCreds;
+
+		const steps = [
+			{ label: 'Scaffold plugin locally', ok: true },
+			{ label: 'Create GitHub repo', ok: hasGithub, skip: !hasGithub ? 'No GitHub PAT configured' : '' },
+			{ label: 'Push scaffold code', ok: hasGithub, skip: !hasGithub ? 'No GitHub PAT configured' : '' },
+			{ label: 'Register on Troy', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : (!hasGithub ? 'Requires GitHub' : '') },
+			{ label: 'Connect Troy &harr; GitHub', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : (!hasGithub ? 'Requires GitHub' : '') },
+		];
+
+		stepsEl.innerHTML = steps.map(s => {
+			if (s.ok) {
+				return `<div class="ep-scaffold-step ep-scaffold-step-ok"><span class="ep-scaffold-step-icon">&#10003;</span> ${s.label}</div>`;
+			}
+			return `<div class="ep-scaffold-step ep-scaffold-step-skip"><span class="ep-scaffold-step-icon">&#9888;</span> ${s.label} <span class="ep-scaffold-step-reason">${s.skip}</span></div>`;
+		}).join('');
+	}
+
 	// Scaffold modal.
 	const appsNewBtn = document.getElementById('ep-apps-new-btn');
 	if (appsNewBtn) {
@@ -1029,6 +1117,9 @@ document.addEventListener('DOMContentLoaded', () => {
 			document.getElementById('ep-apps-scaffold-desc').value = '';
 			const errEl = document.getElementById('ep-apps-scaffold-error');
 			if (errEl) errEl.style.display = 'none';
+			const warnEl = document.getElementById('ep-apps-scaffold-warnings');
+			if (warnEl) { warnEl.style.display = 'none'; warnEl.innerHTML = ''; }
+			renderScaffoldSteps();
 			openAppModal('ep-apps-scaffold-modal');
 			setTimeout(() => document.getElementById('ep-apps-scaffold-name')?.focus(), 80);
 		});
@@ -1040,6 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			const nameInput = document.getElementById('ep-apps-scaffold-name');
 			const descInput = document.getElementById('ep-apps-scaffold-desc');
 			const errEl = document.getElementById('ep-apps-scaffold-error');
+			const warnEl = document.getElementById('ep-apps-scaffold-warnings');
 			const name = nameInput.value.trim();
 			const desc = descInput.value.trim();
 
@@ -1049,8 +1141,9 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 
 			scaffoldSubmit.disabled = true;
-			scaffoldSubmit.textContent = 'Scaffolding...';
+			scaffoldSubmit.textContent = 'Creating...';
 			if (errEl) errEl.style.display = 'none';
+			if (warnEl) { warnEl.style.display = 'none'; warnEl.innerHTML = ''; }
 
 			try {
 				const res = await fetch(window.ExamplePressData.appsScaffoldUrl, {
@@ -1062,9 +1155,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 				if (res.ok && data.success && data.app) {
 					apps.unshift(data.app);
-					closeAppModal('ep-apps-scaffold-modal');
 					renderAppsTable();
-					showAppsNotice(`App <strong>${esc(name)}</strong> scaffolded at <code>wp-content/plugins/${esc(data.app.slug)}/</code>.`);
+
+					// Show warnings if any steps failed.
+					if (data.warnings && data.warnings.length) {
+						if (warnEl) {
+							warnEl.innerHTML = data.warnings.map(w => `<div class="ep-scaffold-warning">${esc(w)}</div>`).join('');
+							warnEl.style.display = '';
+						}
+						showAppsNotice(`App <strong>${esc(name)}</strong> created with ${data.warnings.length} warning(s). Check the modal for details.`);
+					} else {
+						closeAppModal('ep-apps-scaffold-modal');
+						showAppsNotice(`App <strong>${esc(name)}</strong> created at <code>wp-content/plugins/${esc(data.app.slug)}/</code>.`);
+					}
 				} else {
 					const msg = data.message || data.data?.message || 'Scaffold failed.';
 					if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
@@ -1073,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				if (errEl) { errEl.textContent = 'Network error: ' + err.message; errEl.style.display = ''; }
 			} finally {
 				scaffoldSubmit.disabled = false;
-				scaffoldSubmit.textContent = 'Scaffold Plugin';
+				scaffoldSubmit.textContent = 'Create App';
 			}
 		});
 	}

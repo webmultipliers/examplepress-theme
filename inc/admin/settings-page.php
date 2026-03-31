@@ -105,9 +105,17 @@ function examplepress_settings_gather_data() {
 		'appsScaffoldUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps/scaffold' ) ),
 		'appsTroyBindUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
 		'appsDeactivateUrl' => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
+		'connectionsUrl'    => esc_url_raw( rest_url( 'examplepress/v1/settings/connections' ) ),
 		'adminUrl'          => esc_url( admin_url() ),
 		'troyCloudUrl'      => 'https://internal.repo.mustuse.com',
 		'githubOrg'         => 'webmultipliers',
+		'connections'       => [
+			'hasGithubPat'    => (bool) get_option( 'ep_github_pat', '' ),
+			'githubOrg'       => get_option( 'ep_github_org', 'webmultipliers' ),
+			'hasTroyUrl'      => (bool) get_option( 'ep_troy_server_url', '' ),
+			'hasTroyCreds'    => (bool) get_option( 'ep_troy_credentials', '' ),
+			'troyServerUrl'   => get_option( 'ep_troy_server_url', '' ),
+		],
 		'restUrl'           => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
 		'demoInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
 		'demoUninstallUrl'  => esc_url_raw( rest_url( 'examplepress/v1/demo/uninstall' ) ),
@@ -808,6 +816,42 @@ function examplepress_render_settings_page() {
 			<!-- Build -->
 			<div class="ep-panel" id="p-build" role="tabpanel" aria-hidden="true">
 
+				<!-- Connections -->
+				<section class="ep-section" id="ep-connections-section">
+					<div class="ep-section-header"><span class="ep-section-title">Connections</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Configure credentials for the automated scaffold pipeline. Without these, the "+ New App" flow scaffolds locally only.</p>
+					<div class="ep-connections-grid" id="ep-connections-grid">
+						<div class="ep-conn-group">
+							<div class="ep-conn-group-title">GitHub</div>
+							<div class="ep-conn-field">
+								<label class="ep-build-label" for="ep-conn-github-pat">Personal Access Token</label>
+								<input type="password" id="ep-conn-github-pat" placeholder="ghp_..." autocomplete="off" />
+								<span class="ep-build-hint">Needs <code>repo</code> scope under the org. <a href="https://github.com/settings/tokens/new?scopes=repo&description=ExamplePress" target="_blank" rel="noopener">Create token &rarr;</a></span>
+							</div>
+							<div class="ep-conn-field">
+								<label class="ep-build-label" for="ep-conn-github-org">Organization</label>
+								<input type="text" id="ep-conn-github-org" placeholder="webmultipliers" />
+							</div>
+						</div>
+						<div class="ep-conn-group">
+							<div class="ep-conn-group-title">Troy Server</div>
+							<div class="ep-conn-field">
+								<label class="ep-build-label" for="ep-conn-troy-url">Server URL</label>
+								<input type="url" id="ep-conn-troy-url" placeholder="https://internal.repo.mustuse.com" />
+							</div>
+							<div class="ep-conn-field">
+								<label class="ep-build-label" for="ep-conn-troy-creds">Credentials</label>
+								<input type="password" id="ep-conn-troy-creds" placeholder="username:app_password" autocomplete="off" />
+								<span class="ep-build-hint">WordPress application password. Format: <code>username:xxxx xxxx xxxx</code></span>
+							</div>
+						</div>
+					</div>
+					<div class="ep-conn-actions">
+						<button class="ep-build-submit" id="ep-conn-save-btn">Save Connections</button>
+						<span class="ep-conn-status" id="ep-conn-status"></span>
+					</div>
+				</section>
+
 				<!-- Workflow Explanation -->
 				<section class="ep-section">
 					<div class="ep-apps-workflow">
@@ -1018,7 +1062,7 @@ function examplepress_render_settings_page() {
 
 		<!-- App Scaffold Modal -->
 		<div class="ep-modal-overlay" id="ep-apps-scaffold-modal" style="display:none">
-			<div class="ep-modal" style="max-width:440px">
+			<div class="ep-modal" style="max-width:480px">
 				<div class="ep-modal-header">
 					<div>
 						<span class="ep-modal-title">New App</span>
@@ -1035,11 +1079,13 @@ function examplepress_render_settings_page() {
 						<label class="ep-build-label" for="ep-apps-scaffold-desc">Description</label>
 						<input type="text" class="ep-build-input" id="ep-apps-scaffold-desc" placeholder="What does this app do?" />
 					</div>
+					<div class="ep-scaffold-steps" id="ep-scaffold-steps"></div>
 					<div id="ep-apps-scaffold-error" class="ep-build-error" style="display:none"></div>
+					<div id="ep-apps-scaffold-warnings" class="ep-scaffold-warnings" style="display:none"></div>
 				</div>
 				<div class="ep-apps-modal-foot">
 					<button class="ep-apps-btn ep-apps-btn-cancel" data-modal="ep-apps-scaffold-modal">Cancel</button>
-					<button class="ep-apps-btn ep-apps-btn-primary" id="ep-apps-scaffold-submit">Scaffold Plugin</button>
+					<button class="ep-apps-btn ep-apps-btn-primary" id="ep-apps-scaffold-submit">Create App</button>
 				</div>
 			</div>
 		</div>
