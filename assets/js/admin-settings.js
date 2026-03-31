@@ -969,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
 					<span class="ep-apps-sep">|</span>
 					<span class="ep-apps-action"><a href="${esc(window.ExamplePressData.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Locate</a></span>
 					<span class="ep-apps-sep">|</span>
-					<span class="ep-apps-action"><a href="#" data-action="manage" data-slug="${esc(app.slug)}" class="ep-apps-action-manage">Manage</a></span>
+					<span class="ep-apps-action"><a href="#" data-action="manage" data-slug="${esc(app.slug)}" class="ep-apps-action-manage">Connect</a></span>
 				`;
 			}
 
@@ -994,7 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			link.addEventListener('click', e => {
 				e.preventDefault();
 				const action = link.dataset.action;
-				if (action === 'manage') handleTroyOpen(link.dataset.slug);
+				if (action === 'manage') handleConnect(link.dataset.slug);
 				if (action === 'codespace') handleCodespaceOpen(link.dataset.repoId);
 				if (action === 'deactivate') handleDeactivate(link.dataset.slug);
 			});
@@ -1021,67 +1021,10 @@ document.addEventListener('DOMContentLoaded', () => {
 		appsNoticeTimer = setTimeout(() => { noticeEl.style.display = 'none'; }, 6000);
 	}
 
-	// ── Connection settings ─────────────────────────────────────────
+	// Connection settings + Troy auth are handled by inline scripts
+	// in settings-page.php (immune to browser cache of this JS file).
 
-	const connSaveBtn = document.getElementById('ep-conn-save-btn');
-	if (connSaveBtn) {
-		// Populate fields with current values (masked — we only know booleans for secrets).
-		const conn = window.ExamplePressData.connections || {};
-		const orgInput = document.getElementById('ep-conn-github-org');
-		const troyUrlInput = document.getElementById('ep-conn-troy-url');
-		if (orgInput && conn.githubOrg) orgInput.value = conn.githubOrg;
-		if (troyUrlInput && conn.troyServerUrl) troyUrlInput.value = conn.troyServerUrl;
-
-		// Show placeholder hints for configured secrets.
-		const patInput = document.getElementById('ep-conn-github-pat');
-		const credsInput = document.getElementById('ep-conn-troy-creds');
-		if (patInput && conn.hasGithubPat) patInput.placeholder = '••••••••  (configured)';
-		if (credsInput && conn.hasTroyCreds) credsInput.placeholder = '••••••••  (configured)';
-
-		connSaveBtn.addEventListener('click', async () => {
-			const statusEl = document.getElementById('ep-conn-status');
-			connSaveBtn.disabled = true;
-			connSaveBtn.textContent = 'Saving...';
-			if (statusEl) { statusEl.textContent = ''; statusEl.className = 'ep-conn-status'; }
-
-			const body = {};
-			const patVal = document.getElementById('ep-conn-github-pat')?.value.trim();
-			const orgVal = document.getElementById('ep-conn-github-org')?.value.trim();
-			const troyUrl = document.getElementById('ep-conn-troy-url')?.value.trim();
-			const troyCreds = document.getElementById('ep-conn-troy-creds')?.value.trim();
-
-			// Only send non-empty fields (empty means "don't change").
-			if (patVal) body.github_pat = patVal;
-			if (orgVal) body.github_org = orgVal;
-			if (troyUrl) body.troy_server_url = troyUrl;
-			if (troyCreds) body.troy_credentials = troyCreds;
-
-			try {
-				const res = await fetch(window.ExamplePressData.connectionsUrl, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
-					body: JSON.stringify(body),
-				});
-				const data = await res.json();
-
-				if (res.ok && data.success) {
-					if (statusEl) { statusEl.textContent = 'Saved'; statusEl.className = 'ep-conn-status ep-conn-status-ok'; }
-					// Update local state.
-					if (patVal) { conn.hasGithubPat = true; if (patInput) patInput.value = ''; patInput.placeholder = '••••••••  (configured)'; }
-					if (orgVal) conn.githubOrg = orgVal;
-					if (troyUrl) { conn.hasTroyUrl = true; conn.troyServerUrl = troyUrl; }
-					if (troyCreds) { conn.hasTroyCreds = true; if (credsInput) credsInput.value = ''; credsInput.placeholder = '••••••••  (configured)'; }
-				} else {
-					if (statusEl) { statusEl.textContent = data.message || 'Save failed.'; statusEl.className = 'ep-conn-status ep-conn-status-err'; }
-				}
-			} catch (err) {
-				if (statusEl) { statusEl.textContent = 'Network error.'; statusEl.className = 'ep-conn-status ep-conn-status-err'; }
-			} finally {
-				connSaveBtn.disabled = false;
-				connSaveBtn.textContent = 'Save Connections';
-			}
-		});
-	}
+	const conn = window.ExamplePressData.connections || {};
 
 	// ── Scaffold step indicators ────────────────────────────────────
 
@@ -1089,16 +1032,16 @@ document.addEventListener('DOMContentLoaded', () => {
 		const stepsEl = document.getElementById('ep-scaffold-steps');
 		if (!stepsEl) return;
 
-		const conn = window.ExamplePressData.connections || {};
-		const hasGithub = conn.hasGithubPat;
+		const hasGithub = conn.hasGithubApp || conn.hasGithubPat;
 		const hasTroy = conn.hasTroyUrl && conn.hasTroyCreds;
+		const githubSkip = !hasGithub ? 'Install GitHub App or configure a write token' : '';
 
 		const steps = [
 			{ label: 'Scaffold plugin locally', ok: true },
-			{ label: 'Create GitHub repo', ok: hasGithub, skip: !hasGithub ? 'No GitHub PAT configured' : '' },
-			{ label: 'Push scaffold code', ok: hasGithub, skip: !hasGithub ? 'No GitHub PAT configured' : '' },
-			{ label: 'Register on Troy', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : (!hasGithub ? 'Requires GitHub' : '') },
-			{ label: 'Connect Troy &harr; GitHub', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : (!hasGithub ? 'Requires GitHub' : '') },
+			{ label: 'Create GitHub repo', ok: hasGithub, skip: githubSkip },
+			{ label: 'Push scaffold code', ok: hasGithub, skip: githubSkip },
+			{ label: 'Register on Troy', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip },
+			{ label: 'Connect Troy &harr; GitHub', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip },
 		];
 
 		stepsEl.innerHTML = steps.map(s => {
@@ -1181,68 +1124,38 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 	}
 
-	// Troy connect modal.
-	function handleTroyOpen(slug) {
-		document.getElementById('ep-apps-troy-target-slug').value = slug;
-		document.getElementById('ep-apps-troy-custom-url').style.display = 'none';
-		const cloud = document.querySelector('input[name="ep-apps-troy-target"][value="cloud"]');
-		if (cloud) cloud.checked = true;
-		const errEl = document.getElementById('ep-apps-troy-error');
-		if (errEl) errEl.style.display = 'none';
-		openAppModal('ep-apps-troy-modal');
-	}
+	// Connect a disconnected app (GitHub repo + Troy registration).
+	async function handleConnect(slug) {
+		const link = appsTable?.querySelector(`[data-action="manage"][data-slug="${slug}"]`);
+		if (link) { link.textContent = 'Connecting...'; link.style.pointerEvents = 'none'; }
 
-	// Toggle custom URL field.
-	document.querySelectorAll('input[name="ep-apps-troy-target"]').forEach(radio => {
-		radio.addEventListener('change', () => {
-			const customUrl = document.getElementById('ep-apps-troy-custom-url');
-			if (customUrl) {
-				customUrl.style.display = radio.value === 'custom' ? '' : 'none';
-				if (radio.value === 'custom') customUrl.focus();
-			}
-		});
-	});
+		try {
+			const res = await fetch(`${window.ExamplePressData.appsDeactivateUrl}/${slug}/connect`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
+			});
+			const data = await res.json();
 
-	const troySubmit = document.getElementById('ep-apps-troy-submit');
-	if (troySubmit) {
-		troySubmit.addEventListener('click', async () => {
-			const slug = document.getElementById('ep-apps-troy-target-slug').value;
-			const troyType = document.querySelector('input[name="ep-apps-troy-target"]:checked')?.value || 'cloud';
-			const customUrl = document.getElementById('ep-apps-troy-custom-url')?.value.trim() || '';
-			const errEl = document.getElementById('ep-apps-troy-error');
+			if (res.ok && data.success && data.app) {
+				// Replace the app in the local array.
+				const idx = apps.findIndex(a => a.slug === slug);
+				if (idx >= 0) apps[idx] = data.app; else apps.unshift(data.app);
+				renderAppsTable();
 
-			if (troyType === 'custom' && !customUrl.startsWith('https://')) {
-				if (errEl) { errEl.textContent = 'Custom server URL must use HTTPS.'; errEl.style.display = ''; }
-				return;
-			}
-
-			troySubmit.disabled = true;
-			troySubmit.textContent = 'Connecting...';
-			if (errEl) errEl.style.display = 'none';
-
-			try {
-				const res = await fetch(`${window.ExamplePressData.appsTroyBindUrl}/${slug}/troy-bind`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.ExamplePressData.nonce },
-					body: JSON.stringify({ troy_type: troyType, custom_url: customUrl }),
-				});
-				const data = await res.json();
-
-				if (res.ok && data.success && data.redirect_url) {
-					closeAppModal('ep-apps-troy-modal');
-					showAppsNotice(`Redirecting to Troy for <strong>${esc(slug)}</strong>. Complete setup there to finish binding.`);
-					window.open(data.redirect_url, '_blank');
+				if (data.warnings && data.warnings.length) {
+					showAppsNotice(`<strong>${esc(slug)}</strong> partially connected: ${esc(data.warnings[0])}`);
 				} else {
-					const msg = data.message || data.data?.message || 'Troy binding failed.';
-					if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
+					showAppsNotice(`<strong>${esc(slug)}</strong> connected to GitHub + Troy.`);
 				}
-			} catch (err) {
-				if (errEl) { errEl.textContent = 'Network error: ' + err.message; errEl.style.display = ''; }
-			} finally {
-				troySubmit.disabled = false;
-				troySubmit.textContent = 'Connect to Troy →';
+			} else {
+				const msg = data.message || data.data?.message || 'Connection failed.';
+				showAppsNotice(`Failed to connect <strong>${esc(slug)}</strong>: ${esc(msg)}`);
 			}
-		});
+		} catch (err) {
+			showAppsNotice('Network error: ' + err.message);
+		} finally {
+			if (link) { link.textContent = 'Manage'; link.style.pointerEvents = ''; }
+		}
 	}
 
 	// Codespace modal.

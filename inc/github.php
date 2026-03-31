@@ -20,11 +20,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array{owner_repo: string, repo_id: int, html_url: string}|WP_Error
  */
 function examplepress_github_create_repo( string $slug, string $description ) {
-	$pat = get_option( 'ep_github_pat', '' );
+	$pat = examplepress_github_get_write_token();
 	$org = get_option( 'ep_github_org', 'webmultipliers' );
 
 	if ( ! $pat ) {
-		return new WP_Error( 'no_github_pat', 'GitHub PAT is not configured.' );
+		return new WP_Error( 'no_github_token', 'No GitHub write token available. Install the GitHub App or configure a write access token.' );
 	}
 
 	$response = wp_remote_post( "https://api.github.com/orgs/{$org}/repos", [
@@ -80,10 +80,10 @@ function examplepress_github_create_repo( string $slug, string $description ) {
  * @return true|WP_Error
  */
 function examplepress_github_push_scaffold( string $owner_repo, string $plugin_path ) {
-	$pat = get_option( 'ep_github_pat', '' );
+	$pat = examplepress_github_get_write_token();
 
 	if ( ! $pat ) {
-		return new WP_Error( 'no_github_pat', 'GitHub PAT is not configured.' );
+		return new WP_Error( 'no_github_token', 'No GitHub write token available.' );
 	}
 
 	$headers = [
@@ -231,12 +231,13 @@ function examplepress_troy_register_and_connect(
 			'Authorization' => 'Basic ' . base64_encode( $troy_auth ),
 			'Content-Type'  => 'application/json',
 		],
-		'body'    => wp_json_encode( [
+		'body'    => wp_json_encode( array_filter( [
 			'name'        => $name,
 			'slug'        => $slug,
 			'description' => $description,
 			'owner_repo'  => $owner_repo,
-		] ),
+			'github_pat'  => examplepress_get_troy_read_token(),
+		] ) ),
 		'timeout' => 30,
 	] );
 

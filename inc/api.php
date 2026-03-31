@@ -51,6 +51,14 @@ function examplepress_register_app_routes() {
 		},
 	] );
 
+	register_rest_route( 'examplepress/v1', '/apps/(?P<slug>[a-z0-9-]+)/connect', [
+		'methods'             => 'POST',
+		'callback'            => 'examplepress_handle_app_connect',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	] );
+
 	register_rest_route( 'examplepress/v1', '/settings/connections', [
 		'methods'             => 'POST',
 		'callback'            => 'examplepress_handle_save_connections',
@@ -58,6 +66,7 @@ function examplepress_register_app_routes() {
 			return current_user_can( 'manage_options' );
 		},
 	] );
+
 }
 
 /**
@@ -151,6 +160,8 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	}
 
 	$plugin_path = $dest;
+	$org         = get_option( 'ep_github_org', 'webmultipliers' );
+	$owner_repo  = $org . '/' . $slug;
 	$troy_data   = [];
 	$github_data = [];
 	$warnings    = [];
@@ -158,28 +169,41 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 
 	// ── Step 2: Create GitHub repo ──────────────────────────────
 
-	$pat = get_option( 'ep_github_pat', '' );
+	$write_token = examplepress_github_get_write_token();
 
-	if ( $pat ) {
+	if ( $write_token ) {
 		$repo_result = examplepress_github_create_repo( $slug, $description );
 
 		if ( is_wp_error( $repo_result ) ) {
-			$warnings[]           = 'GitHub repo creation failed: ' . $repo_result->get_error_message();
-			$steps['github_repo'] = false;
+			$err_code = $repo_result->get_error_code();
+
+			if ( $err_code === 'repo_exists' ) {
+				// Repo already exists — that's fine, proceed with it.
+				$steps['github_repo'] = true;
+			} else {
+				$warnings[]           = 'GitHub repo: ' . $repo_result->get_error_message();
+				$steps['github_repo'] = false;
+			}
 		} else {
 			$github_data          = $repo_result;
+			$owner_repo           = $repo_result['owner_repo'];
 			$steps['github_repo'] = true;
+		}
 
-			// ── Step 3: Push scaffold to repo ───────────────────
+		// ── Step 3: Push scaffold to repo ───────────────────────
+		// Only push if repo was just created (not if it already existed).
 
-			$push_result = examplepress_github_push_scaffold( $repo_result['owner_repo'], $plugin_path );
+		if ( ! empty( $github_data['owner_repo'] ) ) {
+			$push_result = examplepress_github_push_scaffold( $github_data['owner_repo'], $plugin_path );
 
 			if ( is_wp_error( $push_result ) ) {
-				$warnings[]           = 'GitHub push failed: ' . $push_result->get_error_message();
+				$warnings[]           = 'GitHub push: ' . $push_result->get_error_message();
 				$steps['github_push'] = false;
 			} else {
 				$steps['github_push'] = true;
 			}
+		} else {
+			$steps['github_push'] = null;
 		}
 	} else {
 		$steps['github_repo'] = null;
@@ -187,27 +211,27 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	}
 
 	// ── Steps 4+5: Register on Troy + connect GitHub ────────────
+	// Troy registration is independent of GitHub — always attempt
+	// if Troy is configured. Pass owner_repo so Troy can connect
+	// the integration (even if we didn't create the repo ourselves).
 
 	$troy_url = get_option( 'ep_troy_server_url', '' );
 
-	if ( $troy_url && ! empty( $github_data['owner_repo'] ) ) {
+	if ( $troy_url && get_option( 'ep_troy_credentials', '' ) ) {
 		$troy_result = examplepress_troy_register_and_connect(
 			$slug,
 			$name,
 			$description,
-			$github_data['owner_repo']
+			$owner_repo
 		);
 
 		if ( is_wp_error( $troy_result ) ) {
-			$warnings[]              = 'Troy registration failed: ' . $troy_result->get_error_message();
+			$warnings[]              = 'Troy: ' . $troy_result->get_error_message();
 			$steps['troy_register']  = false;
 			$steps['troy_connect']   = false;
 		} else {
 			$steps['troy_register'] = true;
 
-			// Troy may create the plugin but fail the integration.
-			// integration: null + warning field means slug is reserved
-			// but GitHub connect didn't work (Troy's own auth issue, etc.).
 			$integration_ok = ! empty( $troy_result['integration'] );
 			$steps['troy_connect'] = $integration_ok;
 
@@ -217,7 +241,7 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 
 			$troy_data = [
 				'server_url' => str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) ),
-				'repo'       => $github_data['owner_repo'],
+				'repo'       => $owner_repo,
 				'repo_id'    => (string) ( $github_data['repo_id'] ?? '' ),
 			];
 		}
@@ -376,17 +400,136 @@ function examplepress_handle_app_deactivate( WP_REST_Request $request ) {
 	] );
 }
 
+/**
+ * Connect a disconnected app: create GitHub repo, push code, register on Troy.
+ *
+ * Runs the same GitHub+Troy flow as the scaffold endpoint but on an
+ * existing plugin that's already installed locally.
+ */
+function examplepress_handle_app_connect( WP_REST_Request $request ) {
+	$slug = $request->get_param( 'slug' );
+	$apps = examplepress_get_apps();
+	$app  = null;
+
+	foreach ( $apps as $a ) {
+		if ( $a['slug'] === $slug ) {
+			$app = $a;
+			break;
+		}
+	}
+
+	if ( ! $app ) {
+		return new WP_Error( 'app_not_found', 'App not found.', [ 'status' => 404 ] );
+	}
+
+	if ( $app['status'] === 'connected' ) {
+		return rest_ensure_response( [
+			'success'  => true,
+			'message'  => 'App is already connected.',
+			'app'      => $app,
+			'warnings' => [],
+		] );
+	}
+
+	$plugin_path = WP_PLUGIN_DIR . '/' . $slug;
+	$name        = $app['name'];
+	$description = $app['description'] ?: 'An ExamplePress app.';
+	$org         = get_option( 'ep_github_org', 'webmultipliers' );
+	$owner_repo  = $org . '/' . $slug;
+	$warnings    = [];
+	$troy_data   = [];
+	$github_data = [];
+
+	// ── Step 1: Create GitHub repo ──────────────────────────────
+
+	$write_token = examplepress_github_get_write_token();
+
+	if ( $write_token ) {
+		$repo_result = examplepress_github_create_repo( $slug, $description );
+
+		if ( is_wp_error( $repo_result ) ) {
+			if ( $repo_result->get_error_code() === 'repo_exists' ) {
+				// Repo already exists — proceed with it.
+				$github_data = [ 'owner_repo' => $owner_repo ];
+			} else {
+				$warnings[] = 'GitHub repo: ' . $repo_result->get_error_message();
+			}
+		} else {
+			$github_data = $repo_result;
+			$owner_repo  = $repo_result['owner_repo'];
+
+			// ── Step 2: Push code to repo ───────────────────────
+
+			$push_result = examplepress_github_push_scaffold( $repo_result['owner_repo'], $plugin_path );
+
+			if ( is_wp_error( $push_result ) ) {
+				$warnings[] = 'GitHub push: ' . $push_result->get_error_message();
+			}
+		}
+	} else {
+		$warnings[] = 'No GitHub write access — install the GitHub App or configure a write token.';
+	}
+
+	// ── Step 3: Register on Troy + connect GitHub ───────────────
+	// Always attempt if Troy is configured — independent of GitHub.
+
+	$troy_url = get_option( 'ep_troy_server_url', '' );
+
+	if ( $troy_url && get_option( 'ep_troy_credentials', '' ) ) {
+		$troy_result = examplepress_troy_register_and_connect(
+			$slug, $name, $description, $owner_repo
+		);
+
+		if ( is_wp_error( $troy_result ) ) {
+			$warnings[] = 'Troy: ' . $troy_result->get_error_message();
+		} else {
+			$integration_ok = ! empty( $troy_result['integration'] );
+
+			if ( ! $integration_ok && ! empty( $troy_result['warning'] ) ) {
+				$warnings[] = 'Troy integration: ' . $troy_result['warning'];
+			}
+
+			$troy_data = [
+				'server_url' => str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) ),
+				'repo'       => $owner_repo,
+				'repo_id'    => (string) ( $github_data['repo_id'] ?? '' ),
+			];
+		}
+	} elseif ( ! $troy_url ) {
+		$warnings[] = 'No Troy Server configured.';
+	}
+
+	// ── Step 4: Write back Troy data to local JSON ──────────────
+
+	if ( ! empty( $troy_data ) ) {
+		if ( ! examplepress_update_app_troy_data( $slug, $troy_data ) ) {
+			$warnings[] = 'Failed to write Troy data to examplepress.json.';
+		}
+	}
+
+	// Re-read the app data.
+	$updated_app = examplepress_parse_app( $slug, $plugin_path . '/examplepress.json', $plugin_path );
+
+	return rest_ensure_response( [
+		'success'  => true,
+		'message'  => empty( $warnings ) ? "App \"{$name}\" connected." : "App \"{$name}\" partially connected.",
+		'app'      => $updated_app,
+		'warnings' => $warnings,
+		'github'   => $github_data,
+	] );
+}
+
 // ── Connection Settings ──────────────────────────────────────────
 
 /**
- * Save connection settings (GitHub PAT, org, Troy credentials).
+ * Save connection settings (GitHub PAT, org, Troy URL, Troy GitHub read token).
  */
 function examplepress_handle_save_connections( WP_REST_Request $request ) {
 	$fields = [
-		'ep_github_pat'      => 'github_pat',
-		'ep_github_org'      => 'github_org',
-		'ep_troy_server_url' => 'troy_server_url',
-		'ep_troy_credentials' => 'troy_credentials',
+		'ep_github_pat'       => 'github_pat',
+		'ep_github_org'       => 'github_org',
+		'ep_troy_server_url'  => 'troy_server_url',
+		'ep_troy_github_pat'  => 'troy_github_pat',
 	];
 
 	$updated = [];
@@ -417,6 +560,118 @@ function examplepress_handle_save_connections( WP_REST_Request $request ) {
 		'updated' => $updated,
 		'message' => 'Connection settings saved.',
 	] );
+}
+
+// ── Troy Application Password Authorization ─────────────────────
+
+/**
+ * Handle the Troy Application Password callback.
+ *
+ * When Troy redirects back with user_login + password, this renders
+ * a minimal page that stores the credentials via REST and closes
+ * the popup window.
+ */
+add_action( 'admin_init', 'examplepress_handle_troy_auth_callback' );
+
+function examplepress_handle_troy_auth_callback() {
+	if ( ! isset( $_GET['ep_troy_auth_cb'] ) ) {
+		return;
+	}
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Unauthorized.', 403 );
+	}
+
+	// Rejected.
+	if ( $_GET['ep_troy_auth_cb'] === 'rejected' ) {
+		examplepress_troy_auth_close_popup( false, 'Authorization was rejected.' );
+		return;
+	}
+
+	$user_login = sanitize_text_field( $_GET['user_login'] ?? '' );
+	$password   = sanitize_text_field( $_GET['password'] ?? '' );
+
+	if ( ! $user_login || ! $password ) {
+		examplepress_troy_auth_close_popup( false, 'Missing credentials in callback.' );
+		return;
+	}
+
+	// Store the credentials.
+	update_option( 'ep_troy_credentials', $user_login . ':' . $password );
+
+	examplepress_troy_auth_close_popup( true, 'Connected to Troy.' );
+}
+
+/**
+ * Render a minimal HTML page that communicates result to the opener
+ * and closes itself.
+ */
+function examplepress_troy_auth_close_popup( bool $success, string $message ) {
+	$data = wp_json_encode( [
+		'success' => $success,
+		'message' => $message,
+	] );
+
+	// postMessage targetOrigin must be just the scheme+host, not a full URL.
+	$origin = home_url( '', 'https' );
+	$parsed = wp_parse_url( $origin );
+	$target_origin = ( $parsed['scheme'] ?? 'https' ) . '://' . ( $parsed['host'] ?? '' );
+	if ( ! empty( $parsed['port'] ) ) {
+		$target_origin .= ':' . $parsed['port'];
+	}
+
+	?>
+	<!DOCTYPE html>
+	<html>
+	<head><title>ExamplePress — Troy Authorization</title></head>
+	<body>
+	<script>
+		if ( window.opener ) {
+			window.opener.postMessage(<?php echo $data; ?>, <?php echo wp_json_encode( $target_origin ); ?>);
+		}
+		window.close();
+	</script>
+	<p><?php echo esc_html( $message ); ?></p>
+	<p><small>This window should close automatically. If it doesn't, you can close it manually.</small></p>
+	</body>
+	</html>
+	<?php
+	exit;
+}
+
+// ── GitHub App Installation Callback ─────────────────────────────
+
+/**
+ * Handle the GitHub App installation callback.
+ *
+ * After a user installs the ExamplePress GitHub App on their org,
+ * GitHub redirects to our setup_url with ?installation_id=X.
+ * We store the installation ID and close the popup.
+ */
+add_action( 'admin_init', 'examplepress_handle_github_app_callback' );
+
+function examplepress_handle_github_app_callback() {
+	if ( ! isset( $_GET['ep_github_app_cb'] ) ) {
+		return;
+	}
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Unauthorized.', 403 );
+	}
+
+	$installation_id = sanitize_text_field( $_GET['installation_id'] ?? '' );
+
+	if ( ! $installation_id ) {
+		examplepress_troy_auth_close_popup( false, 'No installation ID received from GitHub.' );
+		return;
+	}
+
+	update_option( 'ep_github_app_installation_id', $installation_id );
+
+	// Clear any cached installation token since the installation changed.
+	delete_transient( 'ep_github_app_token' );
+
+	examplepress_troy_auth_close_popup( true, 'GitHub App installed.' );
 }
 
 // ── Demo Companion Plugin Endpoints ──────────────────────────────

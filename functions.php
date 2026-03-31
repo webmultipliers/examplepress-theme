@@ -27,6 +27,7 @@ require_once EP_THEME_PATH . '/inc/dependencies.php';
 require_once EP_THEME_PATH . '/inc/notifications.php';
 require_once EP_THEME_PATH . '/inc/apps.php';
 require_once EP_THEME_PATH . '/inc/github.php';
+require_once EP_THEME_PATH . '/inc/github-app.php';
 require_once EP_THEME_PATH . '/inc/api.php';
 
 if ( is_admin() ) {

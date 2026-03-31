@@ -54,22 +54,22 @@ function examplepress_enqueue_settings_assets() {
 	}
 
 	wp_enqueue_style(
-		'ep-settings',
+		'ep-settings-style',
 		EP_THEME_URI . '/assets/css/admin-settings.css',
 		$font_deps,
-		EP_THEME_VERSION
+		(string) @filemtime( EP_THEME_PATH . '/assets/css/admin-settings.css' )
 	);
 
 	wp_enqueue_script(
-		'ep-settings',
+		'ep-settings-script',
 		EP_THEME_URI . '/assets/js/admin-settings.js',
 		[],
-		EP_THEME_VERSION,
+		(string) @filemtime( EP_THEME_PATH . '/assets/js/admin-settings.js' ),
 		true
 	);
 
 	wp_add_inline_script(
-		'ep-settings',
+		'ep-settings-script',
 		'window.ExamplePressData = ' . wp_json_encode( examplepress_settings_gather_data() ) . ';',
 		'before'
 	);
@@ -110,11 +110,13 @@ function examplepress_settings_gather_data() {
 		'troyCloudUrl'      => 'https://internal.repo.mustuse.com',
 		'githubOrg'         => 'webmultipliers',
 		'connections'       => [
-			'hasGithubPat'    => (bool) get_option( 'ep_github_pat', '' ),
-			'githubOrg'       => get_option( 'ep_github_org', 'webmultipliers' ),
-			'hasTroyUrl'      => (bool) get_option( 'ep_troy_server_url', '' ),
-			'hasTroyCreds'    => (bool) get_option( 'ep_troy_credentials', '' ),
-			'troyServerUrl'   => get_option( 'ep_troy_server_url', '' ),
+			'hasGithubPat'     => (bool) get_option( 'ep_github_pat', '' ),
+			'hasGithubApp'     => function_exists( 'examplepress_github_app_is_installed' ) && examplepress_github_app_is_installed(),
+			'githubOrg'        => get_option( 'ep_github_org', 'webmultipliers' ),
+			'hasTroyUrl'       => (bool) get_option( 'ep_troy_server_url', '' ),
+			'hasTroyCreds'     => (bool) get_option( 'ep_troy_credentials', '' ),
+			'hasTroyGithubPat' => (bool) get_option( 'ep_troy_github_pat', '' ),
+			'troyServerUrl'    => get_option( 'ep_troy_server_url', '' ),
 		],
 		'restUrl'           => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
 		'demoInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
@@ -820,17 +822,81 @@ function examplepress_render_settings_page() {
 				<section class="ep-section" id="ep-connections-section">
 					<div class="ep-section-header"><span class="ep-section-title">Connections</span><div class="ep-section-line"></div></div>
 					<p class="ep-section-desc">Configure credentials for the automated scaffold pipeline. Without these, the "+ New App" flow scaffolds locally only.</p>
+					<?php
+					$ep_github_app_available = function_exists( 'examplepress_github_app_is_configured' ) && examplepress_github_app_is_configured();
+					$ep_github_app_installed = function_exists( 'examplepress_github_app_is_installed' ) && examplepress_github_app_is_installed();
+					$ep_conn_js = [
+						'githubOrg'       => get_option( 'ep_github_org', 'webmultipliers' ),
+						'troyUrl'         => get_option( 'ep_troy_server_url', '' ),
+						'hasGithubPat'    => (bool) get_option( 'ep_github_pat', '' ),
+						'hasGithubApp'    => $ep_github_app_installed,
+						'githubAppAvail'  => $ep_github_app_available,
+						'hasTroyCreds'    => (bool) get_option( 'ep_troy_credentials', '' ),
+						'hasTroyGithubPat' => (bool) get_option( 'ep_troy_github_pat', '' ),
+						'connUrl'         => esc_url_raw( rest_url( 'examplepress/v1/settings/connections' ) ),
+						'nonce'           => wp_create_nonce( 'wp_rest' ),
+					];
+					?>
+					<script>var _epConn = <?php echo wp_json_encode( $ep_conn_js ); ?>;</script>
 					<div class="ep-connections-grid" id="ep-connections-grid">
 						<div class="ep-conn-group">
 							<div class="ep-conn-group-title">GitHub</div>
 							<div class="ep-conn-field">
-								<label class="ep-build-label" for="ep-conn-github-pat">Personal Access Token</label>
-								<input type="password" id="ep-conn-github-pat" placeholder="ghp_..." autocomplete="off" />
-								<span class="ep-build-hint">Needs <code>repo</code> scope under the org. <a href="https://github.com/settings/tokens/new?scopes=repo&description=ExamplePress" target="_blank" rel="noopener">Create token &rarr;</a></span>
-							</div>
-							<div class="ep-conn-field">
 								<label class="ep-build-label" for="ep-conn-github-org">Organization</label>
 								<input type="text" id="ep-conn-github-org" placeholder="webmultipliers" />
+							</div>
+							<?php if ( $ep_github_app_available ) : ?>
+							<div class="ep-conn-field">
+								<label class="ep-build-label">App Authorization</label>
+								<div class="ep-troy-auth-row">
+									<button class="ep-demo-btn ep-demo-btn-primary" id="ep-conn-github-app-btn" type="button" onclick="window._epGithubAppInstall(this)">Install GitHub App</button>
+									<span class="ep-troy-auth-status" id="ep-github-app-status"></span>
+								</div>
+								<span class="ep-build-hint">Grants repo creation + code push on your org. No shared secrets.</span>
+								<script>
+								window._epGithubAppInstall = function(btn) {
+									var statusEl = document.getElementById('ep-github-app-status');
+									var orgVal = (document.getElementById('ep-conn-github-org') || {}).value || '';
+									<?php $app_slug = defined( 'EP_GITHUB_APP_SLUG' ) ? EP_GITHUB_APP_SLUG : 'examplepress'; ?>
+									var installUrl = 'https://github.com/apps/<?php echo esc_js( $app_slug ); ?>/installations/new';
+									btn.disabled = true;
+									btn.textContent = 'Waiting...';
+									if (statusEl) { statusEl.textContent = 'Complete installation on GitHub...'; statusEl.style.color = ''; }
+									var popup = window.open(installUrl, 'ep_github_app', 'width=700,height=800');
+									if (!popup) {
+										if (statusEl) { statusEl.textContent = 'Popup blocked.'; statusEl.style.color = '#9b2c2c'; }
+										btn.disabled = false; btn.textContent = 'Install GitHub App';
+										return;
+									}
+									// Save org in background.
+									if (orgVal.trim() && _epConn.connUrl) {
+										fetch(_epConn.connUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce }, body: JSON.stringify({ github_org: orgVal.trim() }) });
+									}
+									function onMsg(e) {
+										if (e.origin !== window.location.origin) return;
+										if (!e.data || typeof e.data.success === 'undefined') return;
+										window.removeEventListener('message', onMsg);
+										btn.disabled = false; btn.textContent = 'Install GitHub App';
+										if (e.data.success) {
+											if (statusEl) { statusEl.textContent = '\u2713 Installed'; statusEl.style.color = '#006414'; }
+											_epConn.hasGithubApp = true;
+										} else {
+											if (statusEl) { statusEl.textContent = e.data.message || 'Failed.'; statusEl.style.color = '#9b2c2c'; }
+										}
+									}
+									window.addEventListener('message', onMsg);
+									var t = setInterval(function() { if (popup.closed) { clearInterval(t); btn.disabled = false; btn.textContent = 'Install GitHub App'; } }, 500);
+								};
+								</script>
+							</div>
+							<div class="ep-conn-field" style="border-top:1px solid #c3c4c7;padding-top:0.6rem;margin-top:0.2rem;">
+								<label class="ep-build-label" style="color:#50575e;font-size:0.68rem;">Or use a token instead</label>
+							<?php else : ?>
+							<div class="ep-conn-field">
+								<label class="ep-build-label">Write Access Token</label>
+							<?php endif; ?>
+								<input type="password" id="ep-conn-github-pat" placeholder="github_pat_..." autocomplete="off" />
+								<span class="ep-build-hint">Fine-grained PAT. Permissions: <code>Administration</code> (R/W) + <code>Contents</code> (R/W). <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create token &rarr;</a></span>
 							</div>
 						</div>
 						<div class="ep-conn-group">
@@ -840,16 +906,128 @@ function examplepress_render_settings_page() {
 								<input type="url" id="ep-conn-troy-url" placeholder="https://internal.repo.mustuse.com" />
 							</div>
 							<div class="ep-conn-field">
-								<label class="ep-build-label" for="ep-conn-troy-creds">Credentials</label>
-								<input type="password" id="ep-conn-troy-creds" placeholder="username:app_password" autocomplete="off" />
-								<span class="ep-build-hint">WordPress application password. Format: <code>username:xxxx xxxx xxxx</code></span>
+								<label class="ep-build-label">Authorization</label>
+								<div class="ep-troy-auth-row">
+									<button class="ep-demo-btn ep-demo-btn-primary" id="ep-conn-troy-auth-btn" type="button" onclick="window._epTroyAuth(this)">Authorize with Troy</button>
+									<span class="ep-troy-auth-status" id="ep-troy-auth-status"></span>
+								</div>
+								<span class="ep-build-hint">Opens the Troy Server to create an application password automatically.</span>
+								<script>
+								window._epTroyAuth = function(btn) {
+									var statusEl = document.getElementById('ep-troy-auth-status');
+									var urlInput = document.getElementById('ep-conn-troy-url');
+									var troyUrl = urlInput ? urlInput.value.trim() : '';
+									if (!troyUrl) {
+										if (statusEl) { statusEl.textContent = 'Enter a Troy Server URL first.'; statusEl.style.color = '#9b2c2c'; }
+										return;
+									}
+									var troy = troyUrl.replace(/\/+$/, '');
+									var adminUrl = <?php echo wp_json_encode( admin_url( 'admin.php' ) ); ?>;
+									var successUrl = adminUrl + '?page=examplepress-settings&ep_troy_auth_cb=1';
+									var rejectUrl = adminUrl + '?page=examplepress-settings&ep_troy_auth_cb=rejected';
+									var siteName = window.location.hostname;
+									var authUrl = troy + '/wp-admin/authorize-application.php'
+										+ '?app_name=' + encodeURIComponent('ExamplePress (' + siteName + ')')
+										+ '&app_id=f47ac10b-58cc-4372-a567-0e02b2c3d479'
+										+ '&success_url=' + encodeURIComponent(successUrl)
+										+ '&reject_url=' + encodeURIComponent(rejectUrl);
+									btn.disabled = true;
+									btn.textContent = 'Waiting...';
+									if (statusEl) { statusEl.textContent = 'Complete authorization in the popup...'; statusEl.style.color = ''; }
+									var popup = window.open(authUrl, 'ep_troy_auth', 'width=600,height=700');
+									if (!popup) {
+										if (statusEl) { statusEl.textContent = 'Popup blocked — allow popups for this site.'; statusEl.style.color = '#9b2c2c'; }
+										btn.disabled = false;
+										btn.textContent = 'Authorize with Troy';
+										return;
+									}
+									if (_epConn && _epConn.connUrl) {
+										fetch(_epConn.connUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce }, body: JSON.stringify({ troy_server_url: troyUrl }) });
+									}
+									function onMsg(e) {
+										if (e.origin !== window.location.origin) return;
+										if (!e.data || typeof e.data.success === 'undefined') return;
+										window.removeEventListener('message', onMsg);
+										btn.disabled = false;
+										btn.textContent = 'Authorize with Troy';
+										if (e.data.success) {
+											if (statusEl) { statusEl.textContent = '\u2713 Authorized'; statusEl.style.color = '#006414'; }
+											_epConn.hasTroyCreds = true;
+										} else {
+											if (statusEl) { statusEl.textContent = e.data.message || 'Failed.'; statusEl.style.color = '#9b2c2c'; }
+										}
+									}
+									window.addEventListener('message', onMsg);
+									var t = setInterval(function() { if (popup.closed) { clearInterval(t); btn.disabled = false; btn.textContent = 'Authorize with Troy'; } }, 500);
+								};
+								</script>
+							</div>
+							<div class="ep-conn-field">
+								<label class="ep-build-label" for="ep-conn-troy-github-pat">GitHub Read Token</label>
+								<input type="password" id="ep-conn-troy-github-pat" placeholder="github_pat_..." autocomplete="off" />
+								<span class="ep-build-hint">Fine-grained PAT with <code>Contents</code> (Read). Passed to Troy for tag fetching and ZIP downloads from private repos.</span>
 							</div>
 						</div>
 					</div>
 					<div class="ep-conn-actions">
-						<button class="ep-build-submit" id="ep-conn-save-btn">Save Connections</button>
+						<button class="ep-build-submit" id="ep-conn-save-btn" type="button" onclick="window._epSaveConn(this)">Save Connections</button>
 						<span class="ep-conn-status" id="ep-conn-status"></span>
 					</div>
+					<script>
+					(function() {
+						var orgEl = document.getElementById('ep-conn-github-org');
+						var troyUrlEl = document.getElementById('ep-conn-troy-url');
+						var patEl = document.getElementById('ep-conn-github-pat');
+						var troyPatEl = document.getElementById('ep-conn-troy-github-pat');
+						var troyStatus = document.getElementById('ep-troy-auth-status');
+						var ghAppStatus = document.getElementById('ep-github-app-status');
+						if (orgEl && _epConn.githubOrg) orgEl.value = _epConn.githubOrg;
+						if (troyUrlEl && _epConn.troyUrl) troyUrlEl.value = _epConn.troyUrl;
+						if (patEl && _epConn.hasGithubPat) patEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
+						if (troyPatEl && _epConn.hasTroyGithubPat) troyPatEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
+						if (troyStatus && _epConn.hasTroyCreds) { troyStatus.textContent = '\u2713 Authorized'; troyStatus.style.color = '#006414'; }
+						if (ghAppStatus && _epConn.hasGithubApp) { ghAppStatus.textContent = '\u2713 Installed'; ghAppStatus.style.color = '#006414'; }
+					})();
+					window._epSaveConn = function(btn) {
+						var statusEl = document.getElementById('ep-conn-status');
+						btn.disabled = true;
+						btn.textContent = 'Saving...';
+						if (statusEl) { statusEl.textContent = ''; statusEl.style.color = ''; }
+						var body = {};
+						var patVal = (document.getElementById('ep-conn-github-pat') || {}).value || '';
+						var orgVal = (document.getElementById('ep-conn-github-org') || {}).value || '';
+						var troyUrl = (document.getElementById('ep-conn-troy-url') || {}).value || '';
+						var troyPat = (document.getElementById('ep-conn-troy-github-pat') || {}).value || '';
+						patVal = patVal.trim(); orgVal = orgVal.trim(); troyUrl = troyUrl.trim(); troyPat = troyPat.trim();
+						if (patVal) body.github_pat = patVal;
+						if (orgVal) body.github_org = orgVal;
+						if (troyUrl) body.troy_server_url = troyUrl;
+						if (troyPat) body.troy_github_pat = troyPat;
+						fetch(_epConn.connUrl, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce },
+							body: JSON.stringify(body),
+						}).then(function(res) { return res.json(); }).then(function(data) {
+							if (data.success) {
+								if (statusEl) { statusEl.textContent = '\u2713 Saved'; statusEl.style.color = '#006414'; }
+								var patEl = document.getElementById('ep-conn-github-pat');
+								var troyPatEl = document.getElementById('ep-conn-troy-github-pat');
+								if (patVal && patEl) { patEl.value = ''; patEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)'; }
+								if (troyPat && troyPatEl) { troyPatEl.value = ''; troyPatEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)'; }
+								_epConn.hasGithubPat = _epConn.hasGithubPat || !!patVal;
+								_epConn.hasTroyGithubPat = _epConn.hasTroyGithubPat || !!troyPat;
+								if (orgVal) _epConn.githubOrg = orgVal;
+								if (troyUrl) _epConn.troyUrl = troyUrl;
+							} else {
+								if (statusEl) { statusEl.textContent = data.message || 'Save failed.'; statusEl.style.color = '#9b2c2c'; }
+							}
+						}).catch(function(err) {
+							if (statusEl) { statusEl.textContent = err.message || 'Network error.'; statusEl.style.color = '#9b2c2c'; }
+						}).finally(function() {
+							btn.disabled = false; btn.textContent = 'Save Connections';
+						});
+					};
+					</script>
 				</section>
 
 				<!-- Workflow Explanation -->
