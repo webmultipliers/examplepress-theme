@@ -248,6 +248,13 @@ function examplepress_troy_register_and_connect(
 	$code = wp_remote_retrieve_response_code( $response );
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
+	// 409 = slug already registered. Return a recognizable error so
+	// callers can treat this as "registered" and still proceed.
+	if ( $code === 409 ) {
+		$msg = $body['message'] ?? 'Slug already registered on Troy.';
+		return new WP_Error( 'troy_slug_exists', $msg );
+	}
+
 	if ( $code < 200 || $code >= 300 ) {
 		$msg = $body['message'] ?? "Troy API returned HTTP {$code}.";
 		return new WP_Error( 'troy_api_error', $msg );

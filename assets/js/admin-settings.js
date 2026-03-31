@@ -961,6 +961,8 @@ document.addEventListener('DOMContentLoaded', () => {
 					<span class="ep-apps-action"><a href="${esc(window.ExamplePressData.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Locate</a></span>
 					<span class="ep-apps-sep">|</span>
 					<span class="ep-apps-action"><a href="https://github.com/${esc(app.troy.repo)}" target="_blank" rel="noopener" class="ep-apps-action-repo">Repo</a></span>
+					<span class="ep-apps-sep">|</span>
+					<span class="ep-apps-action"><a href="#" data-action="manage" data-slug="${esc(app.slug)}" class="ep-apps-action-manage">Reconnect</a></span>
 					${app.troy.repo_id ? `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="#" data-action="codespace" data-repo-id="${esc(app.troy.repo_id)}" class="ep-apps-action-edit">Edit</a></span>` : ''}
 				`;
 			} else {
@@ -1143,9 +1145,11 @@ document.addEventListener('DOMContentLoaded', () => {
 				renderAppsTable();
 
 				if (data.warnings && data.warnings.length) {
-					showAppsNotice(`<strong>${esc(slug)}</strong> partially connected: ${esc(data.warnings[0])}`);
+					showAppsNotice(`<strong>${esc(slug)}</strong>: ${data.warnings.map(w => esc(w)).join(' | ')}`);
 				} else {
-					showAppsNotice(`<strong>${esc(slug)}</strong> connected to GitHub + Troy.`);
+					const hasRepo = data.github && data.github.owner_repo;
+					const label = hasRepo ? 'Connected to GitHub + Troy' : 'Connected to Troy';
+					showAppsNotice(`<strong>${esc(slug)}</strong>: ${label}.`);
 				}
 			} else {
 				const msg = data.message || data.data?.message || 'Connection failed.';

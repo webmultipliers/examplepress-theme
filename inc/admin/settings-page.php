@@ -898,6 +898,12 @@ function examplepress_render_settings_page() {
 								<input type="password" id="ep-conn-github-pat" placeholder="github_pat_..." autocomplete="off" />
 								<span class="ep-build-hint">Fine-grained PAT. Permissions: <code>Administration</code> (R/W) + <code>Contents</code> (R/W). <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create token &rarr;</a></span>
 							</div>
+							<div class="ep-conn-field">
+								<div class="ep-troy-auth-row">
+									<button class="ep-demo-btn" id="ep-test-github-btn" type="button" onclick="window._epTestGithub(this)">Test GitHub</button>
+									<span class="ep-troy-auth-status" id="ep-test-github-status"></span>
+								</div>
+							</div>
 						</div>
 						<div class="ep-conn-group">
 							<div class="ep-conn-group-title">Troy Server</div>
@@ -967,6 +973,12 @@ function examplepress_render_settings_page() {
 								<input type="password" id="ep-conn-troy-github-pat" placeholder="github_pat_..." autocomplete="off" />
 								<span class="ep-build-hint">Fine-grained PAT with <code>Contents</code> (Read). Passed to Troy for tag fetching and ZIP downloads from private repos.</span>
 							</div>
+							<div class="ep-conn-field">
+								<div class="ep-troy-auth-row">
+									<button class="ep-demo-btn" id="ep-test-troy-btn" type="button" onclick="window._epTestTroy(this)">Test Troy</button>
+									<span class="ep-troy-auth-status" id="ep-test-troy-status"></span>
+								</div>
+							</div>
 						</div>
 					</div>
 					<div class="ep-conn-actions">
@@ -1026,6 +1038,46 @@ function examplepress_render_settings_page() {
 						}).finally(function() {
 							btn.disabled = false; btn.textContent = 'Save Connections';
 						});
+					};
+					window._epTestGithub = function(btn) {
+						var s = document.getElementById('ep-test-github-status');
+						btn.disabled = true; btn.textContent = 'Testing...';
+						if (s) { s.textContent = ''; s.style.color = ''; }
+						fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'examplepress/v1/settings/test-github' ) ) ); ?>, {
+							method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce },
+						}).then(function(r) { return r.json(); }).then(function(d) {
+							var parts = [];
+							if (d.checks) {
+								if (d.checks.write) parts.push('Write: ' + d.checks.write.message);
+								if (d.checks.read) parts.push('Read: ' + d.checks.read.message);
+							}
+							if (s) {
+								s.textContent = parts.join(' | ') || d.message;
+								s.style.color = d.success ? '#006414' : '#9b2c2c';
+							}
+						}).catch(function() {
+							if (s) { s.textContent = 'Network error.'; s.style.color = '#9b2c2c'; }
+						}).finally(function() { btn.disabled = false; btn.textContent = 'Test GitHub'; });
+					};
+					window._epTestTroy = function(btn) {
+						var s = document.getElementById('ep-test-troy-status');
+						btn.disabled = true; btn.textContent = 'Testing...';
+						if (s) { s.textContent = ''; s.style.color = ''; }
+						fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'examplepress/v1/settings/test-troy' ) ) ); ?>, {
+							method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce },
+						}).then(function(r) { return r.json(); }).then(function(d) {
+							var parts = [];
+							if (d.checks) {
+								if (d.checks.url) parts.push('URL: ' + d.checks.url.message);
+								if (d.checks.auth) parts.push('Auth: ' + d.checks.auth.message);
+							}
+							if (s) {
+								s.textContent = parts.join(' | ') || d.message;
+								s.style.color = d.success ? '#006414' : '#9b2c2c';
+							}
+						}).catch(function() {
+							if (s) { s.textContent = 'Network error.'; s.style.color = '#9b2c2c'; }
+						}).finally(function() { btn.disabled = false; btn.textContent = 'Test Troy'; });
 					};
 					</script>
 				</section>
