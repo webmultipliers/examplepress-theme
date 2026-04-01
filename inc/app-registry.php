@@ -141,14 +141,33 @@ function examplepress_registry_list_merged(): array {
 		unset( $local_by_slug[ $slug ] );
 	}
 
-	// Add any locally-discovered apps that aren't in the registry yet.
-	// This covers apps installed manually or before the registry existed.
+	// Adopt any locally-discovered apps that aren't in the registry yet.
+	// This covers apps installed manually, migrated from another site,
+	// or created before the registry existed. We persist them so they're
+	// tracked going forward.
 	foreach ( $local_by_slug as $slug => $local ) {
-		$merged[] = examplepress_registry_merge_record( [
+		$adopted = [
 			'slug'        => $slug,
 			'name'        => $local['name'],
 			'description' => $local['description'],
-		], $local );
+			'version'     => $local['version'] ?? '',
+			'source'      => 'discovered',
+		];
+
+		// Pull Troy/GitHub data from the local examplepress.json so
+		// a manually-installed app with connection data shows as connected.
+		if ( ! empty( $local['troy']['server_url'] ) ) {
+			$adopted['troy'] = [
+				'server_url' => $local['troy']['server_url'],
+				'repo'       => $local['troy']['repo'] ?? '',
+				'repo_id'    => $local['troy']['repo_id'] ?? '',
+			];
+		}
+
+		// Persist to registry.
+		examplepress_registry_set( $slug, $adopted );
+
+		$merged[] = examplepress_registry_merge_record( $adopted, $local );
 	}
 
 	return $merged;
@@ -162,9 +181,29 @@ function examplepress_registry_list_merged(): array {
  * @return array Merged record.
  */
 function examplepress_registry_merge_record( array $record, ?array $local ): array {
-	$has_local  = $local !== null;
-	$has_github = ! empty( $record['github']['owner_repo'] );
-	$has_troy   = ! empty( $record['troy']['server_url'] );
+	$has_local = $local !== null;
+
+	// Troy data: prefer local (it's the live examplepress.json), fall back to registry.
+	$troy_server = $has_local
+		? ( $local['troy']['server_url'] ?? $record['troy']['server_url'] ?? '' )
+		: ( $record['troy']['server_url'] ?? '' );
+	$troy_repo = $has_local
+		? ( $local['troy']['repo'] ?? $record['troy']['repo'] ?? '' )
+		: ( $record['troy']['repo'] ?? '' );
+	$troy_repo_id = $has_local
+		? ( $local['troy']['repo_id'] ?? $record['troy']['repo_id'] ?? '' )
+		: ( $record['troy']['repo_id'] ?? '' );
+
+	// GitHub data: registry is authoritative (local examplepress.json doesn't store GitHub metadata).
+	$github_repo    = $record['github']['owner_repo'] ?? '';
+	$github_repo_id = $record['github']['repo_id'] ?? '';
+	$github_url     = $record['github']['html_url'] ?? '';
+
+	$has_github = ! empty( $github_repo );
+	$has_troy   = ! empty( $troy_server );
+
+	// Source — how this app entered the registry.
+	$source = $record['source'] ?? 'scaffolded';
 
 	return [
 		// Identity.
@@ -173,6 +212,7 @@ function examplepress_registry_merge_record( array $record, ?array $local ): arr
 		'description' => $has_local ? $local['description'] : ( $record['description'] ?? '' ),
 		'version'     => $has_local ? $local['version'] : ( $record['version'] ?? '' ),
 		'created_at'  => $record['created_at'] ?? '',
+		'source'      => $source,
 
 		// Local state (from filesystem).
 		'local' => [
@@ -181,24 +221,18 @@ function examplepress_registry_merge_record( array $record, ?array $local ): arr
 			'plugin_file' => $has_local ? $local['plugin_file'] : '',
 		],
 
-		// GitHub state (from registry).
+		// GitHub state.
 		'github' => [
-			'owner_repo' => $record['github']['owner_repo'] ?? '',
-			'repo_id'    => $record['github']['repo_id'] ?? '',
-			'html_url'   => $record['github']['html_url'] ?? '',
+			'owner_repo' => $github_repo,
+			'repo_id'    => $github_repo_id,
+			'html_url'   => $github_url,
 		],
 
-		// Troy state (from registry, enriched by local if present).
+		// Troy state.
 		'troy' => [
-			'server_url' => $has_local
-				? ( $local['troy']['server_url'] ?? $record['troy']['server_url'] ?? '' )
-				: ( $record['troy']['server_url'] ?? '' ),
-			'repo'       => $has_local
-				? ( $local['troy']['repo'] ?? $record['troy']['repo'] ?? '' )
-				: ( $record['troy']['repo'] ?? '' ),
-			'repo_id'    => $has_local
-				? ( $local['troy']['repo_id'] ?? $record['troy']['repo_id'] ?? '' )
-				: ( $record['troy']['repo_id'] ?? '' ),
+			'server_url' => $troy_server,
+			'repo'       => $troy_repo,
+			'repo_id'    => $troy_repo_id,
 		],
 
 		// Connection status (derived).
@@ -206,7 +240,7 @@ function examplepress_registry_merge_record( array $record, ?array $local ): arr
 			? 'connected'
 			: ( $has_local ? 'disconnected' : 'orphan' ),
 
-		// Active state shortcut for backward compat.
+		// Active state.
 		'active' => $has_local && $local['active'],
 
 		// Routing (from local if present).
@@ -215,7 +249,7 @@ function examplepress_registry_merge_record( array $record, ?array $local ): arr
 		// Orphan detection.
 		'orphan' => ! $has_local && ( $has_github || $has_troy ),
 
-		// What exists where — for the UI.
+		// What exists where.
 		'exists' => [
 			'local'  => $has_local,
 			'github' => $has_github,

@@ -33,43 +33,13 @@ function examplepress_register_settings_page() {
 // ── Asset Enqueuing ────────────────────────────────────────────────
 
 function examplepress_enqueue_settings_assets() {
-	/**
-	 * Filter the Google Fonts URL used by the settings page.
-	 *
-	 * Return an empty string to disable external font loading entirely
-	 * (the CSS falls back to system fonts). For GDPR-compliant
-	 * deployments, return a self-hosted URL or false.
-	 *
-	 * @param string $url The Google Fonts stylesheet URL.
-	 */
-	$fonts_url = apply_filters(
-		'examplepress_settings_fonts_url',
-		'https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap'
-	);
-
-	$font_deps = [];
-	if ( $fonts_url ) {
-		wp_enqueue_style( 'ep-settings-fonts', $fonts_url, [], null );
-		$font_deps = [ 'ep-settings-fonts' ];
+	// Enqueue all Vite entry points (single page, multiple tab groups).
+	foreach ( [ 'dashboard', 'theme', 'build', 'reference' ] as $entry ) {
+		examplepress_vite_enqueue( $entry );
 	}
 
-	wp_enqueue_style(
-		'ep-settings-style',
-		EP_THEME_URI . '/assets/css/admin-settings.css',
-		$font_deps,
-		(string) @filemtime( EP_THEME_PATH . '/assets/css/admin-settings.css' )
-	);
-
-	wp_enqueue_script(
-		'ep-settings-script',
-		EP_THEME_URI . '/assets/js/admin-settings.js',
-		[],
-		(string) @filemtime( EP_THEME_PATH . '/assets/js/admin-settings.js' ),
-		true
-	);
-
 	wp_add_inline_script(
-		'ep-settings-script',
+		'ep-dashboard',
 		'window.ExamplePressData = ' . wp_json_encode( examplepress_settings_gather_data() ) . ';',
 		'before'
 	);
@@ -113,7 +83,9 @@ function examplepress_settings_gather_data() {
 		'connections'       => [
 			'hasGithubPat'     => (bool) get_option( 'ep_github_pat', '' ),
 			'hasGithubApp'     => function_exists( 'examplepress_github_app_is_installed' ) && examplepress_github_app_is_installed(),
+			'githubAppAvail'   => function_exists( 'examplepress_github_app_is_configured' ) && examplepress_github_app_is_configured(),
 			'githubOrg'        => get_option( 'ep_github_org', 'webmultipliers' ),
+			'appTemplateRepo'  => get_option( 'ep_app_template_repo', defined( 'EP_DEFAULT_TEMPLATE_REPO' ) ? EP_DEFAULT_TEMPLATE_REPO : '' ),
 			'hasTroyUrl'       => (bool) get_option( 'ep_troy_server_url', '' ),
 			'hasTroyCreds'     => (bool) get_option( 'ep_troy_credentials', '' ),
 			'hasTroyGithubPat' => (bool) get_option( 'ep_troy_github_pat', '' ),
@@ -956,20 +928,7 @@ function examplepress_render_settings_page() {
 					<?php
 					$ep_github_app_available = function_exists( 'examplepress_github_app_is_configured' ) && examplepress_github_app_is_configured();
 					$ep_github_app_installed = function_exists( 'examplepress_github_app_is_installed' ) && examplepress_github_app_is_installed();
-					$ep_conn_js = [
-						'githubOrg'        => get_option( 'ep_github_org', 'webmultipliers' ),
-						'appTemplateRepo'  => get_option( 'ep_app_template_repo', EP_DEFAULT_TEMPLATE_REPO ),
-						'troyUrl'          => get_option( 'ep_troy_server_url', '' ),
-						'hasGithubPat'     => (bool) get_option( 'ep_github_pat', '' ),
-						'hasGithubApp'     => $ep_github_app_installed,
-						'githubAppAvail'   => $ep_github_app_available,
-						'hasTroyCreds'     => (bool) get_option( 'ep_troy_credentials', '' ),
-						'hasTroyGithubPat' => (bool) get_option( 'ep_troy_github_pat', '' ),
-						'connUrl'          => esc_url_raw( rest_url( 'examplepress/v1/settings/connections' ) ),
-						'nonce'            => wp_create_nonce( 'wp_rest' ),
-					];
 					?>
-					<script>var _epConn = <?php echo wp_json_encode( $ep_conn_js ); ?>;</script>
 					<div class="ep-connections-grid" id="ep-connections-grid">
 						<div class="ep-conn-group">
 							<div class="ep-conn-group-title">GitHub</div>
@@ -1006,8 +965,8 @@ function examplepress_render_settings_page() {
 										return;
 									}
 									// Save org in background.
-									if (orgVal.trim() && _epConn.connUrl) {
-										fetch(_epConn.connUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce }, body: JSON.stringify({ github_org: orgVal.trim() }) });
+									if (orgVal.trim() && ExamplePressData.connectionsUrl) {
+										fetch(ExamplePressData.connectionsUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce }, body: JSON.stringify({ github_org: orgVal.trim() }) });
 									}
 									function onMsg(e) {
 										if (e.origin !== window.location.origin) return;
@@ -1016,7 +975,7 @@ function examplepress_render_settings_page() {
 										btn.disabled = false; btn.textContent = 'Install GitHub App';
 										if (e.data.success) {
 											if (statusEl) { statusEl.textContent = '\u2713 Installed'; statusEl.style.color = '#006414'; }
-											_epConn.hasGithubApp = true;
+											ExamplePressData.connections.hasGithubApp = true;
 										} else {
 											if (statusEl) { statusEl.textContent = e.data.message || 'Failed.'; statusEl.style.color = '#9b2c2c'; }
 										}
@@ -1084,8 +1043,8 @@ function examplepress_render_settings_page() {
 										btn.textContent = 'Authorize with Troy';
 										return;
 									}
-									if (_epConn && _epConn.connUrl) {
-										fetch(_epConn.connUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce }, body: JSON.stringify({ troy_server_url: troyUrl }) });
+									if (ExamplePressData.connectionsUrl) {
+										fetch(ExamplePressData.connectionsUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce }, body: JSON.stringify({ troy_server_url: troyUrl }) });
 									}
 									function onMsg(e) {
 										if (e.origin !== window.location.origin) return;
@@ -1095,7 +1054,7 @@ function examplepress_render_settings_page() {
 										btn.textContent = 'Authorize with Troy';
 										if (e.data.success) {
 											if (statusEl) { statusEl.textContent = '\u2713 Authorized'; statusEl.style.color = '#006414'; }
-											_epConn.hasTroyCreds = true;
+											ExamplePressData.connections.hasTroyCreds = true;
 										} else {
 											if (statusEl) { statusEl.textContent = e.data.message || 'Failed.'; statusEl.style.color = '#9b2c2c'; }
 										}
@@ -1131,13 +1090,13 @@ function examplepress_render_settings_page() {
 						var troyPatEl = document.getElementById('ep-conn-troy-github-pat');
 						var troyStatus = document.getElementById('ep-troy-auth-status');
 						var ghAppStatus = document.getElementById('ep-github-app-status');
-						if (orgEl && _epConn.githubOrg) orgEl.value = _epConn.githubOrg;
-						if (templateEl && _epConn.appTemplateRepo) templateEl.value = _epConn.appTemplateRepo;
-						if (troyUrlEl && _epConn.troyUrl) troyUrlEl.value = _epConn.troyUrl;
-						if (patEl && _epConn.hasGithubPat) patEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
-						if (troyPatEl && _epConn.hasTroyGithubPat) troyPatEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
-						if (troyStatus && _epConn.hasTroyCreds) { troyStatus.textContent = '\u2713 Authorized'; troyStatus.style.color = '#006414'; }
-						if (ghAppStatus && _epConn.hasGithubApp) { ghAppStatus.textContent = '\u2713 Installed'; ghAppStatus.style.color = '#006414'; }
+						if (orgEl && ExamplePressData.connections.githubOrg) orgEl.value = ExamplePressData.connections.githubOrg;
+						if (templateEl && ExamplePressData.connections.appTemplateRepo) templateEl.value = ExamplePressData.connections.appTemplateRepo;
+						if (troyUrlEl && ExamplePressData.connections.troyServerUrl) troyUrlEl.value = ExamplePressData.connections.troyServerUrl;
+						if (patEl && ExamplePressData.connections.hasGithubPat) patEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
+						if (troyPatEl && ExamplePressData.connections.hasTroyGithubPat) troyPatEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
+						if (troyStatus && ExamplePressData.connections.hasTroyCreds) { troyStatus.textContent = '\u2713 Authorized'; troyStatus.style.color = '#006414'; }
+						if (ghAppStatus && ExamplePressData.connections.hasGithubApp) { ghAppStatus.textContent = '\u2713 Installed'; ghAppStatus.style.color = '#006414'; }
 					})();
 					window._epSaveConn = function(btn) {
 						var statusEl = document.getElementById('ep-conn-status');
@@ -1156,9 +1115,9 @@ function examplepress_render_settings_page() {
 						if (templateVal) body.app_template_repo = templateVal;
 						if (troyUrl) body.troy_server_url = troyUrl;
 						if (troyPat) body.troy_github_pat = troyPat;
-						fetch(_epConn.connUrl, {
+						fetch(ExamplePressData.connectionsUrl, {
 							method: 'POST',
-							headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce },
+							headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce },
 							body: JSON.stringify(body),
 						}).then(function(res) { return res.json(); }).then(function(data) {
 							if (data.success) {
@@ -1167,10 +1126,10 @@ function examplepress_render_settings_page() {
 								var troyPatEl = document.getElementById('ep-conn-troy-github-pat');
 								if (patVal && patEl) { patEl.value = ''; patEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)'; }
 								if (troyPat && troyPatEl) { troyPatEl.value = ''; troyPatEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)'; }
-								_epConn.hasGithubPat = _epConn.hasGithubPat || !!patVal;
-								_epConn.hasTroyGithubPat = _epConn.hasTroyGithubPat || !!troyPat;
-								if (orgVal) _epConn.githubOrg = orgVal;
-								if (troyUrl) _epConn.troyUrl = troyUrl;
+								ExamplePressData.connections.hasGithubPat = ExamplePressData.connections.hasGithubPat || !!patVal;
+								ExamplePressData.connections.hasTroyGithubPat = ExamplePressData.connections.hasTroyGithubPat || !!troyPat;
+								if (orgVal) ExamplePressData.connections.githubOrg = orgVal;
+								if (troyUrl) ExamplePressData.connections.troyServerUrl = troyUrl;
 							} else {
 								if (statusEl) { statusEl.textContent = data.message || 'Save failed.'; statusEl.style.color = '#9b2c2c'; }
 							}
@@ -1185,7 +1144,7 @@ function examplepress_render_settings_page() {
 						btn.disabled = true; btn.textContent = 'Testing...';
 						if (s) { s.textContent = ''; s.style.color = ''; }
 						fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'examplepress/v1/settings/test-github' ) ) ); ?>, {
-							method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce },
+							method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce },
 						}).then(function(r) { return r.json(); }).then(function(d) {
 							var parts = [];
 							if (d.checks) {
@@ -1205,7 +1164,7 @@ function examplepress_render_settings_page() {
 						btn.disabled = true; btn.textContent = 'Testing...';
 						if (s) { s.textContent = ''; s.style.color = ''; }
 						fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'examplepress/v1/settings/test-troy' ) ) ); ?>, {
-							method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': _epConn.nonce },
+							method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce },
 						}).then(function(r) { return r.json(); }).then(function(d) {
 							var parts = [];
 							if (d.checks) {

@@ -1,7 +1,4 @@
 /*
  * Base CSS — Design system variables, resets, shell, tabs, panels.
- *
- * This is a placeholder that imports the full monolithic stylesheet
- * during Phase 1. CSS splitting happens in Phase 6.
  */
 @import '../../css/admin-settings.css';

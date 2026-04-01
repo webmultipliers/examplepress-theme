@@ -371,6 +371,7 @@ function examplepress_scaffold_template_mode( string $slug, string $name, string
 		'name'        => $name,
 		'description' => $description,
 		'version'     => '0.1.0',
+		'source'      => 'scaffolded',
 	];
 
 	if ( $full_name && $full_name !== $org . '/' . $slug ) {
@@ -851,6 +852,7 @@ function examplepress_scaffold_local_mode( string $slug, string $name, string $d
 		'name'        => $name,
 		'description' => $description,
 		'version'     => '0.1.0',
+		'source'      => 'scaffolded',
 	] );
 
 	$app = examplepress_parse_app( $slug, $plugin_dir . '/examplepress.json', $plugin_dir );

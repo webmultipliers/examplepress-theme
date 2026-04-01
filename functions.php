@@ -34,6 +34,7 @@ require_once EP_THEME_PATH . '/inc/scaffolder.php';
 require_once EP_THEME_PATH . '/inc/api.php';
 
 if ( is_admin() ) {
+	require_once EP_THEME_PATH . '/inc/admin/admin-assets.php';
 	require_once EP_THEME_PATH . '/inc/admin/settings-page.php';
 }
 

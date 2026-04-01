@@ -345,45 +345,11 @@ function examplepress_normalise_blockstudio_config( array $config ) {
 /**
  * Normalise dependency config.
  *
- * Accepts:
- *   - Current format:  "dependencies": [...]
- *   - Legacy v1:       "plugins": [...] (flat array)
- *   - Legacy v0:       "plugins": { "required": [], "recommended": [] }
- *
- * All formats are normalised to config['dependencies'] as a flat array.
+ * Ensures config['dependencies'] is a flat indexed array.
  */
 function examplepress_normalise_dependencies_config( array $config ) {
-	// Prefer 'dependencies' key; fall back to legacy 'plugins'.
-	$raw = $config['dependencies'] ?? $config['plugins'] ?? [];
-
-	// Already new format (indexed array) or empty.
-	if ( empty( $raw ) || isset( $raw[0] ) ) {
-		$config['dependencies'] = is_array( $raw ) ? $raw : [];
-		return $config;
-	}
-
-	// Legacy v0: { required: [...], recommended: [...] }.
-	$result = [];
-	foreach ( [ 'required', 'recommended' ] as $tier ) {
-		foreach ( $raw[ $tier ] ?? [] as $entry ) {
-			if ( is_string( $entry ) ) {
-				$result[] = [
-					'slug'            => $entry,
-					'name'            => $entry,
-					'tier'            => $tier,
-					'pricing'         => 'free',
-					'cloud_dependent' => false,
-					'source'          => [ 'type' => 'wporg' ],
-				];
-			} elseif ( is_array( $entry ) ) {
-				$entry['tier'] = $entry['tier'] ?? $tier;
-				$result[]      = $entry;
-			}
-		}
-	}
-
-	$config['dependencies'] = $result;
-
+	$raw = $config['dependencies'] ?? [];
+	$config['dependencies'] = is_array( $raw ) ? array_values( $raw ) : [];
 	return $config;
 }
 
