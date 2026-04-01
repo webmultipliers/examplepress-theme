@@ -105,9 +105,10 @@ function examplepress_settings_gather_data() {
 		'appsScaffoldUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps/scaffold' ) ),
 		'appsTroyBindUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
 		'appsDeactivateUrl' => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
+		'appsHealthUrl'     => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
 		'connectionsUrl'    => esc_url_raw( rest_url( 'examplepress/v1/settings/connections' ) ),
 		'adminUrl'          => esc_url( admin_url() ),
-		'troyCloudUrl'      => 'https://internal.repo.mustuse.com',
+		'troyCloudUrl'      => examplepress_get_troy_cloud_url(),
 		'githubOrg'         => 'webmultipliers',
 		'connections'       => [
 			'hasGithubPat'     => (bool) get_option( 'ep_github_pat', '' ),
@@ -122,6 +123,69 @@ function examplepress_settings_gather_data() {
 		'demoInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
 		'demoUninstallUrl'  => esc_url_raw( rest_url( 'examplepress/v1/demo/uninstall' ) ),
 		'nonce'             => wp_create_nonce( 'wp_rest' ),
+		'routeTopology'     => examplepress_settings_get_route_topology(),
+	];
+}
+
+/**
+ * Assemble the full route topology for the admin Route Visualizer.
+ *
+ * Joins the route-origin registry (namespaces + slugs + priorities)
+ * with app discovery data (names, metadata) and route annotations
+ * from each app's examplepress.json.
+ *
+ * @return array Topology data for window.ExamplePressData.routeTopology.
+ */
+function examplepress_settings_get_route_topology(): array {
+	$origin_map = examplepress_get_route_origin_map();
+	$conflicts  = examplepress_detect_route_conflicts();
+	$apps       = function_exists( 'examplepress_get_apps' ) ? examplepress_get_apps() : [];
+
+	// Index apps by slug for join attempts.
+	$apps_by_slug = [];
+	foreach ( $apps as $app ) {
+		$apps_by_slug[ $app['slug'] ] = $app;
+	}
+
+	$origins = [];
+	foreach ( $origin_map as $entry ) {
+		$ns       = $entry['namespace'];
+		$priority = $entry['priority'];
+		$slugs    = $entry['routes'];
+
+		// Attempt to match namespace to a discovered app.
+		$matched_app = $apps_by_slug[ $ns ] ?? null;
+
+		// Build route entries enriched with JSON metadata if available.
+		$route_meta = ( $matched_app && ! empty( $matched_app['routing']['routes'] ) )
+			? $matched_app['routing']['routes']
+			: [];
+
+		$routes = [];
+		foreach ( $slugs as $slug ) {
+			$meta = $route_meta[ $slug ] ?? [];
+			$routes[ $slug ] = [
+				'condition' => $meta['condition'] ?? '',
+				'urls'      => $meta['urls'] ?? [],
+				'desc'      => $meta['desc'] ?? '',
+			];
+		}
+
+		$origins[] = [
+			'id'        => $matched_app ? $matched_app['slug'] : sanitize_title( $ns ),
+			'name'      => $matched_app ? $matched_app['name'] : $ns,
+			'namespace' => $ns,
+			'priority'  => $priority,
+			'active'    => $matched_app ? $matched_app['active'] : true,
+			'routes'    => $routes,
+		];
+	}
+
+	return [
+		'origins'   => $origins,
+		'conflicts' => $conflicts,
+		'mode'      => examplepress_has_route_origins() ? 'registry' : 'legacy',
+		'resolved'  => examplepress_resolve_route(),
 	];
 }
 
@@ -377,20 +441,20 @@ function examplepress_settings_get_health() {
  * Router-specific health checks — multi-origin aware.
  */
 function examplepress_settings_get_router_health() {
-	$checks = [];
+	$checks      = [];
 	$has_origins = examplepress_has_route_origins();
 
 	if ( $has_origins ) {
 		$namespaces = examplepress_get_route_origin_namespaces();
-		$checks[] = [
-			'name'   => 'Routing Mode',
-			'detail' => 'Multi-origin registry',
-			'req'    => 'Registry or legacy',
-			'status' => 'pass',
-			'note'   => count( $namespaces ) . ' origin(s): ' . implode( ', ', $namespaces ),
-		];
+		$resolved   = examplepress_resolve_route();
 
-		$resolved = examplepress_resolve_route();
+		$checks[] = [
+			'name'   => 'Route Origins',
+			'detail' => count( $namespaces ) . ' registered',
+			'req'    => 'At least one',
+			'status' => 'pass',
+			'note'   => implode( ', ', $namespaces ),
+		];
 		$checks[] = [
 			'name'   => 'Resolved Origin',
 			'detail' => $resolved['namespace'] . ' → ' . $resolved['slug'],
@@ -398,25 +462,15 @@ function examplepress_settings_get_router_health() {
 			'status' => 'pass',
 		];
 	} else {
-		$ns = examplepress_get_theme_namespace();
 		$checks[] = [
-			'name'   => 'Routing Mode',
-			'detail' => 'Legacy (single namespace)',
-			'req'    => 'Registry or legacy',
-			'status' => $ns !== 'examplepress-theme' ? 'pass' : 'warn',
-			'note'   => $ns === 'examplepress-theme'
-				? 'Still using the theme default — register route origins or hook examplepress_theme_namespace'
-				: '',
-		];
-		$checks[] = [
-			'name'   => 'Active Namespace',
-			'detail' => $ns,
-			'req'    => 'Changed via filter',
-			'status' => $ns !== 'examplepress-theme' ? 'pass' : 'warn',
+			'name'   => 'Route Origins',
+			'detail' => 'None registered',
+			'req'    => 'At least one',
+			'status' => 'warn',
+			'note'   => 'No companion plugin has registered route origins. Use examplepress_register_route_origin().',
 		];
 	}
 
-	$checks[] = [ 'name' => 'Current Route',   'detail' => examplepress_get_current_route(),   'req' => 'Non-empty string', 'status' => ! empty( examplepress_get_current_route() ) ? 'pass' : 'fail' ];
 	$checks[] = [ 'name' => 'Template Prefix', 'detail' => examplepress_get_template_prefix(), 'req' => 'Non-empty string', 'status' => 'pass' ];
 
 	return $checks;
@@ -519,13 +573,12 @@ function examplepress_settings_get_docs() {
  */
 function examplepress_settings_get_hooks() {
 	return [
-		[ 'name' => 'examplepress_route_context',        'type' => 'filter', 'desc' => 'Override the resolved route slug. Legacy single-origin routing hook.' ],
+		[ 'name' => 'examplepress_resolved_origin',      'type' => 'filter', 'desc' => 'Filter the registry-resolved route origin (namespace + slug) before dispatch.' ],
 		[ 'name' => 'examplepress_route_data',           'type' => 'filter', 'desc' => 'Enrich the data payload passed to template blocks via bs_block().' ],
 		[ 'name' => 'examplepress_route_resolved',       'type' => 'action', 'desc' => 'Fires after route resolution, before dispatch. Set up route-specific state here.' ],
-		[ 'name' => 'examplepress_resolved_origin',      'type' => 'filter', 'desc' => 'Filter the registry-resolved route origin (namespace + slug) before dispatch.' ],
-		[ 'name' => 'examplepress_theme_namespace',      'type' => 'filter', 'desc' => 'Override the block namespace. Legacy single-origin fallback when no registry match.' ],
 		[ 'name' => 'examplepress_template_prefix',      'type' => 'filter', 'desc' => 'Override the template block prefix. Default: "template".' ],
 		[ 'name' => 'examplepress_template_block_name',  'type' => 'filter', 'desc' => 'Override the fully assembled block name before dispatch.' ],
+		[ 'name' => 'examplepress_template_repo',        'type' => 'filter', 'desc' => 'Override the GitHub template repository used for scaffolding new apps.' ],
 		[ 'name' => 'examplepress_allowed_block_types',  'type' => 'filter', 'desc' => 'Allowlist of block types when restrict-block-types feature is enabled.' ],
 		[ 'name' => 'examplepress_feature_{id}',         'type' => 'filter', 'desc' => 'Toggle any registered feature on or off. Highest priority override.' ],
 		[ 'name' => 'examplepress_feature_{id}_{key}',   'type' => 'filter', 'desc' => 'Override a specific option value for a feature.' ],
@@ -755,6 +808,7 @@ function examplepress_render_settings_page() {
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-design"         id="t-design"        data-tab-id="design">Design</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-connections"     id="t-connections"   data-tab-id="connections">Connections</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-build"          id="t-build"         data-tab-id="build">Build</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-routes"         id="t-routes"        data-tab-id="routes">Routes<span class="ep-tab-count"></span></button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-blocks"         id="t-blocks"        data-tab-id="blocks">Blocks<span class="ep-tab-count"></span></button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-library"        id="t-library"       data-tab-id="library">Library</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-navigation"     id="t-navigation"    data-tab-id="navigation">Navigation<span class="ep-tab-count"></span></button>
@@ -796,6 +850,10 @@ function examplepress_render_settings_page() {
 						<div class="ep-overview-card" data-tab-target="build">
 							<div class="ep-overview-card-title">Build</div>
 							<p class="ep-overview-card-desc">Scaffold a new companion plugin repository via Troy. Pre-configured with CI/CD, optional staging sync, and ready to launch in GitHub Codespaces.</p>
+						</div>
+						<div class="ep-overview-card" data-tab-target="routes">
+							<div class="ep-overview-card-title">Routes</div>
+							<p class="ep-overview-card-desc">Aggregated view of every route registered by companion apps. Sitemap tree, route table, priority cascade, and conflict detection.</p>
 						</div>
 						<div class="ep-overview-card" data-tab-target="blocks">
 							<div class="ep-overview-card-title">Blocks</div>
@@ -899,15 +957,16 @@ function examplepress_render_settings_page() {
 					$ep_github_app_available = function_exists( 'examplepress_github_app_is_configured' ) && examplepress_github_app_is_configured();
 					$ep_github_app_installed = function_exists( 'examplepress_github_app_is_installed' ) && examplepress_github_app_is_installed();
 					$ep_conn_js = [
-						'githubOrg'       => get_option( 'ep_github_org', 'webmultipliers' ),
-						'troyUrl'         => get_option( 'ep_troy_server_url', '' ),
-						'hasGithubPat'    => (bool) get_option( 'ep_github_pat', '' ),
-						'hasGithubApp'    => $ep_github_app_installed,
-						'githubAppAvail'  => $ep_github_app_available,
-						'hasTroyCreds'    => (bool) get_option( 'ep_troy_credentials', '' ),
+						'githubOrg'        => get_option( 'ep_github_org', 'webmultipliers' ),
+						'appTemplateRepo'  => get_option( 'ep_app_template_repo', EP_DEFAULT_TEMPLATE_REPO ),
+						'troyUrl'          => get_option( 'ep_troy_server_url', '' ),
+						'hasGithubPat'     => (bool) get_option( 'ep_github_pat', '' ),
+						'hasGithubApp'     => $ep_github_app_installed,
+						'githubAppAvail'   => $ep_github_app_available,
+						'hasTroyCreds'     => (bool) get_option( 'ep_troy_credentials', '' ),
 						'hasTroyGithubPat' => (bool) get_option( 'ep_troy_github_pat', '' ),
-						'connUrl'         => esc_url_raw( rest_url( 'examplepress/v1/settings/connections' ) ),
-						'nonce'           => wp_create_nonce( 'wp_rest' ),
+						'connUrl'          => esc_url_raw( rest_url( 'examplepress/v1/settings/connections' ) ),
+						'nonce'            => wp_create_nonce( 'wp_rest' ),
 					];
 					?>
 					<script>var _epConn = <?php echo wp_json_encode( $ep_conn_js ); ?>;</script>
@@ -917,6 +976,11 @@ function examplepress_render_settings_page() {
 							<div class="ep-conn-field">
 								<label class="ep-build-label" for="ep-conn-github-org">Organization</label>
 								<input type="text" id="ep-conn-github-org" placeholder="webmultipliers" />
+							</div>
+							<div class="ep-conn-field">
+								<label class="ep-build-label" for="ep-conn-app-template">App Template Repository</label>
+								<input type="text" id="ep-conn-app-template" placeholder="<?php echo esc_attr( EP_DEFAULT_TEMPLATE_REPO ); ?>" />
+								<span class="ep-build-hint">GitHub template repo used when scaffolding new apps. Use your own to customize the boilerplate.</span>
 							</div>
 							<?php if ( $ep_github_app_available ) : ?>
 							<div class="ep-conn-field">
@@ -930,7 +994,7 @@ function examplepress_render_settings_page() {
 								window._epGithubAppInstall = function(btn) {
 									var statusEl = document.getElementById('ep-github-app-status');
 									var orgVal = (document.getElementById('ep-conn-github-org') || {}).value || '';
-									<?php $app_slug = defined( 'EP_GITHUB_APP_SLUG' ) ? EP_GITHUB_APP_SLUG : 'examplepress'; ?>
+									<?php $app_slug = examplepress_get_github_app_slug(); ?>
 									var installUrl = 'https://github.com/apps/<?php echo esc_js( $app_slug ); ?>/installations/new';
 									btn.disabled = true;
 									btn.textContent = 'Waiting...';
@@ -1061,12 +1125,14 @@ function examplepress_render_settings_page() {
 					<script>
 					(function() {
 						var orgEl = document.getElementById('ep-conn-github-org');
+						var templateEl = document.getElementById('ep-conn-app-template');
 						var troyUrlEl = document.getElementById('ep-conn-troy-url');
 						var patEl = document.getElementById('ep-conn-github-pat');
 						var troyPatEl = document.getElementById('ep-conn-troy-github-pat');
 						var troyStatus = document.getElementById('ep-troy-auth-status');
 						var ghAppStatus = document.getElementById('ep-github-app-status');
 						if (orgEl && _epConn.githubOrg) orgEl.value = _epConn.githubOrg;
+						if (templateEl && _epConn.appTemplateRepo) templateEl.value = _epConn.appTemplateRepo;
 						if (troyUrlEl && _epConn.troyUrl) troyUrlEl.value = _epConn.troyUrl;
 						if (patEl && _epConn.hasGithubPat) patEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
 						if (troyPatEl && _epConn.hasTroyGithubPat) troyPatEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
@@ -1081,11 +1147,13 @@ function examplepress_render_settings_page() {
 						var body = {};
 						var patVal = (document.getElementById('ep-conn-github-pat') || {}).value || '';
 						var orgVal = (document.getElementById('ep-conn-github-org') || {}).value || '';
+						var templateVal = (document.getElementById('ep-conn-app-template') || {}).value || '';
 						var troyUrl = (document.getElementById('ep-conn-troy-url') || {}).value || '';
 						var troyPat = (document.getElementById('ep-conn-troy-github-pat') || {}).value || '';
-						patVal = patVal.trim(); orgVal = orgVal.trim(); troyUrl = troyUrl.trim(); troyPat = troyPat.trim();
+						patVal = patVal.trim(); orgVal = orgVal.trim(); templateVal = templateVal.trim(); troyUrl = troyUrl.trim(); troyPat = troyPat.trim();
 						if (patVal) body.github_pat = patVal;
 						if (orgVal) body.github_org = orgVal;
+						if (templateVal) body.app_template_repo = templateVal;
 						if (troyUrl) body.troy_server_url = troyUrl;
 						if (troyPat) body.troy_github_pat = troyPat;
 						fetch(_epConn.connUrl, {
@@ -1207,6 +1275,42 @@ function examplepress_render_settings_page() {
 					<div id="ep-apps-table"></div>
 				</section>
 
+			</div>
+
+			<!-- Routes -->
+			<div class="ep-panel" id="p-routes" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-doc-section-title">Route Aggregator</div>
+					<div class="ep-section-desc">
+						Visualizing the dispatch topology across all registered companion apps.
+						Each app declares route slugs with condition closures and a priority.
+						The router evaluates origins in priority order and dispatches the first match.
+					</div>
+				</section>
+
+				<!-- Stats row -->
+				<section class="ep-section">
+					<div class="ep-section-header">
+						<span class="ep-section-title">Topology</span>
+						<div class="ep-section-line"></div>
+					</div>
+					<div id="ep-routes-stats" class="ep-overview-grid" style="grid-template-columns: repeat(4, 1fr);"></div>
+				</section>
+
+				<!-- Filter pills -->
+				<section class="ep-section">
+					<div id="ep-routes-filters" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+				</section>
+
+				<!-- Sub-view toggle -->
+				<section class="ep-section">
+					<div id="ep-routes-view-toggle" style="display:flex;gap:0;background:var(--surface-alt);border:1px solid var(--border);padding:3px;border-radius:var(--radius);width:fit-content;"></div>
+				</section>
+
+				<!-- Content area (JS-rendered) -->
+				<section class="ep-section">
+					<div id="ep-routes-content"></div>
+				</section>
 			</div>
 
 			<!-- Blocks -->

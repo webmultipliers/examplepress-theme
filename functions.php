@@ -27,6 +27,7 @@ require_once EP_THEME_PATH . '/inc/router.php';
 require_once EP_THEME_PATH . '/inc/dependencies.php';
 require_once EP_THEME_PATH . '/inc/notifications.php';
 require_once EP_THEME_PATH . '/inc/apps.php';
+require_once EP_THEME_PATH . '/inc/app-registry.php';
 require_once EP_THEME_PATH . '/inc/github.php';
 require_once EP_THEME_PATH . '/inc/github-app.php';
 require_once EP_THEME_PATH . '/inc/scaffolder.php';
@@ -66,10 +67,9 @@ add_filter( 'blockstudio/blocks/components/inner_blocks/frontend/wrap', function
 
 	$template_prefix = examplepress_get_template_prefix();
 
-	// Exempt template blocks from ALL registered namespaces, not just one.
+	// Exempt template blocks from all registered origin namespaces + the theme itself.
 	$namespaces   = examplepress_get_route_origin_namespaces();
-	$namespaces[] = 'examplepress-theme'; // Always include the theme itself.
-	$namespaces[] = examplepress_get_theme_namespace(); // Legacy filter value.
+	$namespaces[] = 'examplepress-theme';
 	$namespaces   = array_unique( $namespaces );
 
 	foreach ( $namespaces as $ns ) {

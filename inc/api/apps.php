@@ -130,13 +130,73 @@ function examplepress_register_app_routes() {
 		],
 	] );
 
+	register_rest_route( 'examplepress/v1', '/apps/(?P<slug>[a-z0-9-]+)/health', [
+		'methods'             => 'GET',
+		'callback'            => 'examplepress_handle_app_health',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+		'args' => [
+			'slug' => [
+				'required'          => true,
+				'type'              => 'string',
+				'description'       => 'App slug.',
+				'sanitize_callback' => 'sanitize_title',
+				'validate_callback' => function ( $value ) {
+					return (bool) preg_match( '/^[a-z0-9-]+$/', $value );
+				},
+			],
+		],
+	] );
+
+	register_rest_route( 'examplepress/v1', '/apps/(?P<slug>[a-z0-9-]+)/destroy', [
+		'methods'             => 'DELETE',
+		'callback'            => 'examplepress_handle_app_destroy',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+		'args' => [
+			'slug' => [
+				'required'          => true,
+				'type'              => 'string',
+				'description'       => 'App slug.',
+				'sanitize_callback' => 'sanitize_title',
+				'validate_callback' => function ( $value ) {
+					return (bool) preg_match( '/^[a-z0-9-]+$/', $value );
+				},
+			],
+		],
+	] );
+
 }
 
 /**
- * List all discovered ExamplePress apps.
+ * List all ExamplePress apps — merges persistent registry with live
+ * filesystem state. Includes orphan apps (deleted locally but still
+ * on GitHub/Troy).
  */
 function examplepress_handle_apps_list() {
-	return rest_ensure_response( examplepress_get_apps() );
+	return rest_ensure_response( examplepress_registry_list_merged() );
+}
+
+/**
+ * Delete an app everywhere: local plugin, GitHub repo, Troy registration.
+ */
+function examplepress_handle_app_destroy( WP_REST_Request $request ) {
+	$slug   = $request->get_param( 'slug' );
+	$result = examplepress_destroy_app( $slug );
+
+	$all_deleted = empty( $result['failed'] );
+
+	return rest_ensure_response( [
+		'success'  => true,
+		'message'  => $all_deleted
+			? "App \"{$slug}\" deleted everywhere."
+			: "App \"{$slug}\" partially deleted.",
+		'deleted'  => $result['deleted'],
+		'failed'   => $result['failed'],
+		'warnings' => $result['warnings'],
+	] );
 }
 
 /**
@@ -172,71 +232,100 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 	}
 
 	if ( ! examplepress_github_get_write_token() ) {
-		return new WP_Error(
-			'no_github_token',
-			'A GitHub write token is required to scaffold apps. Install the GitHub App or configure a write access token.',
-			[ 'status' => 403 ]
-		);
+		return examplepress_scaffold_local_mode( $slug, $name, $desc );
 	}
 
 	return examplepress_scaffold_template_mode( $slug, $name, $desc );
 }
 
 /**
- * Template mode: create repo from GitHub template, replace placeholders remotely.
+ * Template mode: scaffold locally, create GitHub repo, replace placeholders, register on Troy.
+ *
+ * The local plugin is created first so the app is immediately visible
+ * in the Build tab. The GitHub repo and Troy registration are layered
+ * on top — failures in those steps are non-fatal warnings.
  */
 function examplepress_scaffold_template_mode( string $slug, string $name, string $desc ) {
-	$description = $desc ?: 'An ExamplePress companion plugin.';
+	$description = $desc ?: examplepress_get_default_app_description();
 	$org         = get_option( 'ep_github_org', 'webmultipliers' );
 	$warnings    = [];
 	$steps       = [];
+	$full_name   = $org . '/' . $slug;
+	$html_url    = '';
+	$repo_id     = 0;
 
-	// ── Step 1: Create repo from template ───────────────────────
+	// ── Step 1: Create local plugin files ───────────────────────
+
+	$local_result = examplepress_scaffold_local_mode( $slug, $name, $desc );
+
+	if ( is_wp_error( $local_result ) ) {
+		$warnings[]        = 'Local scaffold: ' . $local_result->get_error_message();
+		$steps['scaffold'] = false;
+	} else {
+		$local_data = $local_result->get_data();
+		if ( ! empty( $local_data['success'] ) ) {
+			$steps['scaffold'] = true;
+		} else {
+			$warnings[]        = 'Local scaffold: ' . ( $local_data['message'] ?? 'Failed.' );
+			$steps['scaffold'] = false;
+		}
+	}
+
+	// ── Step 2: Create GitHub repo from template ────────────────
 
 	$repo_result = examplepress_scaffold_from_template( $slug, $description, $org );
 
 	if ( is_wp_error( $repo_result ) ) {
-		// If repo already exists, this is not fatal — report and continue.
 		if ( $repo_result->get_error_code() === 'repo_exists' ) {
-			$steps['template_create'] = false;
+			$steps['template_create'] = true;
 			$warnings[] = $repo_result->get_error_message();
-
-			return rest_ensure_response( [
-				'success'  => false,
-				'message'  => $repo_result->get_error_message(),
-				'warnings' => $warnings,
-				'steps'    => $steps,
-			] );
+		} else {
+			$steps['template_create'] = false;
+			$warnings[] = 'GitHub repo: ' . $repo_result->get_error_message();
 		}
-
-		return $repo_result;
-	}
-
-	$steps['template_create'] = true;
-
-	$full_name = $repo_result['full_name'];
-	$repo_id   = $repo_result['id'];
-	$html_url  = $repo_result['html_url'];
-
-	// ── Step 2: Replace placeholders in the new repo ────────────
-
-	$troy_url     = get_option( 'ep_troy_server_url', '' );
-	$troy_display = $troy_url
-		? str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) )
-		: '';
-
-	$replace_result = examplepress_scaffold_replace_remote_placeholders(
-		$full_name, $slug, $name, $description, $troy_display
-	);
-
-	if ( is_wp_error( $replace_result ) ) {
-		$warnings[]                     = 'Placeholder replacement: ' . $replace_result->get_error_message();
-		$steps['placeholder_replace'] = false;
 	} else {
-		$steps['placeholder_replace'] = true;
+		$steps['template_create'] = true;
+		$full_name = $repo_result['full_name'];
+		$repo_id   = $repo_result['id'];
+		$html_url  = $repo_result['html_url'];
 	}
 
-	// ── Step 3: Register with Troy (optional) ───────────────────
+	// ── Step 3: Replace placeholders in the new repo ────────────
+
+	if ( ! empty( $steps['template_create'] ) ) {
+		$troy_url     = get_option( 'ep_troy_server_url', '' );
+		$troy_display = $troy_url
+			? str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) )
+			: '';
+
+		$replace_result = examplepress_scaffold_replace_remote_placeholders(
+			$full_name, $slug, $name, $description, $troy_display
+		);
+
+		if ( is_wp_error( $replace_result ) ) {
+			$warnings[]                   = 'Placeholder replacement: ' . $replace_result->get_error_message();
+			$steps['placeholder_replace'] = false;
+		} else {
+			$steps['placeholder_replace'] = true;
+		}
+	}
+
+	// ── Step 4: Create initial release (v0.0.0) ────────────────
+
+	if ( ! empty( $steps['template_create'] ) ) {
+		$release_result = examplepress_scaffold_create_initial_release( $full_name );
+
+		if ( is_wp_error( $release_result ) ) {
+			$warnings[]             = 'Initial release: ' . $release_result->get_error_message();
+			$steps['initial_release'] = false;
+		} else {
+			$steps['initial_release'] = true;
+		}
+	}
+
+	// ── Step 5: Register with Troy (optional) ───────────────────
+
+	$troy_url = get_option( 'ep_troy_server_url', '' );
 
 	if ( $troy_url && get_option( 'ep_troy_credentials', '' ) ) {
 		$troy_result = examplepress_troy_register_and_connect(
@@ -257,12 +346,59 @@ function examplepress_scaffold_template_mode( string $slug, string $name, string
 		$steps['troy_register'] = null;
 	}
 
+	// ── Step 6: Write Troy + GitHub data back to local JSON ─────
+
+	$plugin_dir = WP_PLUGIN_DIR . '/' . $slug;
+	$troy_data  = [];
+
+	if ( $troy_url ) {
+		$troy_data = [
+			'server_url' => str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) ),
+			'repo'       => $full_name,
+			'repo_id'    => (string) $repo_id,
+		];
+	}
+
+	if ( ! empty( $troy_data ) && file_exists( $plugin_dir . '/examplepress.json' ) ) {
+		if ( ! examplepress_update_app_troy_data( $slug, $troy_data ) ) {
+			$warnings[] = 'Failed to write Troy data to local examplepress.json.';
+		}
+	}
+
+	// ── Step 7: Register in persistent app registry ───────────
+
+	$registry_data = [
+		'name'        => $name,
+		'description' => $description,
+		'version'     => '0.1.0',
+	];
+
+	if ( $full_name && $full_name !== $org . '/' . $slug ) {
+		// Only store if we got real data back from GitHub.
+	}
+	if ( $html_url || $repo_id ) {
+		$registry_data['github'] = [
+			'owner_repo' => $full_name,
+			'repo_id'    => (string) $repo_id,
+			'html_url'   => $html_url,
+		];
+	}
+	if ( ! empty( $troy_data ) ) {
+		$registry_data['troy'] = $troy_data;
+	}
+
+	examplepress_registry_set( $slug, $registry_data );
+
+	// Re-read the app so the response reflects Troy data.
+	$app = examplepress_parse_app( $slug, $plugin_dir . '/examplepress.json', $plugin_dir );
+
 	return rest_ensure_response( [
 		'success'        => true,
 		'mode'           => 'template',
-		'message'        => "App \"{$name}\" created from template.",
+		'message'        => "App \"{$name}\" created.",
+		'app'            => $app,
 		'repo_url'       => $html_url,
-		'codespaces_url' => examplepress_codespaces_url( $full_name, $repo_id ),
+		'codespaces_url' => $repo_id ? examplepress_codespaces_url( $full_name, $repo_id ) : '',
 		'owner_repo'     => $full_name,
 		'warnings'       => $warnings,
 		'steps'          => $steps,
@@ -291,8 +427,9 @@ function examplepress_handle_app_troy_bind( WP_REST_Request $request ) {
 		);
 	}
 
+	$cloud_url   = examplepress_get_troy_cloud_url();
 	$troy_server = 'cloud' === $troy_type
-		? 'internal.repo.mustuse.com'
+		? str_replace( [ 'https://', 'http://' ], '', rtrim( $cloud_url, '/' ) )
 		: rtrim( str_replace( [ 'https://', 'http://' ], '', $custom_url ), '/' );
 
 	if ( empty( $troy_server ) ) {
@@ -380,7 +517,7 @@ function examplepress_handle_app_connect( WP_REST_Request $request ) {
 
 	$plugin_path = WP_PLUGIN_DIR . '/' . $slug;
 	$name        = $app['name'];
-	$description = $app['description'] ?: 'An ExamplePress app.';
+	$description = $app['description'] ?: examplepress_get_default_app_description();
 	$org         = get_option( 'ep_github_org', 'webmultipliers' );
 	$owner_repo  = $org . '/' . $slug;
 	$warnings    = [];
@@ -460,6 +597,22 @@ function examplepress_handle_app_connect( WP_REST_Request $request ) {
 		}
 	}
 
+	// Update the persistent registry with connection data.
+	$registry_update = [];
+	if ( ! empty( $github_data['owner_repo'] ) ) {
+		$registry_update['github'] = [
+			'owner_repo' => $github_data['owner_repo'],
+			'repo_id'    => (string) ( $github_data['repo_id'] ?? '' ),
+			'html_url'   => $github_data['html_url'] ?? '',
+		];
+	}
+	if ( ! empty( $troy_data ) ) {
+		$registry_update['troy'] = $troy_data;
+	}
+	if ( ! empty( $registry_update ) ) {
+		examplepress_registry_set( $slug, $registry_update );
+	}
+
 	// Re-read the app data.
 	$updated_app = examplepress_parse_app( $slug, $plugin_path . '/examplepress.json', $plugin_path );
 
@@ -469,5 +622,243 @@ function examplepress_handle_app_connect( WP_REST_Request $request ) {
 		'app'      => $updated_app,
 		'warnings' => $warnings,
 		'github'   => $github_data,
+	] );
+}
+
+// ── App Health Check ────────────────────────────────────────────
+
+/**
+ * Check the health of an app's remote connections (Troy + GitHub).
+ *
+ * Reads the app's local Troy config, pings the Troy Server health
+ * endpoint, and independently verifies the GitHub repo is reachable
+ * with the stored credentials.
+ *
+ * Troy endpoint: GET /wp-json/troy-server/v1/plugins/manage/health?slug={slug}
+ */
+function examplepress_handle_app_health( WP_REST_Request $request ) {
+	$slug = $request->get_param( 'slug' );
+	$apps = examplepress_get_apps();
+	$app  = null;
+
+	foreach ( $apps as $a ) {
+		if ( $a['slug'] === $slug ) {
+			$app = $a;
+			break;
+		}
+	}
+
+	if ( ! $app ) {
+		return new WP_Error( 'app_not_found', 'App not found.', [ 'status' => 404 ] );
+	}
+
+	$health = [
+		'slug'   => $slug,
+		'name'   => $app['name'],
+		'local'  => [
+			'active'      => $app['active'],
+			'version'     => $app['version'],
+			'status'      => $app['status'],
+			'plugin_file' => $app['plugin_file'],
+		],
+		'troy'   => null,
+		'github' => null,
+	];
+
+	// ── Troy health ─────────────────────────────────────────────
+
+	$troy_server = $app['troy']['server_url'] ?? '';
+	$troy_auth   = get_option( 'ep_troy_credentials', '' );
+
+	if ( $troy_server && $troy_auth ) {
+		$troy_url = 'https://' . rtrim( $troy_server, '/' );
+
+		$troy_response = wp_remote_get(
+			$troy_url . '/wp-json/troy-server/v1/plugins/manage/health?' . http_build_query( [ 'slug' => $slug ] ),
+			[
+				'headers' => [
+					'Authorization' => 'Basic ' . base64_encode( $troy_auth ),
+					'User-Agent'    => 'ExamplePress/' . EP_THEME_VERSION,
+					'Accept'        => 'application/json',
+				],
+				'timeout' => 15,
+			]
+		);
+
+		if ( is_wp_error( $troy_response ) ) {
+			$health['troy'] = [
+				'reachable' => false,
+				'error'     => $troy_response->get_error_message(),
+			];
+		} else {
+			$code = wp_remote_retrieve_response_code( $troy_response );
+			$body = json_decode( wp_remote_retrieve_body( $troy_response ), true );
+
+			if ( $code === 200 && is_array( $body ) ) {
+				$health['troy'] = array_merge( [ 'reachable' => true ], $body );
+			} else {
+				$health['troy'] = [
+					'reachable' => false,
+					'error'     => $body['message'] ?? "HTTP {$code}",
+				];
+			}
+		}
+	} else {
+		$health['troy'] = [
+			'reachable' => false,
+			'error'     => ! $troy_server ? 'No Troy server configured for this app.' : 'No Troy credentials stored.',
+		];
+	}
+
+	// ── GitHub health ───────────────────────────────────────────
+
+	$owner_repo = $app['troy']['repo'] ?? '';
+
+	if ( ! $owner_repo ) {
+		// Try to infer from org + slug.
+		$org        = get_option( 'ep_github_org', '' );
+		$owner_repo = $org ? $org . '/' . $slug : '';
+	}
+
+	if ( $owner_repo ) {
+		$token = examplepress_github_get_write_token();
+
+		if ( ! $token ) {
+			$token = get_option( 'ep_troy_github_pat', '' );
+		}
+
+		if ( $token ) {
+			$gh_response = wp_remote_get(
+				"https://api.github.com/repos/{$owner_repo}",
+				[
+					'headers' => [
+						'Authorization' => "Bearer {$token}",
+						'Accept'        => 'application/vnd.github+json',
+						'User-Agent'    => 'ExamplePress/' . EP_THEME_VERSION,
+					],
+					'timeout' => 10,
+				]
+			);
+
+			if ( is_wp_error( $gh_response ) ) {
+				$health['github'] = [
+					'reachable'  => false,
+					'owner_repo' => $owner_repo,
+					'error'      => $gh_response->get_error_message(),
+				];
+			} else {
+				$code = wp_remote_retrieve_response_code( $gh_response );
+				$body = json_decode( wp_remote_retrieve_body( $gh_response ), true );
+
+				if ( $code === 200 ) {
+					// Fetch latest release tag.
+					$release_resp = wp_remote_get(
+						"https://api.github.com/repos/{$owner_repo}/releases/latest",
+						[
+							'headers' => [
+								'Authorization' => "Bearer {$token}",
+								'Accept'        => 'application/vnd.github+json',
+								'User-Agent'    => 'ExamplePress/' . EP_THEME_VERSION,
+							],
+							'timeout' => 10,
+						]
+					);
+
+					$latest_tag = null;
+					if ( ! is_wp_error( $release_resp ) && wp_remote_retrieve_response_code( $release_resp ) === 200 ) {
+						$rel_body   = json_decode( wp_remote_retrieve_body( $release_resp ), true );
+						$latest_tag = $rel_body['tag_name'] ?? null;
+					}
+
+					$health['github'] = [
+						'reachable'      => true,
+						'owner_repo'     => $owner_repo,
+						'private'        => $body['private'] ?? false,
+						'default_branch' => $body['default_branch'] ?? '',
+						'latest_release' => $latest_tag,
+						'html_url'       => $body['html_url'] ?? '',
+						'created_at'     => $body['created_at'] ?? '',
+						'updated_at'     => $body['pushed_at'] ?? '',
+					];
+				} else {
+					$health['github'] = [
+						'reachable'  => false,
+						'owner_repo' => $owner_repo,
+						'error'      => $body['message'] ?? "HTTP {$code}",
+					];
+				}
+			}
+		} else {
+			$health['github'] = [
+				'reachable'  => false,
+				'owner_repo' => $owner_repo,
+				'error'      => 'No GitHub token available.',
+			];
+		}
+	} else {
+		$health['github'] = [
+			'reachable'  => false,
+			'owner_repo' => '',
+			'error'      => 'No repository configured.',
+		];
+	}
+
+	return rest_ensure_response( $health );
+}
+
+// ── Local Scaffold Mode ─────────────────────────────────────────
+
+/**
+ * Scaffold a companion plugin locally by downloading from the template repo.
+ *
+ * Pulls files from webmultipliers/examplepress-theme-app (public, no token
+ * required), replaces placeholders, and writes to wp-content/plugins/.
+ * The plugin is created but NOT activated — the developer activates it
+ * after configuring routes and template blocks.
+ */
+function examplepress_scaffold_local_mode( string $slug, string $name, string $desc ) {
+	$plugin_dir = WP_PLUGIN_DIR . '/' . $slug;
+
+	$fs = examplepress_get_filesystem();
+	if ( ! $fs ) {
+		return new WP_Error( 'filesystem_error', 'Could not initialise the WordPress filesystem.', [ 'status' => 500 ] );
+	}
+
+	if ( $fs->is_dir( $plugin_dir ) ) {
+		return new WP_Error( 'plugin_exists', "A plugin directory \"{$slug}\" already exists.", [ 'status' => 409 ] );
+	}
+
+	$description = $desc ?: examplepress_get_default_app_description();
+	$troy_url    = get_option( 'ep_troy_server_url', '' );
+	$troy_display = $troy_url
+		? str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) )
+		: '';
+
+	$result = examplepress_scaffold_download_template(
+		$plugin_dir, $slug, $name, $description, $troy_display
+	);
+
+	if ( is_wp_error( $result ) ) {
+		// Clean up partial directory on failure.
+		if ( $fs->is_dir( $plugin_dir ) ) {
+			$fs->delete( $plugin_dir, true );
+		}
+		return $result;
+	}
+
+	// Register in persistent app registry.
+	examplepress_registry_set( $slug, [
+		'name'        => $name,
+		'description' => $description,
+		'version'     => '0.1.0',
+	] );
+
+	$app = examplepress_parse_app( $slug, $plugin_dir . '/examplepress.json', $plugin_dir );
+
+	return rest_ensure_response( [
+		'success' => true,
+		'mode'    => 'local',
+		'message' => "App \"{$name}\" scaffolded. Activate it after adding your routes and template blocks.",
+		'app'     => $app,
 	] );
 }

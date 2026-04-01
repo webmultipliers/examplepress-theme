@@ -6,6 +6,69 @@
  * and OAuth callback handlers for Troy and GitHub App installations.
  */
 
+// ── Route Registration ───────────────────────────────────────────
+
+add_action( 'rest_api_init', 'examplepress_register_connection_routes' );
+
+function examplepress_register_connection_routes() {
+	register_rest_route( 'examplepress/v1', '/settings/connections', [
+		'methods'             => 'POST',
+		'callback'            => 'examplepress_handle_save_connections',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+		'args' => [
+			'github_pat' => [
+				'type'              => 'string',
+				'description'       => 'GitHub personal access token.',
+				'sanitize_callback' => 'sanitize_text_field',
+			],
+			'github_org' => [
+				'type'              => 'string',
+				'description'       => 'GitHub organization slug.',
+				'sanitize_callback' => 'sanitize_text_field',
+				'validate_callback' => function ( $value ) {
+					if ( $value !== null && ( ! is_string( $value ) || strlen( $value ) > 100 ) ) {
+						return new WP_Error( 'invalid_org', 'Organization must be 100 characters or fewer.' );
+					}
+					return true;
+				},
+			],
+			'app_template_repo' => [
+				'type'              => 'string',
+				'description'       => 'GitHub template repository (owner/repo) used for scaffolding new apps.',
+				'sanitize_callback' => 'sanitize_text_field',
+			],
+			'troy_server_url' => [
+				'type'              => 'string',
+				'description'       => 'Troy Server URL.',
+				'sanitize_callback' => 'sanitize_text_field',
+			],
+			'troy_github_pat' => [
+				'type'              => 'string',
+				'description'       => 'GitHub read token for Troy.',
+				'sanitize_callback' => 'sanitize_text_field',
+			],
+		],
+	] );
+
+	register_rest_route( 'examplepress/v1', '/settings/test-github', [
+		'methods'             => 'POST',
+		'callback'            => 'examplepress_handle_test_github',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	] );
+
+	register_rest_route( 'examplepress/v1', '/settings/test-troy', [
+		'methods'             => 'POST',
+		'callback'            => 'examplepress_handle_test_troy',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	] );
+}
+
 // ── Connection Settings ──────────────────────────────────────────
 
 /**
@@ -13,10 +76,11 @@
  */
 function examplepress_handle_save_connections( WP_REST_Request $request ) {
 	$fields = [
-		'ep_github_pat'       => 'github_pat',
-		'ep_github_org'       => 'github_org',
-		'ep_troy_server_url'  => 'troy_server_url',
-		'ep_troy_github_pat'  => 'troy_github_pat',
+		'ep_github_pat'          => 'github_pat',
+		'ep_github_org'          => 'github_org',
+		'ep_app_template_repo'   => 'app_template_repo',
+		'ep_troy_server_url'     => 'troy_server_url',
+		'ep_troy_github_pat'     => 'troy_github_pat',
 	];
 
 	$updated = [];

@@ -5,75 +5,37 @@
  * Centralised routing API used by the Blockstudio router block
  * to resolve the current request to a template block.
  *
- * Supports two routing modes:
- *
- * 1. **Route Origin Registry** (preferred for multi-origin)
- *    Companion plugins call examplepress_register_route_origin() to declare
- *    which routes they handle. The router evaluates conditions and resolves
- *    the namespace per-route. Multiple plugins can coexist.
- *
- * 2. **Legacy filter mode** (single-origin, backward compatible)
- *    Companion plugins hook `examplepress_theme_namespace` and
- *    `examplepress_route_context`. Works when only one plugin owns routing.
- *
- * The router tries the registry first. If no origin matches, it falls
- * through to the legacy filter chain.
+ * Companion plugins register route origins via the registry
+ * (examplepress_register_route_origin). The router evaluates all
+ * registered origins by priority and dispatches to the first match.
+ * When no origin matches, the default route 'get-started' is used
+ * under the theme's own namespace.
  */
 
 /**
- * Resolve the current route using the multi-origin registry first,
- * then falling back to legacy filters.
+ * Resolve the current route via the route origin registry.
  *
- * Returns an array with 'namespace' and 'slug' keys. Consumers should
- * use examplepress_resolve_route() instead of calling the individual
- * helpers directly — this function encapsulates the full resolution
- * pipeline with proper fallback.
+ * Returns an array with 'namespace' and 'slug' keys.
  *
  * @return array{namespace: string, slug: string}
  */
 function examplepress_resolve_route(): array {
-	// 1. Try the route origin registry (multi-origin).
 	$origin = examplepress_resolve_route_origin();
 
 	if ( $origin ) {
 		/**
 		 * Filters the registry-resolved route before dispatch.
 		 *
-		 * Allows plugins to override or transform the registry result.
-		 *
 		 * @param array $origin { namespace: string, slug: string }
 		 */
 		return apply_filters( 'examplepress_resolved_origin', $origin );
 	}
 
-	// 2. Fall back to legacy single-origin filters.
+	// No origin matched — use theme default.
 	return [
-		'namespace' => examplepress_get_theme_namespace(),
-		'slug'      => examplepress_get_current_route(),
+		'namespace' => 'examplepress-theme',
+		'slug'      => 'get-started',
 	];
-}
-
-/**
- * Get the current route slug (legacy filter mode).
- *
- * Companion plugins override this via the `examplepress_route_context` filter
- * to implement their own routing logic (e.g. is_front_page → 'front').
- *
- * @return string Route slug. Defaults to 'get-started'.
- */
-function examplepress_get_current_route() {
-	return apply_filters( 'examplepress_route_context', 'get-started' );
-}
-
-/**
- * Get the theme's Blockstudio namespace (legacy filter mode).
- *
- * Companion plugins override this to point the router at their own blocks.
- *
- * @return string Namespace. Defaults to 'examplepress-theme'.
- */
-function examplepress_get_theme_namespace() {
-	return apply_filters( 'examplepress_theme_namespace', 'examplepress-theme' );
 }
 
 /**

@@ -8,8 +8,9 @@
  * @package ExamplePress Demo
  */
 
-$namespace = examplepress_get_theme_namespace();
-$route     = examplepress_get_current_route();
+$resolved  = examplepress_resolve_route();
+$namespace = $resolved['namespace'];
+$route     = $resolved['slug'];
 $prefix    = examplepress_get_template_prefix();
 $block     = examplepress_get_template_block_name( $route, $prefix, $namespace );
 ?>

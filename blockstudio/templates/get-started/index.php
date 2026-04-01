@@ -60,24 +60,11 @@
 								* Plugin Name: ExamplePress Core
 								*/</span>
 
-							<span class="token comment">// 1. Point the theme router to this plugin's blocks</span>
-							<span class="token keyword">add_filter</span>( <span
-								class="token string">'examplepress_theme_namespace'</span>, <span
-								class="token keyword">function</span>() {
-							<span class="token keyword">return</span> <span
-								class="token string">'examplepress-core'</span>;
-							} );
-
-							<span class="token comment">// 2. Define your routing logic</span>
-							<span class="token keyword">add_filter</span>( <span
-								class="token string">'examplepress_route_context'</span>, <span
-								class="token keyword">function</span>( $context ) {
-							<span class="token keyword">if</span> ( <span class="token function">is_front_page</span>()
-							|| <span class="token function">is_home</span>() ) {
-							<span class="token keyword">return</span> <span class="token string">'front'</span>;
-							}
-							<span class="token keyword">return</span> $context;
-							} );
+							<span class="token comment">// 1. Register your route origins</span>
+							<span class="token keyword">examplepress_register_route_origin</span>( <span
+								class="token string">'examplepress-core'</span>, [
+							<span class="token string">'front'</span> => <span class="token keyword">fn</span>() => <span class="token function">is_front_page</span>() || <span class="token function">is_home</span>(),
+							] );
 
 							<span class="token comment">// 3. Initialize your standalone Blockstudio instance</span>
 							<span class="token keyword">add_action</span>( <span class="token string">'init'</span>,

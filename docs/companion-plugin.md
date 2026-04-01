@@ -55,10 +55,6 @@ The `routing.priority` value controls evaluation order when multiple companion p
 
 ## Plugin Bootstrap
 
-### Multi-Origin (recommended)
-
-Register route origins so multiple companion plugins can coexist:
-
 ```php
 <?php
 /**
@@ -84,19 +80,7 @@ if ( function_exists( 'examplepress_register_route_origin' ) ) {
     unset( $config, $priority );
 }
 
-// 2. Legacy fallback (still set for single-origin compat).
-add_filter( 'examplepress_theme_namespace', fn() => 'my-site-core' );
-
-add_filter( 'examplepress_route_context', function ( $slug ) {
-    if ( is_front_page() || is_home() ) return 'front';
-    if ( is_singular( 'post' ) )        return 'single';
-    if ( is_singular( 'page' ) )        return 'page';
-    if ( is_archive() )                 return 'archive';
-    if ( is_404() )                     return '404';
-    return $slug;
-} );
-
-// 3. Initialize Blockstudio for this plugin.
+// 2. Initialize Blockstudio for this plugin.
 add_action( 'init', fn() => Blockstudio\Build::init( [
     'dir' => plugin_dir_path( __FILE__ ) . 'app',
 ] ) );

@@ -121,15 +121,13 @@ function examplepress_gather_notifications() {
 		];
 	}
 
-	// 3. No routing configured (neither registry nor legacy namespace).
-	$has_origins = examplepress_has_route_origins();
-
-	if ( ! $has_origins && examplepress_get_theme_namespace() === 'examplepress-theme' ) {
+	// 3. No route origins registered.
+	if ( ! examplepress_has_route_origins() ) {
 		$notifications[] = [
-			'id'      => 'namespace_default',
+			'id'      => 'no_route_origins',
 			'type'    => 'info',
 			'title'   => 'No Routing Configured',
-			'message' => 'No companion plugin has registered route origins or overridden the namespace. Use examplepress_register_route_origin() or hook examplepress_theme_namespace.',
+			'message' => 'No companion plugin has registered route origins. Use examplepress_register_route_origin() in your companion plugin.',
 		];
 	}
 

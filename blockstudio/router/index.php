@@ -3,7 +3,6 @@
 $template_prefix = examplepress_get_template_prefix();
 
 // ── Route Resolution ─────────────────────────────────────────────
-// Resolve via the multi-origin registry first, then legacy filters.
 $resolved        = examplepress_resolve_route();
 $theme_ns        = $resolved['namespace'];
 $target_slug     = $resolved['slug'];
@@ -38,31 +37,6 @@ $block_content = bs_block(
 		'data' => $route_data,
 	]
 );
-
-// ── Fallback: try theme default if companion block missing ───────
-// If the resolved block produced no content, fall back to the theme's
-// own template for this slug (e.g. examplepress-theme/template-front).
-// This prevents a new companion app from breaking routing before its
-// templates are built.
-if ( ! $block_content && $theme_ns !== 'examplepress-theme' ) {
-	$fallback_block_name = examplepress_get_template_block_name(
-		$target_slug,
-		$template_prefix,
-		'examplepress-theme'
-	);
-
-	$block_content = bs_block(
-		[
-			'id'   => $fallback_block_name,
-			'data' => $route_data,
-		]
-	);
-
-	// Update for the error display if fallback also fails.
-	if ( ! $block_content ) {
-		$full_block_name = $full_block_name . ' → ' . $fallback_block_name;
-	}
-}
 
 ?>
 <?php if ( $block_content ) : ?>

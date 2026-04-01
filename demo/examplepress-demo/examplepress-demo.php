@@ -32,32 +32,7 @@ if ( function_exists( 'examplepress_register_route_origin' ) ) {
 	unset( $__ep_config, $__ep_priority );
 }
 
-// ── Legacy Namespace Handoff (backward compat) ───────────────────
-// Still set the namespace filter so the legacy path works if the
-// registry isn't available. The registry takes precedence when present.
-
-add_filter( 'examplepress_theme_namespace', fn() => 'examplepress-demo' );
-
-// ── Legacy Routing Cascade (backward compat) ─────────────────────
-
-add_filter( 'examplepress_route_context', function ( $slug ) {
-	if ( is_front_page() || is_home() ) {
-		return 'front';
-	}
-
-	if ( is_singular() ) {
-		return 'single';
-	}
-
-	if ( is_404() ) {
-		return '404';
-	}
-
-	return $slug;
-} );
-
 // ── Route Data Enrichment ─────────────────────────────────────────
-// Pass the queried object into template blocks so they can render it.
 
 add_filter( 'examplepress_route_data', function ( $data, $slug ) {
 	$data['demo'] = true;
@@ -70,7 +45,6 @@ add_filter( 'examplepress_route_data', function ( $data, $slug ) {
 }, 10, 2 );
 
 // ── Blockstudio Init ──────────────────────────────────────────────
-// Register this plugin's block directory with Blockstudio.
 
 add_action( 'init', function () {
 	if ( ! class_exists( 'Blockstudio\\Build' ) ) {

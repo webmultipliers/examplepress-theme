@@ -360,7 +360,8 @@ ul#adminmenu>li.current>a.current:after {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  min-height: 600px;
+  height: 100%;
+  min-height: 100vh;
   overflow: hidden;
 }
 
@@ -621,29 +622,29 @@ ul#adminmenu>li.current>a.current:after {
 }
 
 .ep-datatable-search input {
+  transition: border-color 0.15s var(--ease);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.45rem 0.75rem;
-  font-size: 0.85rem;
-  font-family: var(--sans);
   background: var(--surface);
-  color: var(--text);
+  padding: 0.45rem 0.75rem;
   width: 100%;
   max-width: 320px;
-  transition: border-color 0.15s var(--ease);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: var(--sans);
 }
 
 .ep-datatable-search input:focus {
   outline: none;
-  border-color: var(--accent-ui);
   box-shadow: 0 0 0 1px var(--accent-ui);
+  border-color: var(--accent-ui);
 }
 
 .ep-datatable-no-results {
   padding: 1.5rem;
-  text-align: center;
   color: var(--text-faint);
   font-size: 0.85rem;
+  text-align: center;
 }
 
 /* ── Collapsible sections ─────────────────────────────────────────── */
@@ -654,21 +655,21 @@ ul#adminmenu>li.current>a.current:after {
 }
 
 .ep-collapse-toggle {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.15rem 0.25rem;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0.15rem 0.25rem;
   color: var(--text-faint);
 }
 
 .ep-collapse-icon::before {
-  content: '\25BC';
-  font-size: 0.65rem;
   display: inline-block;
   transition: transform 0.2s var(--ease);
+  content: '\25BC';
+  font-size: 0.65rem;
 }
 
 .ep-collapse-toggle[aria-expanded="false"] .ep-collapse-icon::before {
@@ -1922,10 +1923,12 @@ ul#adminmenu>li.current>a.current:after {
 .ep-overview-card[data-tab-target] {
   cursor: pointer;
 }
+
 .ep-overview-card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--border-strong);
 }
+
 .ep-overview-card[data-tab-target]:hover {
   border-color: var(--accent-ui);
 }
@@ -2233,7 +2236,6 @@ ul#adminmenu>li.current>a.current:after {
   border-collapse: collapse;
   background: var(--surface);
   width: 100%;
-  overflow: hidden;
 }
 
 .ep-apps-list-table thead th {
@@ -2379,6 +2381,26 @@ ul#adminmenu>li.current>a.current:after {
   color: var(--text-faint);
 }
 
+.ep-apps-status-orphan {
+  border: 1px solid #f0ad4e;
+  background: #fdf8e8;
+  color: #8a6d3b;
+}
+
+.ep-apps-row-orphan {
+  opacity: 0.75;
+}
+
+.ep-apps-row-orphan td {
+  background: #fdf8e8;
+}
+
+.ep-apps-exists {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 /* ── Apps Repo Cell ─────────────────────────────────────────────── */
 
 .ep-apps-repo-link {
@@ -2414,6 +2436,156 @@ ul#adminmenu>li.current>a.current:after {
   font-size: 0.75rem;
   font-family: var(--sans);
   letter-spacing: 0.03em;
+}
+
+/* ── Apps Health Panel ──────────────────────────────────────────── */
+
+.ep-apps-health-cell {
+  position: relative;
+}
+
+.ep-apps-health-trigger {
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ep-apps-health-trigger:hover,
+.ep-apps-health-trigger:focus-visible {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+.ep-apps-status-healthy {
+  border: 1px solid var(--green-border);
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.ep-apps-status-degraded {
+  border: 1px solid var(--amber-border);
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.ep-apps-health-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  min-width: 300px;
+  max-width: 380px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.ep-health-panel-inner {
+  padding: 0.75rem 1rem;
+}
+
+.ep-health-panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.ep-health-panel-close {
+  color: var(--text-faint);
+  font-size: 1.1rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.ep-health-panel-close:hover {
+  color: var(--red);
+}
+
+.ep-health-section {
+  margin-bottom: 0.6rem;
+}
+
+.ep-health-section:last-child {
+  margin-bottom: 0;
+}
+
+.ep-health-section-title {
+  margin-bottom: 0.2rem;
+  color: var(--text-faint);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ep-health-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0;
+  color: var(--text-light);
+  font-size: 0.8rem;
+}
+
+.ep-health-row-warn {
+  color: var(--amber);
+}
+
+.ep-health-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+}
+
+.ep-health-dot-ok {
+  background: var(--green);
+}
+
+.ep-health-dot-fail {
+  background: var(--red);
+}
+
+.ep-health-dot-none {
+  background: var(--border);
+}
+
+.ep-health-meta {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  font-family: var(--mono);
+}
+
+.ep-health-link {
+  color: var(--accent-text);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.ep-health-link:hover {
+  color: var(--accent-hover-text);
+  text-decoration: underline;
+}
+
+.ep-health-panel-loading {
+  padding: 0.5rem 0;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.ep-health-panel-error {
+  padding: 0.25rem 0;
+  color: var(--red);
 }
 
 /* ── Apps Modal Buttons ─────────────────────────────────────────── */
@@ -2663,8 +2835,8 @@ ul#adminmenu>li.current>a.current:after {
 .ep-scaffold-step-reason {
   margin-left: 0.2rem;
   color: var(--amber);
-  font-size: 0.72rem;
   font-style: italic;
+  font-size: 0.72rem;
 }
 
 /* ── Scaffold Warnings ───────────────────────────────────────────── */
@@ -2815,4 +2987,10 @@ ul#adminmenu>li.current>a.current:after {
   .ep-connections-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Routes tab ────────────────────────────────────────────────── */
+
+[data-app-filter]:hover {
+  transform: translateY(-1px);
 }

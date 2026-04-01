@@ -1123,44 +1123,80 @@ document.addEventListener('DOMContentLoaded', () => {
 		html += '</tr></thead><tbody>';
 
 		apps.forEach(app => {
+			const exists     = app.exists || {};
+			const isLocal    = exists.local !== undefined ? exists.local : true;
+			const isOrphan   = !!app.orphan;
 			const isConnected = app.status === 'connected';
+			const isActive   = app.active || (app.local && app.local.active);
 
 			// Status badge.
-			const statusBadge = isConnected
-				? '<span class="ep-apps-status-badge ep-apps-status-connected">&#10003; Connected</span>'
-				: '<span class="ep-apps-status-badge ep-apps-status-disconnected">&#11046; Disconnected</span>';
+			let statusBadge;
+			if (isOrphan) {
+				statusBadge = `<span class="ep-apps-status-badge ep-apps-status-orphan ep-apps-health-trigger" data-slug="${esc(app.slug)}" role="button" tabindex="0" title="Plugin deleted locally — exists on GitHub/Troy">&#9888; Orphan</span>`;
+			} else if (isConnected) {
+				statusBadge = `<span class="ep-apps-status-badge ep-apps-status-connected ep-apps-health-trigger" data-slug="${esc(app.slug)}" role="button" tabindex="0" title="Click to check health">&#10003; Connected</span>`;
+			} else {
+				statusBadge = `<span class="ep-apps-status-badge ep-apps-status-disconnected ep-apps-health-trigger" data-slug="${esc(app.slug)}" role="button" tabindex="0" title="Click to check health">&#11046; Disconnected</span>`;
+			}
 
 			// Repo cell.
+			const ghRepo = (app.github && app.github.owner_repo) || (app.troy && app.troy.repo) || '';
 			let repoCell = '<span class="ep-apps-empty">&mdash;</span>';
-			if (isConnected && app.troy.repo) {
-				repoCell = `<a href="https://github.com/${esc(app.troy.repo)}" target="_blank" rel="noopener" class="ep-apps-repo-link">${esc(app.troy.repo)}</a>`;
-				if (app.troy.server_url) {
-					const label = app.troy.server_url === 'internal.repo.mustuse.com' ? 'TROY CLOUD' : 'TROY SELF-HOSTED';
+			if (ghRepo) {
+				repoCell = `<a href="https://github.com/${esc(ghRepo)}" target="_blank" rel="noopener" class="ep-apps-repo-link">${esc(ghRepo)}</a>`;
+				const troyServer = app.troy && app.troy.server_url;
+				if (troyServer) {
+					const troyCloudHost = (window.ExamplePressData.troyCloudUrl || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+					const label = troyServer === troyCloudHost ? 'TROY CLOUD' : 'TROY SELF-HOSTED';
 					repoCell += `<span class="ep-apps-troy-chip">${label}</span>`;
 				}
 			}
 
 			// Version cell.
-			const versionCell = isConnected && app.version && app.version !== '0.1.0'
+			const versionCell = app.version
 				? `<strong>v${esc(app.version)}</strong>`
-				: '<span class="ep-apps-empty">Not released</span>';
+				: '<span class="ep-apps-empty">&mdash;</span>';
 
-			// Row actions.
+			// Codespace link.
+			const ghRepoId = (app.github && app.github.repo_id) || (app.troy && app.troy.repo_id) || '';
+			let codespaceLink = '';
+			if (ghRepo) {
+				codespaceLink = ghRepoId
+					? `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="#" data-action="codespace" data-repo-id="${esc(ghRepoId)}" class="ep-apps-action-edit">Edit</a></span>`
+					: `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="https://github.com/codespaces/new?hide_repo_select=true&repo=${encodeURIComponent(ghRepo)}" target="_blank" rel="noopener" class="ep-apps-action-edit">Edit</a></span>`;
+			}
+
+			// Row actions — adapt to state.
 			let actions = '';
-			if (isConnected) {
+			if (isOrphan) {
+				// Orphan: no local plugin, but exists remotely.
 				actions = `
-					<span class="ep-apps-action"><a href="#" data-action="deactivate" data-slug="${esc(app.slug)}">Deactivate</a></span>
+					${ghRepo ? `<span class="ep-apps-action"><a href="https://github.com/${esc(ghRepo)}" target="_blank" rel="noopener">Repo</a></span><span class="ep-apps-sep">|</span>` : ''}
+					${codespaceLink ? codespaceLink.replace(/^<span class="ep-apps-sep">\|<\/span>/, '') + '<span class="ep-apps-sep">|</span>' : ''}
+					<span class="ep-apps-action"><a href="#" data-action="destroy" data-slug="${esc(app.slug)}" class="ep-apps-action-destroy" style="color:#9b2c2c">Delete Everywhere</a></span>
+				`;
+			} else if (isConnected) {
+				const activateAction = isActive
+					? `<span class="ep-apps-action"><a href="#" data-action="deactivate" data-slug="${esc(app.slug)}">Deactivate</a></span>`
+					: `<span class="ep-apps-action"><a href="${esc(window.ExamplePressData.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Activate</a></span>`;
+				actions = `
+					${activateAction}
 					<span class="ep-apps-sep">|</span>
 					<span class="ep-apps-action"><a href="${esc(window.ExamplePressData.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Locate</a></span>
 					<span class="ep-apps-sep">|</span>
-					<span class="ep-apps-action"><a href="https://github.com/${esc(app.troy.repo)}" target="_blank" rel="noopener" class="ep-apps-action-repo">Repo</a></span>
+					<span class="ep-apps-action"><a href="https://github.com/${esc(ghRepo)}" target="_blank" rel="noopener" class="ep-apps-action-repo">Repo</a></span>
+					${codespaceLink}
 					<span class="ep-apps-sep">|</span>
-					<span class="ep-apps-action"><a href="#" data-action="manage" data-slug="${esc(app.slug)}" class="ep-apps-action-manage">Reconnect</a></span>
-					${app.troy.repo_id ? `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="#" data-action="codespace" data-repo-id="${esc(app.troy.repo_id)}" class="ep-apps-action-edit">Edit</a></span>` : ''}
+					<span class="ep-apps-action"><a href="#" data-action="manage" data-slug="${esc(app.slug)}" class="ep-apps-action-manage">Manage</a></span>
+					<span class="ep-apps-sep">|</span>
+					<span class="ep-apps-action"><a href="#" data-action="destroy" data-slug="${esc(app.slug)}" class="ep-apps-action-destroy" style="color:#9b2c2c">Delete Everywhere</a></span>
 				`;
 			} else {
+				const activateAction = isActive
+					? `<span class="ep-apps-action"><a href="#" data-action="deactivate" data-slug="${esc(app.slug)}">Deactivate</a></span>`
+					: `<span class="ep-apps-action"><a href="${esc(window.ExamplePressData.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Activate</a></span>`;
 				actions = `
-					<span class="ep-apps-action"><a href="#" data-action="deactivate" data-slug="${esc(app.slug)}">Deactivate</a></span>
+					${activateAction}
 					<span class="ep-apps-sep">|</span>
 					<span class="ep-apps-action"><a href="${esc(window.ExamplePressData.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Locate</a></span>
 					<span class="ep-apps-sep">|</span>
@@ -1168,16 +1204,26 @@ document.addEventListener('DOMContentLoaded', () => {
 				`;
 			}
 
-			html += `<tr>
+			// Where it exists — shown in description column for orphans.
+			const existsWhere = isOrphan
+				? ` <span class="ep-apps-exists">(${[exists.github ? 'GitHub' : '', exists.troy ? 'Troy' : ''].filter(Boolean).join(' + ')})</span>`
+				: '';
+
+			html += `<tr class="${isOrphan ? 'ep-apps-row-orphan' : ''}">
 				<td class="ep-apps-col-plugin">
 					<span class="ep-apps-plugin-name">${esc(app.name)}</span>
 					<span class="ep-apps-plugin-slug">${esc(app.slug)}</span>
 					<div class="ep-apps-row-actions">${actions}</div>
 				</td>
-				<td class="ep-apps-col-status">${statusBadge}</td>
+				<td class="ep-apps-col-status">
+					<div class="ep-apps-health-cell">
+						${statusBadge}
+						<div class="ep-apps-health-panel" id="ep-health-panel-${esc(app.slug)}" style="display:none;"></div>
+					</div>
+				</td>
 				<td class="ep-apps-col-repo">${repoCell}</td>
 				<td class="ep-apps-col-version">${versionCell}</td>
-				<td class="ep-apps-col-desc">${esc(app.description)}</td>
+				<td class="ep-apps-col-desc">${esc(app.description)}${existsWhere}</td>
 			</tr>`;
 		});
 
@@ -1192,9 +1238,146 @@ document.addEventListener('DOMContentLoaded', () => {
 				if (action === 'manage') handleConnect(link.dataset.slug);
 				if (action === 'codespace') handleCodespaceOpen(link.dataset.repoId);
 				if (action === 'deactivate') handleDeactivate(link.dataset.slug);
+				if (action === 'destroy') handleDestroy(link.dataset.slug, link);
 			});
 		});
+
+		// Bind health badge triggers.
+		appsTable.querySelectorAll('.ep-apps-health-trigger').forEach(badge => {
+			badge.addEventListener('click', () => fetchAppHealth(badge.dataset.slug));
+			badge.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fetchAppHealth(badge.dataset.slug); } });
+		});
 	}
+
+	// ── Health Panel ────────────────────────────────────────────────
+
+	function renderHealthDot(ok) {
+		if (ok === true) return '<span class="ep-health-dot ep-health-dot-ok"></span>';
+		if (ok === false) return '<span class="ep-health-dot ep-health-dot-fail"></span>';
+		return '<span class="ep-health-dot ep-health-dot-none"></span>';
+	}
+
+	function renderHealthPanel(panel, data) {
+		const troy = data.troy || {};
+		const gh = data.github || {};
+		const troyGh = troy.github || {};
+
+		let html = '<div class="ep-health-panel-inner">';
+		html += `<div class="ep-health-panel-title">${esc(data.name)} <a href="#" class="ep-health-panel-close">&times;</a></div>`;
+
+		// ── Local status
+		html += '<div class="ep-health-section">';
+		html += '<div class="ep-health-section-title">Local</div>';
+		html += `<div class="ep-health-row">${renderHealthDot(data.local?.active)} Plugin ${data.local?.active ? 'active' : 'inactive'} <span class="ep-health-meta">v${esc(data.local?.version || '?')}</span></div>`;
+		html += '</div>';
+
+		// ── GitHub status (direct)
+		html += '<div class="ep-health-section">';
+		html += '<div class="ep-health-section-title">GitHub</div>';
+		if (gh.reachable) {
+			html += `<div class="ep-health-row">${renderHealthDot(true)} Reachable</div>`;
+			html += `<div class="ep-health-row"><a href="${esc(gh.html_url)}" target="_blank" rel="noopener" class="ep-health-link">${esc(gh.owner_repo)}</a>${gh.private ? ' <span class="ep-health-meta">private</span>' : ''}</div>`;
+			if (gh.latest_release) {
+				html += `<div class="ep-health-row">Latest release: <strong>${esc(gh.latest_release)}</strong></div>`;
+			} else {
+				html += `<div class="ep-health-row ep-health-row-warn">No releases found</div>`;
+			}
+		} else {
+			html += `<div class="ep-health-row">${renderHealthDot(false)} ${esc(gh.error || 'Unreachable')}</div>`;
+			if (gh.owner_repo) html += `<div class="ep-health-row"><span class="ep-health-meta">${esc(gh.owner_repo)}</span></div>`;
+		}
+		html += '</div>';
+
+		// ── Troy status
+		html += '<div class="ep-health-section">';
+		html += '<div class="ep-health-section-title">Troy</div>';
+		if (troy.reachable) {
+			html += `<div class="ep-health-row">${renderHealthDot(true)} ${esc(troy.status === 'publish' ? 'Published' : troy.status || 'Registered')}</div>`;
+			if (troy.latest_version) {
+				html += `<div class="ep-health-row">Version: <strong>${esc(troy.latest_version)}</strong></div>`;
+			}
+			if (troy.edit_link) {
+				html += `<div class="ep-health-row"><a href="${esc(troy.edit_link)}" target="_blank" rel="noopener" class="ep-health-link">Edit on Troy &rarr;</a></div>`;
+			}
+			// Troy's own GitHub health
+			if (troyGh.owner_repo) {
+				const troyGhOk = troyGh.reachable;
+				html += `<div class="ep-health-row">${renderHealthDot(troyGhOk)} Troy &harr; GitHub ${troyGhOk ? 'OK' : esc(troyGh.error || 'unreachable')}</div>`;
+				if (troyGh.tag_count != null) {
+					html += `<div class="ep-health-row"><span class="ep-health-meta">${troyGh.tag_count} tag(s)${troyGh.auto_process ? ', auto-process on' : ''}</span></div>`;
+				}
+			}
+		} else {
+			html += `<div class="ep-health-row">${renderHealthDot(troy.error ? false : null)} ${esc(troy.error || 'Not configured')}</div>`;
+		}
+		html += '</div>';
+
+		html += '</div>';
+		panel.innerHTML = html;
+		panel.style.display = '';
+
+		// Close button.
+		panel.querySelector('.ep-health-panel-close')?.addEventListener('click', e => { e.preventDefault(); panel.style.display = 'none'; });
+	}
+
+	async function fetchAppHealth(slug) {
+		const panel = document.getElementById(`ep-health-panel-${slug}`);
+		if (!panel) return;
+
+		// Toggle: if already visible, close it.
+		if (panel.style.display !== 'none') {
+			panel.style.display = 'none';
+			return;
+		}
+
+		panel.innerHTML = '<div class="ep-health-panel-inner"><div class="ep-health-panel-loading">Checking&hellip;</div></div>';
+		panel.style.display = '';
+
+		// Update badge to show loading state.
+		const badge = appsTable?.querySelector(`.ep-apps-health-trigger[data-slug="${slug}"]`);
+		const originalBadgeHtml = badge ? badge.innerHTML : '';
+		if (badge) badge.innerHTML = '&#8987; Checking&hellip;';
+
+		try {
+			const res = await fetch(`${window.ExamplePressData.appsHealthUrl}/${encodeURIComponent(slug)}/health`, {
+				headers: { 'X-WP-Nonce': window.ExamplePressData.nonce },
+			});
+			const data = await res.json();
+
+			if (res.ok) {
+				renderHealthPanel(panel, data);
+
+				// Update badge to reflect actual health.
+				if (badge) {
+					const allOk = data.github?.reachable && data.troy?.reachable;
+					const partial = data.github?.reachable || data.troy?.reachable;
+					if (allOk) {
+						badge.className = 'ep-apps-status-badge ep-apps-status-healthy ep-apps-health-trigger';
+						badge.innerHTML = '&#10003; Healthy';
+					} else if (partial) {
+						badge.className = 'ep-apps-status-badge ep-apps-status-degraded ep-apps-health-trigger';
+						badge.innerHTML = '&#9888; Degraded';
+					} else if (data.local?.active) {
+						badge.className = 'ep-apps-status-badge ep-apps-status-disconnected ep-apps-health-trigger';
+						badge.innerHTML = '&#11046; Local only';
+					}
+				}
+			} else {
+				panel.innerHTML = `<div class="ep-health-panel-inner"><div class="ep-health-panel-error">${esc(data.message || 'Health check failed.')}</div></div>`;
+				if (badge) badge.innerHTML = originalBadgeHtml;
+			}
+		} catch (err) {
+			panel.innerHTML = `<div class="ep-health-panel-inner"><div class="ep-health-panel-error">Network error: ${esc(err.message)}</div></div>`;
+			if (badge) badge.innerHTML = originalBadgeHtml;
+		}
+	}
+
+	// Close health panels on outside click.
+	document.addEventListener('click', e => {
+		if (!e.target.closest('.ep-apps-health-cell')) {
+			document.querySelectorAll('.ep-apps-health-panel').forEach(p => { p.style.display = 'none'; });
+		}
+	});
 
 	// Notice.
 	let appsNoticeTimer;
@@ -1233,11 +1416,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		const steps = [
 			{ label: 'Scaffold plugin locally', ok: true, key: 'scaffold' },
-			{ label: 'Create GitHub repo', ok: hasGithub, skip: githubSkip, key: 'github_repo' },
-			{ label: 'Push scaffold code', ok: hasGithub, skip: githubSkip, key: 'github_push' },
+			{ label: 'Create GitHub repo', ok: hasGithub, skip: githubSkip, key: 'template_create' },
+			{ label: 'Replace placeholders', ok: hasGithub, skip: githubSkip, key: 'placeholder_replace' },
+			{ label: 'Tag initial release (v0.0.0)', ok: hasGithub, skip: githubSkip, key: 'initial_release' },
 			{ label: 'Register on Troy', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip, key: 'troy_register' },
-			{ label: 'Connect Troy &harr; GitHub', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip, key: 'troy_connect' },
-			{ label: 'Write Troy config locally', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip, key: 'troy_writeback' },
 		];
 
 		stepsEl.innerHTML = steps.map(s => {
@@ -1302,9 +1484,11 @@ document.addEventListener('DOMContentLoaded', () => {
 				});
 				const data = await res.json();
 
-				if (res.ok && data.success && data.app) {
-					apps.unshift(data.app);
-					renderAppsTable();
+				if (res.ok && data.success) {
+					if (data.app) {
+						apps.unshift(data.app);
+						renderAppsTable();
+					}
 					if (data.steps) renderScaffoldSteps(data.steps);
 
 					// Show warnings if any steps failed.
@@ -1316,7 +1500,13 @@ document.addEventListener('DOMContentLoaded', () => {
 						showAppsNotice(`App <strong>${esc(name)}</strong> created with ${data.warnings.length} warning(s). Check the modal for details.`);
 					} else {
 						closeAppModal('ep-apps-scaffold-modal');
-						showAppsNotice(`App <strong>${esc(name)}</strong> created at <code>wp-content/plugins/${esc(data.app.slug)}/</code>.`);
+						let noticeHtml = `App <strong>${esc(name)}</strong> provisioned.`;
+						if (data.app) {
+							noticeHtml = `App <strong>${esc(name)}</strong> created at <code>wp-content/plugins/${esc(data.app.slug)}/</code>.`;
+						} else if (data.codespaces_url) {
+							noticeHtml += ` <a href="${esc(data.codespaces_url)}" target="_blank" rel="noopener">Open in Codespaces &rarr;</a>`;
+						}
+						showAppsNotice(noticeHtml);
 					}
 				} else {
 					const msg = data.message || data.data?.message || 'Scaffold failed.';
@@ -1369,7 +1559,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// Codespace modal.
 	function handleCodespaceOpen(repoId) {
-		const url = `https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=${repoId}`;
+		const url = `https://github.com/codespaces/new?hide_repo_select=true&repo=${repoId}`;
 		const urlEl = document.getElementById('ep-apps-codespace-url');
 		if (urlEl) {
 			urlEl.innerHTML = '';
@@ -1400,6 +1590,41 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 		} catch (err) {
 			showAppsNotice('Error deactivating app: ' + err.message);
+		}
+	}
+
+	// Delete Everywhere.
+	async function handleDestroy(slug, link) {
+		if (!confirm(`Delete "${slug}" everywhere?\n\nThis will remove the local plugin, delete the GitHub repo, and unregister from Troy. This cannot be undone.`)) {
+			return;
+		}
+
+		const origText = link ? link.textContent : '';
+		if (link) { link.textContent = 'Deleting...'; link.style.pointerEvents = 'none'; }
+
+		try {
+			const res = await fetch(`${window.ExamplePressData.appsDeactivateUrl}/${slug}/destroy`, {
+				method: 'DELETE',
+				headers: { 'X-WP-Nonce': window.ExamplePressData.nonce },
+			});
+			const data = await res.json();
+			if (data.success) {
+				const parts = [];
+				if (data.deleted && data.deleted.length) parts.push('Deleted: ' + data.deleted.join(', '));
+				if (data.failed && data.failed.length) parts.push('Failed: ' + data.failed.join(', '));
+				showAppsNotice(`<strong>${esc(slug)}</strong>: ${parts.join('. ') || 'Done.'}`);
+
+				// Remove from local apps array and re-render.
+				apps = apps.filter(a => a.slug !== slug);
+				renderAppsTable();
+			} else {
+				const msg = data.message || data.data?.message || 'Delete failed.';
+				showAppsNotice(`Failed: ${esc(msg)}`);
+				if (link) { link.textContent = origText; link.style.pointerEvents = ''; }
+			}
+		} catch (err) {
+			showAppsNotice('Error: ' + err.message);
+			if (link) { link.textContent = origText; link.style.pointerEvents = ''; }
 		}
 	}
 
@@ -1460,6 +1685,262 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// Initial render.
 	renderAppsTable();
+
+	/* ── Routes tab ────────────────────────────────────────────────── */
+
+	(function renderRoutes() {
+		const routeTopology = window.ExamplePressData.routeTopology || { origins: [], conflicts: {}, mode: 'legacy', resolved: {} };
+		const { origins, conflicts, mode, resolved } = routeTopology;
+		const statsEl    = document.getElementById('ep-routes-stats');
+		const filtersEl  = document.getElementById('ep-routes-filters');
+		const toggleEl   = document.getElementById('ep-routes-view-toggle');
+		const contentEl  = document.getElementById('ep-routes-content');
+
+		if (!statsEl || !contentEl) return;
+
+		// Assign colors to origins (deterministic palette).
+		const PALETTE = ['#2271b1','#1D9E75','#D85A30','#D4537E','#7F77DD','#639922','#BA7517','#993556','#5F5E5A','#E24B4A'];
+		origins.forEach((o, i) => { o.color = PALETTE[i % PALETTE.length]; });
+
+		// Sort by priority ascending.
+		const sorted = [...origins].sort((a, b) => a.priority - b.priority);
+
+		// Flatten all routes.
+		const allRoutes = [];
+		sorted.forEach(app => {
+			Object.entries(app.routes).forEach(([slug, meta]) => {
+				const isConflict = !!conflicts[slug];
+				const isWinner   = isConflict && conflicts[slug][0].namespace === app.namespace;
+				allRoutes.push({ slug, meta, app, isConflict, isWinner });
+			});
+		});
+
+		const totalSlugs  = allRoutes.length;
+		const totalUrls   = allRoutes.reduce((n, r) => n + (r.meta.urls || []).length, 0);
+		const conflictN   = Object.keys(conflicts).length;
+
+		let selectedApp = null;
+		let view = 'flow';
+
+		function render() {
+			const visible = selectedApp ? sorted.filter(a => a.id === selectedApp) : sorted;
+			const visibleRoutes = selectedApp ? allRoutes.filter(r => r.app.id === selectedApp) : allRoutes;
+
+			// Stats.
+			statsEl.innerHTML = [
+				stat('Companion Apps', sorted.length),
+				stat('Route Slugs', totalSlugs),
+				stat('Mapped URLs', totalUrls || '\u2014'),
+				stat('Conflicts', conflictN, conflictN > 0),
+			].join('');
+
+			// Filters.
+			filtersEl.innerHTML = pill('All Apps', null, !selectedApp) +
+				sorted.map(a => pill(a.name, a.id, selectedApp === a.id, a.color, a.priority)).join('');
+
+			filtersEl.querySelectorAll('[data-app-filter]').forEach(el => {
+				el.addEventListener('click', () => {
+					const id = el.dataset.appFilter;
+					selectedApp = selectedApp === id ? null : (id || null);
+					render();
+				});
+			});
+
+			// View toggle.
+			toggleEl.innerHTML = ['flow', 'table', 'sitemap'].map(v =>
+				`<button data-route-view="${v}" style="padding:5px 12px;border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;background:${view === v ? 'var(--surface)' : 'transparent'};color:${view === v ? 'var(--text)' : 'var(--text-faint)'};box-shadow:${view === v ? 'var(--shadow-sm)' : 'none'};font-family:var(--sans);transition:all .15s">${{flow:'Resolution Flow', table:'Route Table', sitemap:'Sitemap Tree'}[v]}</button>`
+			).join('');
+
+			toggleEl.querySelectorAll('[data-route-view]').forEach(el => {
+				el.addEventListener('click', () => { view = el.dataset.routeView; render(); });
+			});
+
+			// Content.
+			if (view === 'flow')    contentEl.innerHTML = renderFlow(visible);
+			if (view === 'table')   contentEl.innerHTML = renderTable(visibleRoutes);
+			if (view === 'sitemap') contentEl.innerHTML = renderSitemap(visible);
+		}
+
+		function stat(label, value, warn) {
+			return `<div class="ep-overview-card" style="cursor:default">
+				<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);margin-bottom:2px">${esc(label)}</div>
+				<div style="font-size:20px;font-weight:500;color:${warn ? 'var(--red)' : 'var(--text)'}">${value}</div>
+			</div>`;
+		}
+
+		function pill(label, id, active, color, priority) {
+			const c = color || 'var(--text-faint)';
+			const bg = active ? c : 'transparent';
+			const fg = active ? '#fff' : c;
+			const dot = color ? `<span style="width:6px;height:6px;border-radius:50%;background:${active ? '#fff' : c};display:inline-block"></span>` : '';
+			const pri = priority !== undefined ? `<span style="opacity:.6;font-size:10px">p${priority}</span>` : '';
+			return `<span data-app-filter="${id || ''}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:.02em;border:1.5px solid ${c};background:${bg};color:${fg};cursor:pointer;transition:all .2s;user-select:none;white-space:nowrap;font-family:var(--sans)">${dot}${esc(label)}${pri}</span>`;
+		}
+
+		// Resolution Flow view.
+		function renderFlow(apps) {
+			let html = `<div class="ep-table" style="padding:1.25rem">
+				<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);font-weight:600;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px">Priority Evaluation Cascade</div>`;
+
+			if (!apps.length) {
+				html += `<p style="font-size:12px;color:var(--text-faint);font-style:italic;padding:1rem 0">No route origins registered. Install a companion app or use <code>examplepress_register_route_origin()</code>.</p>`;
+				html += `</div>`;
+				return html;
+			}
+
+			apps.forEach((app, i) => {
+				html += `<div style="position:relative;margin-bottom:16px">`;
+				if (i > 0) html += `<div style="position:absolute;left:11px;top:-14px;width:1.5px;height:14px;background:var(--border)"></div>`;
+
+				html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+					<div style="width:22px;height:22px;border-radius:50%;background:${app.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">${app.priority}</div>
+					<span style="font-weight:500;font-size:13px;color:var(--text)">${esc(app.name)}</span>
+					<code style="font-family:var(--mono);font-size:11px;color:var(--text-faint)">${esc(app.namespace)}</code>
+					${!app.active ? '<span class="ep-badge badge-off"><span class="ep-dot"></span>Inactive</span>' : ''}
+				</div>`;
+
+				html += `<div style="margin-left:34px;display:flex;flex-wrap:wrap;gap:6px">`;
+				Object.entries(app.routes).forEach(([slug, meta]) => {
+					const isConflict = !!conflicts[slug];
+					const isWinner   = isConflict && conflicts[slug][0].namespace === app.namespace;
+					const border     = isConflict
+						? `1.5px dashed ${isWinner ? 'var(--green)' : 'var(--red)'}`
+						: `1px solid ${app.color}40`;
+					const tag = isConflict
+						? `<span style="font-size:8px;margin-left:4px;text-transform:uppercase;letter-spacing:.04em;color:${isWinner ? 'var(--green)' : 'var(--red)'}">${isWinner ? 'wins' : 'shadowed'}</span>`
+						: '';
+
+					html += `<div title="${esc(meta.desc || slug)}\n${esc(meta.condition || '(closure)')}\n\u2192 ${esc(app.namespace)}/template-${esc(slug)}" style="padding:4px 10px;border-radius:var(--radius);font-size:11px;font-family:var(--mono);background:${app.color}10;color:${app.color};border:${border};cursor:help">${esc(slug)}${tag}</div>`;
+				});
+				html += `</div></div>`;
+			});
+
+			// Conflict summary.
+			if (Object.keys(conflicts).length && !selectedApp) {
+				html += `<div style="margin-top:20px;padding:12px 16px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius-lg)">
+					<div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px">Route Conflicts Detected</div>`;
+
+				Object.entries(conflicts).forEach(([slug, entries]) => {
+					html += `<div style="font-size:11px;color:var(--text-faint);margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+						<code style="font-family:var(--mono);font-weight:600;color:var(--text);background:var(--surface);padding:1px 6px;border-radius:var(--radius-sm);border:1px solid var(--border)">${esc(slug)}</code>
+						<span>claimed by</span>`;
+					entries.forEach((e, idx) => {
+						html += `<span style="font-weight:500">${esc(e.namespace)} <span style="opacity:.5;font-weight:400">(p${e.priority})</span></span>`;
+						if (idx < entries.length - 1) html += `<span style="color:var(--text-faint)">,</span>`;
+					});
+					html += `<span style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:.04em">&rarr; ${esc(entries[0].namespace)} wins</span></div>`;
+				});
+				html += `</div>`;
+			}
+
+			html += `</div>`;
+			return html;
+		}
+
+		// Route Table view.
+		function renderTable(routes) {
+			let html = `<div class="ep-table">
+				<div class="ep-row ep-row-head" style="grid-template-columns:120px 1fr 220px">
+					<div class="ep-th">Slug</div>
+					<div class="ep-th">Matched URLs</div>
+					<div class="ep-th" style="text-align:right">Dispatch Target</div>
+				</div>`;
+
+			if (!routes.length) {
+				html += `<div class="ep-row" style="grid-template-columns:1fr"><div style="font-size:12px;color:var(--text-faint);font-style:italic;padding:.5rem 0">No routes registered.</div></div>`;
+				html += `</div>`;
+				return html;
+			}
+
+			routes.forEach(r => {
+				const opacity = (r.isConflict && !r.isWinner) ? 'opacity:.45;' : '';
+				const bg = (r.isConflict && r.isWinner) ? `background:${r.app.color}08;` : '';
+				const blockName = `${r.app.namespace}/template-${r.slug}`;
+				const status = r.isConflict
+					? `<span style="font-size:10px;color:${r.isWinner ? 'var(--green)' : 'var(--red)'}">${r.isWinner ? '\u2713' : '\u2717'}</span>`
+					: '';
+				const urls = (r.meta.urls || []).map(u =>
+					`<code style="font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:var(--radius-sm);background:var(--surface-alt);color:var(--text-faint)">${esc(u)}</code>`
+				).join(' ');
+
+				html += `<div class="ep-row" style="grid-template-columns:120px 1fr 220px;${opacity}${bg}">
+					<div style="display:flex;align-items:center;gap:4px">
+						<code style="font-family:var(--mono);font-size:12px;font-weight:600;color:${r.app.color}">${esc(r.slug)}</code>
+						${status}
+					</div>
+					<div style="display:flex;flex-wrap:wrap;gap:4px">${urls || '<span style="font-size:11px;color:var(--text-faint);font-style:italic">No URLs declared</span>'}</div>
+					<div style="text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+						<code style="font-family:var(--mono);font-size:10px;color:var(--text-faint)">${esc(blockName)}</code>
+					</div>
+				</div>`;
+			});
+
+			html += `</div>`;
+			return html;
+		}
+
+		// Sitemap Tree view.
+		function renderSitemap(apps) {
+			const tree = {};
+			apps.forEach(app => {
+				Object.entries(app.routes).forEach(([slug, meta]) => {
+					(meta.urls || []).forEach(url => {
+						const parts = url.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
+						let node = tree;
+						parts.forEach((p, i) => {
+							if (!node[p]) node[p] = { _routes: [], _children: {} };
+							if (i === parts.length - 1) node[p]._routes.push({ slug, app, meta });
+							node = node[p]._children;
+						});
+						if (!parts.length) {
+							if (!tree['/']) tree['/'] = { _routes: [], _children: {} };
+							tree['/']._routes.push({ slug, app, meta });
+						}
+					});
+				});
+			});
+
+			function walk(nodes, depth) {
+				return Object.entries(nodes).map(([seg, data]) => {
+					if (seg === '_routes' || seg === '_children') return '';
+					const routes = data._routes || [];
+					const children = data._children || {};
+					const hasKids = Object.keys(children).filter(k => k !== '_routes' && k !== '_children').length > 0;
+					const bg = routes.length ? `${routes[0].app.color}12` : 'transparent';
+					const pills = routes.map(r =>
+						`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;border:1px solid ${r.app.color};color:${r.app.color};font-family:var(--sans)">${esc(r.app.name)} &rarr; ${esc(r.slug)}</span>`
+					).join('');
+
+					return `<div style="margin-left:${depth * 24}px;margin-top:4px">
+						<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:var(--radius);background:${bg}">
+							<span style="font-family:var(--mono);font-size:11px;color:var(--text-faint);width:12px;text-align:center">${hasKids ? '\u25B8' : '\u00B7'}</span>
+							<code style="font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text)">/${seg === '/' ? '' : seg}/</code>
+							${pills}
+						</div>
+						${walk(children, depth + 1)}
+					</div>`;
+				}).join('');
+			}
+
+			const label = selectedApp ? (sorted.find(a => a.id === selectedApp)?.name || 'Filtered') : 'All Apps';
+			let html = `<div class="ep-table" style="padding:1.25rem">
+				<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);font-weight:600;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px">URL Hierarchy \u2014 ${esc(label)}</div>`;
+
+			const treeHtml = walk(tree, 0);
+			html += treeHtml || '<p style="font-size:12px;color:var(--text-faint);font-style:italic;padding:1rem 0">No URLs declared by any registered origin. Add <code>routing.routes</code> to your companion app\'s examplepress.json to populate this view.</p>';
+			html += `</div>`;
+			return html;
+		}
+
+		// Tab count badge.
+		const routeTabCount = document.querySelector('#t-routes .ep-tab-count');
+		if (routeTabCount && sorted.length) {
+			routeTabCount.textContent = sorted.length;
+		}
+
+		render();
+		log.info(`[ExamplePress] Routes: ${sorted.length} origins, ${totalSlugs} slugs, ${conflictN} conflicts`);
+	})();
 
 	/* ── Tab counts ─────────────────────────────────────────────────── */
 

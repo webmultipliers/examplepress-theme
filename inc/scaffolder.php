@@ -2,10 +2,13 @@
 /**
  * ExamplePress Scaffolder — GitHub Template Repository
  *
- * Creates companion plugins from the official GitHub template repository
- * (webmultipliers/examplepress-theme-app) using GitHub's "Generate from
- * template" API. Falls back to local scaffold copy when no GitHub token
- * is available.
+ * Creates companion plugins from a GitHub template repository using
+ * the "Generate from template" API. The template repo is configurable
+ * via the `ep_app_template_repo` option — agencies can point this at
+ * their own template to scaffold apps with custom boilerplate.
+ *
+ * Falls back to local scaffold (downloading from the template repo)
+ * when no GitHub write token is available.
  *
  * Flow:
  *   1. Create repo from template via GitHub API
@@ -21,14 +24,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Template repository used for "Generate from template" API calls.
+ * Default template repository for scaffold operations.
+ *
+ * Override via the `ep_app_template_repo` option in the admin
+ * Connections tab, or filter with `examplepress_template_repo`.
  */
-define( 'EP_TEMPLATE_REPO', 'webmultipliers/examplepress-theme-app' );
+define( 'EP_DEFAULT_TEMPLATE_REPO', 'webmultipliers/examplepress-theme-app' );
 
 /**
  * Placeholder tokens used in the template repository files.
  */
 define( 'EP_SCAFFOLD_PLACEHOLDERS', [ '__NAME__', '__SLUG__', '__DESC__', '__TROY__' ] );
+
+/**
+ * Get the configured template repository (owner/repo).
+ *
+ * Resolution order:
+ *   1. PHP filter `examplepress_template_repo`
+ *   2. Database option `ep_app_template_repo`
+ *   3. Constant EP_DEFAULT_TEMPLATE_REPO
+ *
+ * @return string GitHub owner/repo string.
+ */
+function examplepress_get_template_repo(): string {
+	$repo = get_option( 'ep_app_template_repo', EP_DEFAULT_TEMPLATE_REPO );
+
+	if ( ! $repo ) {
+		$repo = EP_DEFAULT_TEMPLATE_REPO;
+	}
+
+	return apply_filters( 'examplepress_template_repo', $repo );
+}
 
 /**
  * Create a new repo from the GitHub template repository.
@@ -52,7 +78,7 @@ function examplepress_scaffold_from_template( string $slug, string $description,
 	}
 
 	$response = wp_remote_post(
-		'https://api.github.com/repos/' . EP_TEMPLATE_REPO . '/generate',
+		'https://api.github.com/repos/' . examplepress_get_template_repo() . '/generate',
 		[
 			'headers' => [
 				'Authorization' => "Bearer {$pat}",
@@ -63,7 +89,7 @@ function examplepress_scaffold_from_template( string $slug, string $description,
 				'owner'       => $owner,
 				'name'        => $slug,
 				'description' => $description,
-				'private'     => false,
+				'private'     => true,
 			] ),
 			'timeout' => 30,
 		]
@@ -144,20 +170,35 @@ function examplepress_scaffold_replace_remote_placeholders(
 	$default_branch = $repo_data['default_branch'] ?? 'development';
 
 	// Get the full file tree so we know which files to check.
-	$tree_response = wp_remote_get( "{$base_url}/git/trees/{$default_branch}?recursive=1", [
-		'headers' => $headers,
-		'timeout' => 15,
-	] );
+	// GitHub's "generate from template" is async — the repo exists immediately
+	// but the tree may take a few seconds to populate. Retry up to 5 times.
+	$tree    = [];
+	$retries = 5;
 
-	if ( is_wp_error( $tree_response ) ) {
-		return $tree_response;
+	for ( $attempt = 0; $attempt < $retries; $attempt++ ) {
+		if ( $attempt > 0 ) {
+			sleep( 2 );
+		}
+
+		$tree_response = wp_remote_get( "{$base_url}/git/trees/{$default_branch}?recursive=1", [
+			'headers' => $headers,
+			'timeout' => 15,
+		] );
+
+		if ( is_wp_error( $tree_response ) ) {
+			return $tree_response;
+		}
+
+		$tree_body = json_decode( wp_remote_retrieve_body( $tree_response ), true );
+		$tree      = $tree_body['tree'] ?? [];
+
+		if ( ! empty( $tree ) ) {
+			break;
+		}
 	}
 
-	$tree_body = json_decode( wp_remote_retrieve_body( $tree_response ), true );
-	$tree      = $tree_body['tree'] ?? [];
-
 	if ( empty( $tree ) ) {
-		return new WP_Error( 'empty_tree', 'Repository tree is empty — template may not have been fully generated yet.' );
+		return new WP_Error( 'empty_tree', 'Repository tree is still empty after waiting. GitHub may be slow — try the Connect button in a moment.' );
 	}
 
 	$replacements = [
@@ -255,6 +296,201 @@ function examplepress_scaffold_replace_remote_placeholders(
 			] ),
 			'timeout' => 15,
 		] );
+	}
+
+	return true;
+}
+
+/**
+ * Create an initial v0.0.0 release on a newly scaffolded repo.
+ *
+ * This gives Troy a release to index immediately and marks the repo
+ * as deployment-ready. GitHub auto-attaches source archives (zip/tar)
+ * to every release, so no build step is needed for the initial tag.
+ *
+ * @param string $full_name GitHub "owner/repo" string.
+ * @return true|WP_Error
+ */
+function examplepress_scaffold_create_initial_release( string $full_name ) {
+	$pat = examplepress_github_get_write_token();
+
+	if ( ! $pat ) {
+		return new WP_Error( 'no_github_token', 'No GitHub write token.' );
+	}
+
+	$response = wp_remote_post(
+		"https://api.github.com/repos/{$full_name}/releases",
+		[
+			'headers' => [
+				'Authorization' => "Bearer {$pat}",
+				'Accept'        => 'application/vnd.github+json',
+				'User-Agent'    => 'ExamplePress/' . EP_THEME_VERSION,
+				'Content-Type'  => 'application/json',
+			],
+			'body'    => wp_json_encode( [
+				'tag_name'               => 'v0.0.0',
+				'name'                   => 'v0.0.0',
+				'body'                   => 'Initial scaffold release.',
+				'draft'                  => false,
+				'prerelease'             => false,
+				'generate_release_notes' => false,
+			] ),
+			'timeout' => 15,
+		]
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return $response;
+	}
+
+	$code = wp_remote_retrieve_response_code( $response );
+
+	if ( $code !== 201 ) {
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		return new WP_Error(
+			'release_failed',
+			$body['message'] ?? "GitHub API returned HTTP {$code} creating release."
+		);
+	}
+
+	return true;
+}
+
+/**
+ * Download the template repo into a local directory and replace placeholders.
+ *
+ * Used by the local scaffold mode to ensure local files match the
+ * canonical template repo exactly. The template repo is public,
+ * so no auth token is needed.
+ *
+ * @param string $dest        Local destination directory.
+ * @param string $slug        Plugin slug.
+ * @param string $name        Plugin display name.
+ * @param string $description Plugin description.
+ * @param string $troy_url    Troy server URL (optional).
+ * @return true|WP_Error
+ */
+function examplepress_scaffold_download_template(
+	string $dest,
+	string $slug,
+	string $name,
+	string $description,
+	string $troy_url = ''
+) {
+	$headers = [
+		'Accept'     => 'application/vnd.github.v3+json',
+		'User-Agent' => 'ExamplePress/' . EP_THEME_VERSION,
+	];
+
+	// Add auth if available (higher rate limits, private template repos).
+	$pat = examplepress_github_get_write_token();
+	if ( $pat ) {
+		$headers['Authorization'] = "Bearer {$pat}";
+	}
+
+	$base_url = 'https://api.github.com/repos/' . examplepress_get_template_repo();
+
+	// Resolve default branch.
+	$repo_response = wp_remote_get( $base_url, [
+		'headers' => $headers,
+		'timeout' => 10,
+	] );
+
+	if ( is_wp_error( $repo_response ) ) {
+		return $repo_response;
+	}
+
+	$repo_data      = json_decode( wp_remote_retrieve_body( $repo_response ), true );
+	$default_branch = $repo_data['default_branch'] ?? 'development';
+
+	// Get the file tree.
+	$tree_response = wp_remote_get( "{$base_url}/git/trees/{$default_branch}?recursive=1", [
+		'headers' => $headers,
+		'timeout' => 15,
+	] );
+
+	if ( is_wp_error( $tree_response ) ) {
+		return $tree_response;
+	}
+
+	$tree_body = json_decode( wp_remote_retrieve_body( $tree_response ), true );
+	$tree      = $tree_body['tree'] ?? [];
+
+	if ( empty( $tree ) ) {
+		return new WP_Error( 'empty_tree', 'Template repository tree is empty.' );
+	}
+
+	$replacements = [
+		'__NAME__' => $name,
+		'__SLUG__' => $slug,
+		'__DESC__' => $description,
+		'__TROY__' => $troy_url,
+	];
+
+	$processable_extensions = [ 'php', 'json', 'md', 'yml', 'yaml', 'txt', 'xml', 'css', 'js', 'html' ];
+
+	$fs = examplepress_get_filesystem();
+
+	if ( ! $fs ) {
+		return new WP_Error( 'filesystem_error', 'Could not initialise the WordPress filesystem.' );
+	}
+
+	// Create the destination directory.
+	if ( ! $fs->is_dir( $dest ) ) {
+		$fs->mkdir( $dest );
+	}
+
+	foreach ( $tree as $entry ) {
+		if ( $entry['type'] === 'tree' ) {
+			// Create subdirectory.
+			$dir_path = $dest . '/' . $entry['path'];
+			if ( ! $fs->is_dir( $dir_path ) ) {
+				wp_mkdir_p( $dir_path );
+			}
+			continue;
+		}
+
+		if ( $entry['type'] !== 'blob' ) {
+			continue;
+		}
+
+		$file_path = $entry['path'];
+
+		// Download file content.
+		$file_response = wp_remote_get( "{$base_url}/contents/{$file_path}?ref={$default_branch}", [
+			'headers' => $headers,
+			'timeout' => 10,
+		] );
+
+		if ( is_wp_error( $file_response ) || wp_remote_retrieve_response_code( $file_response ) !== 200 ) {
+			continue;
+		}
+
+		$file_data = json_decode( wp_remote_retrieve_body( $file_response ), true );
+
+		if ( empty( $file_data['content'] ) ) {
+			continue;
+		}
+
+		$content = base64_decode( $file_data['content'] );
+
+		// Replace placeholders in text files.
+		$ext = strtolower( pathinfo( $file_path, PATHINFO_EXTENSION ) );
+		if ( in_array( $ext, $processable_extensions, true ) ) {
+			$content = str_replace(
+				array_keys( $replacements ),
+				array_values( $replacements ),
+				$content
+			);
+		}
+
+		// Handle __SLUG__.php → {slug}.php rename.
+		$local_path = $file_path;
+		if ( $file_path === '__SLUG__.php' ) {
+			$local_path = $slug . '.php';
+		}
+
+		$fs->put_contents( $dest . '/' . $local_path, $content );
 	}
 
 	return true;
