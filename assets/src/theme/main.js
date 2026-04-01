@@ -3,8 +3,6 @@
  * Tabs: Features, Config, Design, Dependencies
  */
 import '../css/base.css';
-import '../css/components.css';
-import '../css/theme.css';
 
 import { initLogger, log } from '../lib/logger.js';
 import { initApi } from '../lib/api.js';

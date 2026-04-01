@@ -4,7 +4,7 @@ Contributors: vinnysgreen
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 8.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,11 @@ The theme is an infrastructure layer — it owns the engine (router, guards, fea
 Requires the Blockstudio plugin (v7.1+).
 
 == Changelog ==
+
+= 1.0.3 =
+* Modular Vite-based admin asset pipeline replacing monolithic JS/CSS.
+* Removed legacy dependency config formats and dead code.
+* Inline connection data consolidated into ExamplePressData.
 
 = 1.0.2 =
 * Feature registry expanded to 37 toggleable features (spacing, borders, shadows, global styles, Blockstudio controls).

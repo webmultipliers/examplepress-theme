@@ -3,8 +3,6 @@
  * Tabs: Build, Connections, Routes, Blocks, Library
  */
 import '../css/base.css';
-import '../css/components.css';
-import '../css/build.css';
 
 import { initLogger, log } from '../lib/logger.js';
 import { initApi } from '../lib/api.js';
@@ -18,6 +16,7 @@ import { initScaffold } from './scaffold.js';
 import { initTroyModal } from './troy-modal.js';
 import { renderBlocks } from './blocks.js';
 import { renderRoutes } from './routes.js';
+import { initConnectionsUI } from './connections.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 	const data = window.ExamplePressData;
@@ -52,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	const blockCount = renderBlocks(blocks);
 	const routeCount = renderRoutes();
 	initAppsOutsideClick();
+	initConnectionsUI();
 
 	// Tab counts.
 	updateTabCount('t-blocks', blockCount);

@@ -3,8 +3,6 @@
  * Tabs: Overview, Notifications, Health, Support
  */
 import '../css/base.css';
-import '../css/components.css';
-import '../css/dashboard.css';
 
 import { initLogger, log } from '../lib/logger.js';
 import { initApi } from '../lib/api.js';

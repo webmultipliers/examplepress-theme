@@ -84,12 +84,15 @@ function examplepress_settings_gather_data() {
 			'hasGithubPat'     => (bool) get_option( 'ep_github_pat', '' ),
 			'hasGithubApp'     => function_exists( 'examplepress_github_app_is_installed' ) && examplepress_github_app_is_installed(),
 			'githubAppAvail'   => function_exists( 'examplepress_github_app_is_configured' ) && examplepress_github_app_is_configured(),
+			'githubAppSlug'    => function_exists( 'examplepress_get_github_app_slug' ) ? examplepress_get_github_app_slug() : '',
 			'githubOrg'        => get_option( 'ep_github_org', 'webmultipliers' ),
 			'appTemplateRepo'  => get_option( 'ep_app_template_repo', defined( 'EP_DEFAULT_TEMPLATE_REPO' ) ? EP_DEFAULT_TEMPLATE_REPO : '' ),
 			'hasTroyUrl'       => (bool) get_option( 'ep_troy_server_url', '' ),
 			'hasTroyCreds'     => (bool) get_option( 'ep_troy_credentials', '' ),
 			'hasTroyGithubPat' => (bool) get_option( 'ep_troy_github_pat', '' ),
 			'troyServerUrl'    => get_option( 'ep_troy_server_url', '' ),
+			'testGithubUrl'    => esc_url_raw( rest_url( 'examplepress/v1/settings/test-github' ) ),
+			'testTroyUrl'      => esc_url_raw( rest_url( 'examplepress/v1/settings/test-troy' ) ),
 		],
 		'restUrl'           => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
 		'demoInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
@@ -945,45 +948,10 @@ function examplepress_render_settings_page() {
 							<div class="ep-conn-field">
 								<label class="ep-build-label">App Authorization</label>
 								<div class="ep-troy-auth-row">
-									<button class="ep-demo-btn ep-demo-btn-primary" id="ep-conn-github-app-btn" type="button" onclick="window._epGithubAppInstall(this)">Install GitHub App</button>
+									<button class="ep-demo-btn ep-demo-btn-primary" id="ep-conn-github-app-btn" type="button">Install GitHub App</button>
 									<span class="ep-troy-auth-status" id="ep-github-app-status"></span>
 								</div>
 								<span class="ep-build-hint">Grants repo creation + code push on your org. No shared secrets.</span>
-								<script>
-								window._epGithubAppInstall = function(btn) {
-									var statusEl = document.getElementById('ep-github-app-status');
-									var orgVal = (document.getElementById('ep-conn-github-org') || {}).value || '';
-									<?php $app_slug = examplepress_get_github_app_slug(); ?>
-									var installUrl = 'https://github.com/apps/<?php echo esc_js( $app_slug ); ?>/installations/new';
-									btn.disabled = true;
-									btn.textContent = 'Waiting...';
-									if (statusEl) { statusEl.textContent = 'Complete installation on GitHub...'; statusEl.style.color = ''; }
-									var popup = window.open(installUrl, 'ep_github_app', 'width=700,height=800');
-									if (!popup) {
-										if (statusEl) { statusEl.textContent = 'Popup blocked.'; statusEl.style.color = '#9b2c2c'; }
-										btn.disabled = false; btn.textContent = 'Install GitHub App';
-										return;
-									}
-									// Save org in background.
-									if (orgVal.trim() && ExamplePressData.connectionsUrl) {
-										fetch(ExamplePressData.connectionsUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce }, body: JSON.stringify({ github_org: orgVal.trim() }) });
-									}
-									function onMsg(e) {
-										if (e.origin !== window.location.origin) return;
-										if (!e.data || typeof e.data.success === 'undefined') return;
-										window.removeEventListener('message', onMsg);
-										btn.disabled = false; btn.textContent = 'Install GitHub App';
-										if (e.data.success) {
-											if (statusEl) { statusEl.textContent = '\u2713 Installed'; statusEl.style.color = '#006414'; }
-											ExamplePressData.connections.hasGithubApp = true;
-										} else {
-											if (statusEl) { statusEl.textContent = e.data.message || 'Failed.'; statusEl.style.color = '#9b2c2c'; }
-										}
-									}
-									window.addEventListener('message', onMsg);
-									var t = setInterval(function() { if (popup.closed) { clearInterval(t); btn.disabled = false; btn.textContent = 'Install GitHub App'; } }, 500);
-								};
-								</script>
 							</div>
 							<div class="ep-conn-field" style="border-top:1px solid #c3c4c7;padding-top:0.6rem;margin-top:0.2rem;">
 								<label class="ep-build-label" style="color:#50575e;font-size:0.68rem;">Or use a token instead</label>
@@ -996,7 +964,7 @@ function examplepress_render_settings_page() {
 							</div>
 							<div class="ep-conn-field">
 								<div class="ep-troy-auth-row">
-									<button class="ep-demo-btn" id="ep-test-github-btn" type="button" onclick="window._epTestGithub(this)">Test GitHub</button>
+									<button class="ep-demo-btn" id="ep-test-github-btn" type="button">Test GitHub</button>
 									<span class="ep-troy-auth-status" id="ep-test-github-status"></span>
 								</div>
 							</div>
@@ -1010,59 +978,10 @@ function examplepress_render_settings_page() {
 							<div class="ep-conn-field">
 								<label class="ep-build-label">Authorization</label>
 								<div class="ep-troy-auth-row">
-									<button class="ep-demo-btn ep-demo-btn-primary" id="ep-conn-troy-auth-btn" type="button" onclick="window._epTroyAuth(this)">Authorize with Troy</button>
+									<button class="ep-demo-btn ep-demo-btn-primary" id="ep-conn-troy-auth-btn" type="button">Authorize with Troy</button>
 									<span class="ep-troy-auth-status" id="ep-troy-auth-status"></span>
 								</div>
 								<span class="ep-build-hint">Opens the Troy Server to create an application password automatically.</span>
-								<script>
-								window._epTroyAuth = function(btn) {
-									var statusEl = document.getElementById('ep-troy-auth-status');
-									var urlInput = document.getElementById('ep-conn-troy-url');
-									var troyUrl = urlInput ? urlInput.value.trim() : '';
-									if (!troyUrl) {
-										if (statusEl) { statusEl.textContent = 'Enter a Troy Server URL first.'; statusEl.style.color = '#9b2c2c'; }
-										return;
-									}
-									var troy = troyUrl.replace(/\/+$/, '');
-									var adminUrl = <?php echo wp_json_encode( admin_url( 'admin.php' ) ); ?>;
-									var successUrl = adminUrl + '?page=examplepress-settings&ep_troy_auth_cb=1';
-									var rejectUrl = adminUrl + '?page=examplepress-settings&ep_troy_auth_cb=rejected';
-									var siteName = window.location.hostname;
-									var authUrl = troy + '/wp-admin/authorize-application.php'
-										+ '?app_name=' + encodeURIComponent('ExamplePress (' + siteName + ')')
-										+ '&app_id=f47ac10b-58cc-4372-a567-0e02b2c3d479'
-										+ '&success_url=' + encodeURIComponent(successUrl)
-										+ '&reject_url=' + encodeURIComponent(rejectUrl);
-									btn.disabled = true;
-									btn.textContent = 'Waiting...';
-									if (statusEl) { statusEl.textContent = 'Complete authorization in the popup...'; statusEl.style.color = ''; }
-									var popup = window.open(authUrl, 'ep_troy_auth', 'width=600,height=700');
-									if (!popup) {
-										if (statusEl) { statusEl.textContent = 'Popup blocked — allow popups for this site.'; statusEl.style.color = '#9b2c2c'; }
-										btn.disabled = false;
-										btn.textContent = 'Authorize with Troy';
-										return;
-									}
-									if (ExamplePressData.connectionsUrl) {
-										fetch(ExamplePressData.connectionsUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce }, body: JSON.stringify({ troy_server_url: troyUrl }) });
-									}
-									function onMsg(e) {
-										if (e.origin !== window.location.origin) return;
-										if (!e.data || typeof e.data.success === 'undefined') return;
-										window.removeEventListener('message', onMsg);
-										btn.disabled = false;
-										btn.textContent = 'Authorize with Troy';
-										if (e.data.success) {
-											if (statusEl) { statusEl.textContent = '\u2713 Authorized'; statusEl.style.color = '#006414'; }
-											ExamplePressData.connections.hasTroyCreds = true;
-										} else {
-											if (statusEl) { statusEl.textContent = e.data.message || 'Failed.'; statusEl.style.color = '#9b2c2c'; }
-										}
-									}
-									window.addEventListener('message', onMsg);
-									var t = setInterval(function() { if (popup.closed) { clearInterval(t); btn.disabled = false; btn.textContent = 'Authorize with Troy'; } }, 500);
-								};
-								</script>
 							</div>
 							<div class="ep-conn-field">
 								<label class="ep-build-label" for="ep-conn-troy-github-pat">GitHub Read Token</label>
@@ -1071,115 +990,17 @@ function examplepress_render_settings_page() {
 							</div>
 							<div class="ep-conn-field">
 								<div class="ep-troy-auth-row">
-									<button class="ep-demo-btn" id="ep-test-troy-btn" type="button" onclick="window._epTestTroy(this)">Test Troy</button>
+									<button class="ep-demo-btn" id="ep-test-troy-btn" type="button">Test Troy</button>
 									<span class="ep-troy-auth-status" id="ep-test-troy-status"></span>
 								</div>
 							</div>
 						</div>
 					</div>
 					<div class="ep-conn-actions">
-						<button class="ep-build-submit" id="ep-conn-save-btn" type="button" onclick="window._epSaveConn(this)">Save Connections</button>
+						<button class="ep-build-submit" id="ep-conn-save-btn" type="button">Save Connections</button>
 						<span class="ep-conn-status" id="ep-conn-status"></span>
 					</div>
-					<script>
-					(function() {
-						var orgEl = document.getElementById('ep-conn-github-org');
-						var templateEl = document.getElementById('ep-conn-app-template');
-						var troyUrlEl = document.getElementById('ep-conn-troy-url');
-						var patEl = document.getElementById('ep-conn-github-pat');
-						var troyPatEl = document.getElementById('ep-conn-troy-github-pat');
-						var troyStatus = document.getElementById('ep-troy-auth-status');
-						var ghAppStatus = document.getElementById('ep-github-app-status');
-						if (orgEl && ExamplePressData.connections.githubOrg) orgEl.value = ExamplePressData.connections.githubOrg;
-						if (templateEl && ExamplePressData.connections.appTemplateRepo) templateEl.value = ExamplePressData.connections.appTemplateRepo;
-						if (troyUrlEl && ExamplePressData.connections.troyServerUrl) troyUrlEl.value = ExamplePressData.connections.troyServerUrl;
-						if (patEl && ExamplePressData.connections.hasGithubPat) patEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
-						if (troyPatEl && ExamplePressData.connections.hasTroyGithubPat) troyPatEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)';
-						if (troyStatus && ExamplePressData.connections.hasTroyCreds) { troyStatus.textContent = '\u2713 Authorized'; troyStatus.style.color = '#006414'; }
-						if (ghAppStatus && ExamplePressData.connections.hasGithubApp) { ghAppStatus.textContent = '\u2713 Installed'; ghAppStatus.style.color = '#006414'; }
-					})();
-					window._epSaveConn = function(btn) {
-						var statusEl = document.getElementById('ep-conn-status');
-						btn.disabled = true;
-						btn.textContent = 'Saving...';
-						if (statusEl) { statusEl.textContent = ''; statusEl.style.color = ''; }
-						var body = {};
-						var patVal = (document.getElementById('ep-conn-github-pat') || {}).value || '';
-						var orgVal = (document.getElementById('ep-conn-github-org') || {}).value || '';
-						var templateVal = (document.getElementById('ep-conn-app-template') || {}).value || '';
-						var troyUrl = (document.getElementById('ep-conn-troy-url') || {}).value || '';
-						var troyPat = (document.getElementById('ep-conn-troy-github-pat') || {}).value || '';
-						patVal = patVal.trim(); orgVal = orgVal.trim(); templateVal = templateVal.trim(); troyUrl = troyUrl.trim(); troyPat = troyPat.trim();
-						if (patVal) body.github_pat = patVal;
-						if (orgVal) body.github_org = orgVal;
-						if (templateVal) body.app_template_repo = templateVal;
-						if (troyUrl) body.troy_server_url = troyUrl;
-						if (troyPat) body.troy_github_pat = troyPat;
-						fetch(ExamplePressData.connectionsUrl, {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce },
-							body: JSON.stringify(body),
-						}).then(function(res) { return res.json(); }).then(function(data) {
-							if (data.success) {
-								if (statusEl) { statusEl.textContent = '\u2713 Saved'; statusEl.style.color = '#006414'; }
-								var patEl = document.getElementById('ep-conn-github-pat');
-								var troyPatEl = document.getElementById('ep-conn-troy-github-pat');
-								if (patVal && patEl) { patEl.value = ''; patEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)'; }
-								if (troyPat && troyPatEl) { troyPatEl.value = ''; troyPatEl.placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (configured)'; }
-								ExamplePressData.connections.hasGithubPat = ExamplePressData.connections.hasGithubPat || !!patVal;
-								ExamplePressData.connections.hasTroyGithubPat = ExamplePressData.connections.hasTroyGithubPat || !!troyPat;
-								if (orgVal) ExamplePressData.connections.githubOrg = orgVal;
-								if (troyUrl) ExamplePressData.connections.troyServerUrl = troyUrl;
-							} else {
-								if (statusEl) { statusEl.textContent = data.message || 'Save failed.'; statusEl.style.color = '#9b2c2c'; }
-							}
-						}).catch(function(err) {
-							if (statusEl) { statusEl.textContent = err.message || 'Network error.'; statusEl.style.color = '#9b2c2c'; }
-						}).finally(function() {
-							btn.disabled = false; btn.textContent = 'Save Connections';
-						});
-					};
-					window._epTestGithub = function(btn) {
-						var s = document.getElementById('ep-test-github-status');
-						btn.disabled = true; btn.textContent = 'Testing...';
-						if (s) { s.textContent = ''; s.style.color = ''; }
-						fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'examplepress/v1/settings/test-github' ) ) ); ?>, {
-							method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce },
-						}).then(function(r) { return r.json(); }).then(function(d) {
-							var parts = [];
-							if (d.checks) {
-								if (d.checks.write) parts.push('Write: ' + d.checks.write.message);
-								if (d.checks.read) parts.push('Read: ' + d.checks.read.message);
-							}
-							if (s) {
-								s.textContent = parts.join(' | ') || d.message;
-								s.style.color = d.success ? '#006414' : '#9b2c2c';
-							}
-						}).catch(function() {
-							if (s) { s.textContent = 'Network error.'; s.style.color = '#9b2c2c'; }
-						}).finally(function() { btn.disabled = false; btn.textContent = 'Test GitHub'; });
-					};
-					window._epTestTroy = function(btn) {
-						var s = document.getElementById('ep-test-troy-status');
-						btn.disabled = true; btn.textContent = 'Testing...';
-						if (s) { s.textContent = ''; s.style.color = ''; }
-						fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'examplepress/v1/settings/test-troy' ) ) ); ?>, {
-							method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': ExamplePressData.nonce },
-						}).then(function(r) { return r.json(); }).then(function(d) {
-							var parts = [];
-							if (d.checks) {
-								if (d.checks.url) parts.push('URL: ' + d.checks.url.message);
-								if (d.checks.auth) parts.push('Auth: ' + d.checks.auth.message);
-							}
-							if (s) {
-								s.textContent = parts.join(' | ') || d.message;
-								s.style.color = d.success ? '#006414' : '#9b2c2c';
-							}
-						}).catch(function() {
-							if (s) { s.textContent = 'Network error.'; s.style.color = '#9b2c2c'; }
-						}).finally(function() { btn.disabled = false; btn.textContent = 'Test Troy'; });
-					};
-					</script>
+					<!-- Connection form logic handled by assets/src/build/connections.js -->
 				</section>
 			</div>
 
