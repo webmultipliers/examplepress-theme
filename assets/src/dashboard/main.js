@@ -6,8 +6,8 @@ import '../css/base.css';
 
 import { initLogger, log } from '../lib/logger.js';
 import { initApi } from '../lib/api.js';
-import { getUrlParams } from '../lib/url.js';
-import { initTabs, activateTab, hideTab, updateTabCount } from '../lib/tabs.js';
+
+import { initTabs, hideTab, updateTabCount } from '../lib/tabs.js';
 import { initModal, initEscapeHandler } from '../lib/modal.js';
 import { initNotifications, $activeNotifications } from '../stores/notifications.js';
 import { initHealth } from '../stores/health.js';
@@ -49,10 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// Initial counts.
 	updateCounts();
-
-	// Initial tab from URL.
-	const urlParams = getUrlParams();
-	activateTab(urlParams.tab || 'overview');
 
 	// Copy system report.
 	const copyBtn = document.getElementById('ep-copy-report');

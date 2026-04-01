@@ -58,11 +58,19 @@ export function closeAppModal(id) {
 /**
  * Initialize escape key handler for all modals.
  */
+let escapeInitialized = false;
+const escapeModalIds = new Set();
+
 export function initEscapeHandler(modalIds = []) {
+	modalIds.forEach(id => escapeModalIds.add(id));
+
+	if (escapeInitialized) return;
+	escapeInitialized = true;
+
 	document.addEventListener('keydown', (e) => {
 		if (e.key === 'Escape') {
 			closeModal();
-			modalIds.forEach(id => closeAppModal(id));
+			escapeModalIds.forEach(id => closeAppModal(id));
 		}
 	});
 }

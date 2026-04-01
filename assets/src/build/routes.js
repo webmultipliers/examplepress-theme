@@ -86,15 +86,10 @@ export function renderRoutes() {
 		return `<span data-app-filter="${id || ''}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:.02em;border:1.5px solid ${c};background:${bg};color:${fg};cursor:pointer;transition:all .2s;user-select:none;white-space:nowrap;font-family:var(--sans)">${dot}${esc(label)}${pri}</span>`;
 	}
 
-	const routeTabCount = document.querySelector('#t-routes .ep-tab-count');
-	if (routeTabCount && sorted.length) {
-		routeTabCount.textContent = sorted.length;
-	}
-
 	render();
 	log.info(`[ExamplePress] Routes: ${sorted.length} origins, ${totalSlugs} slugs, ${conflictN} conflicts`);
 
-	return sorted.length;
+	return totalSlugs;
 }
 
 function renderFlow(apps, sorted, conflicts, selectedApp) {

@@ -1,8 +1,10 @@
 /**
  * Tab switching, aria state, and count badges.
  */
-import { setUrlParams } from './url.js';
+import { getUrlParams, setUrlParams } from './url.js';
 import { log } from './logger.js';
+
+let initialized = false;
 
 export function activateTab(tabId) {
 	const tab = document.querySelector(`.ep-tab[data-tab-id="${tabId}"]`);
@@ -16,13 +18,19 @@ export function activateTab(tabId) {
 	log.info(`[ExamplePress] Tab activated: ${tabId}`);
 }
 
-export function initTabs() {
+export function initTabs(defaultTab = 'overview') {
+	if (initialized) return;
+	initialized = true;
+
 	document.querySelectorAll('.ep-tab').forEach(tab => {
 		tab.addEventListener('click', () => {
 			const tabId = tab.dataset.tabId;
 			if (tabId) activateTab(tabId);
 		});
 	});
+
+	const urlParams = getUrlParams();
+	activateTab(urlParams.tab || defaultTab);
 }
 
 export function hideTab(tabId) {
