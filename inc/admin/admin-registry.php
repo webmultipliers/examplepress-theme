@@ -289,6 +289,21 @@ function examplepress_register_core_admin_pages(): void {
 		},
 	] );
 
+	examplepress_register_admin_page( 'notifications', [
+		'page_title' => __( 'ExamplePress — Notifications', 'examplepress-theme' ),
+		'menu_title' => __( 'Notifications', 'examplepress-theme' ),
+		'position'   => 55,
+		'render'     => 'examplepress_render_notifications_page',
+		'enqueue'    => function () {
+			examplepress_vite_enqueue( 'notifications' );
+			wp_add_inline_script(
+				'ep-notifications',
+				'window.ExamplePressData = ' . wp_json_encode( examplepress_notifications_data() ) . ';',
+				'before'
+			);
+		},
+	] );
+
 	examplepress_register_admin_page( 'system', [
 		'page_title' => __( 'ExamplePress — System', 'examplepress-theme' ),
 		'menu_title' => __( 'System', 'examplepress-theme' ),

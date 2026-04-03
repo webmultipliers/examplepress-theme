@@ -1,18 +1,19 @@
 /**
  * System page entry point.
- * Tabs: Health (default), Routes, Blocks, Notifications
+ * Tabs: Health (default), Features, Routes, Blocks
  */
 import '../css/base.css';
 
 import { initLogger, log } from '../lib/logger.js';
 import { initApi } from '../lib/api.js';
 import { initTabs, updateTabCount } from '../lib/tabs.js';
+import { getUrlParams } from '../lib/url.js';
 import { initModal, initEscapeHandler } from '../lib/modal.js';
-import { initNotifications } from '../stores/notifications.js';
 import { renderHealth } from './health.js';
+import { renderFeatures } from './features.js';
 import { renderRoutes } from './routes.js';
 import { renderBlocks } from './blocks.js';
-import { renderNotifications } from './notifications.js';
+import { renderConfig } from './config.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 	const data = window.ExamplePressData;
@@ -24,13 +25,13 @@ document.addEventListener('DOMContentLoaded', () => {
 	initEscapeHandler();
 	initTabs('health');
 
-	initNotifications(data);
-
 	renderHealth(data.healthChecks);
+	const featureCount = renderFeatures(data.features, data.featureDetails);
 	const routeCount = renderRoutes();
 	const blockCount = renderBlocks(data.blocks);
-	renderNotifications(() => {});
+	renderConfig(data.configFiles, getUrlParams());
 
+	updateTabCount('t-features', featureCount);
 	updateTabCount('t-routes', routeCount);
 	updateTabCount('t-blocks', blockCount);
 

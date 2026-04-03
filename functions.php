@@ -46,6 +46,7 @@ if ( is_admin() ) {
 	require_once EP_THEME_PATH . '/inc/admin/pages/navigation.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/dependencies.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/library.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/notifications.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/system.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/docs.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/editor.php';

@@ -2,7 +2,7 @@
 /**
  * ExamplePress Admin — System Page
  *
- * Health checks, routes, blocks, and notifications.
+ * Health checks, feature registry, routes, and blocks.
  */
 
 declare( strict_types=1 );
@@ -20,11 +20,11 @@ function examplepress_system_data(): array {
 		'devMode'        => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
 		'page'           => 'system',
 		'healthChecks'   => examplepress_settings_get_health(),
+		'features'       => examplepress_settings_get_features(),
+		'featureDetails' => examplepress_settings_get_feature_details(),
 		'blocks'         => examplepress_settings_get_blocks(),
 		'routeTopology'  => examplepress_settings_get_route_topology(),
-		'notifications'  => examplepress_gather_notifications(),
-		'archived'       => examplepress_get_archived_notifications(),
-		'restUrl'        => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
+		'configFiles'    => examplepress_settings_get_config_files(),
 		'nonce'          => wp_create_nonce( 'wp_rest' ),
 	];
 }
@@ -47,10 +47,11 @@ function examplepress_render_system_page(): void {
 
 			<div class="ep-layout">
 			<nav class="ep-tabs" role="tablist">
-				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-health"        id="t-health"        data-tab-id="health">Health</button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-routes"         id="t-routes"        data-tab-id="routes">Routes<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-blocks"         id="t-blocks"        data-tab-id="blocks">Blocks<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-notifications"  id="t-notifications" data-tab-id="notifications">Notifications</button>
+				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-health"   id="t-health"   data-tab-id="health">Health</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-features"  id="t-features" data-tab-id="features">Features<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-routes"    id="t-routes"   data-tab-id="routes">Routes<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-blocks"    id="t-blocks"   data-tab-id="blocks">Blocks<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-config"    id="t-config"   data-tab-id="config">Config</button>
 			</nav>
 
 			<div class="ep-panels">
@@ -112,6 +113,15 @@ function examplepress_render_system_page(): void {
 				</section>
 			</div>
 
+			<!-- Features -->
+			<div class="ep-panel" id="p-features" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Feature Registry</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">All registered features &mdash; theme support, editor controls, guards, admin tweaks, and design tokens. Click any row for details.</p>
+					<div id="tbl-features"></div>
+				</section>
+			</div>
+
 			<!-- Routes -->
 			<div class="ep-panel" id="p-routes" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
@@ -126,8 +136,8 @@ function examplepress_render_system_page(): void {
 					<div id="ep-routes-stats" class="ep-overview-grid" style="grid-template-columns: repeat(4, 1fr);"></div>
 				</section>
 				<section class="ep-section">
-					<div id="ep-routes-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
-					<div id="ep-routes-view-toggle" style="display:flex;gap:2px;background:var(--surface-alt,#f0f0f1);border-radius:6px;padding:2px;width:fit-content;margin-bottom:16px;"></div>
+					<div id="ep-routes-filters" class="ep-routes-filters"></div>
+					<div id="ep-routes-view-toggle" class="ep-routes-view-toggle"></div>
 					<div id="ep-routes-content"></div>
 				</section>
 			</div>
@@ -141,16 +151,13 @@ function examplepress_render_system_page(): void {
 				</section>
 			</div>
 
-			<!-- Notifications -->
-			<div class="ep-panel" id="p-notifications" role="tabpanel" aria-hidden="true">
+			<!-- Config -->
+			<div class="ep-panel" id="p-config" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Notifications</span><div class="ep-section-line"></div></div>
-					<div class="ep-notif-subtabs" id="notif-subtabs">
-						<button class="ep-notif-subtab active" data-target="notices-active">Active</button>
-						<button class="ep-notif-subtab" data-target="notices-archived">Archived</button>
-					</div>
-					<div id="notices-active" class="ep-notif-list"></div>
-					<div id="notices-archived" class="ep-notif-list" style="display:none"></div>
+					<div class="ep-section-header"><span class="ep-section-title">Configuration Files</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Explore the configuration files that drive the theme. All values are read-only — edit the files directly in your project.</p>
+					<div class="ep-config-tabs" id="config-switcher"></div>
+					<div id="config-viewer"></div>
 				</section>
 			</div>
 

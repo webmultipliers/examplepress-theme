@@ -101,6 +101,7 @@ add_filter( 'script_loader_tag', function ( $tag, $handle ) {
 		'ep-dependencies',
 		'ep-library',
 		'ep-settings',
+		'ep-notifications',
 		'ep-system',
 		'ep-docs',
 		'ep-editor',

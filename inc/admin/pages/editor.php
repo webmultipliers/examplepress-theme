@@ -38,7 +38,6 @@ function examplepress_editor_data( string $slug ): array {
 	// Read app name from examplepress.json if available.
 	$json_path = $plugin_dir . '/examplepress.json';
 	$app_name  = $slug;
-	$app_json  = [];
 
 	if ( file_exists( $json_path ) ) {
 		$app_json = json_decode( file_get_contents( $json_path ), true ) ?: []; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
@@ -68,31 +67,31 @@ function examplepress_render_editor_page(): void {
 	$valid      = $slug && is_dir( $plugin_dir );
 	$apps_url   = examplepress_admin_page_url( 'apps' );
 	?>
-	<div class="ep-editor-wrapper" style="display:flex;flex-direction:column;height:calc(100vh - 32px);background:#fff;">
+	<div class="ep-settings-wrapper">
+	<div class="ep-editor-wrapper">
 
 		<?php if ( ! $valid ) : ?>
-			<div style="padding:40px;text-align:center;">
+			<div class="ep-editor-error">
 				<h2>App not found</h2>
 				<p>The plugin directory <code><?php echo esc_html( $slug ?: '(empty)' ); ?></code> does not exist.</p>
-				<a href="<?php echo esc_url( $apps_url ); ?>" class="button button-primary">&larr; Back to Apps</a>
+				<a href="<?php echo esc_url( $apps_url ); ?>" class="ep-demo-btn ep-demo-btn-primary">&larr; Back to Apps</a>
 			</div>
 		<?php else : ?>
-			<!-- Toolbar -->
-			<div class="ep-editor-toolbar" style="display:flex;align-items:center;gap:12px;padding:6px 16px;border-bottom:1px solid #c3c4c7;flex-shrink:0;background:#f0f0f1;">
-				<a href="<?php echo esc_url( $apps_url ); ?>" style="text-decoration:none;color:#2271b1;font-size:13px;">&larr; Apps</a>
-				<span id="ep-editor-app-name" style="font-weight:600;font-size:13px;"></span>
-				<span id="ep-editor-file-path" style="color:#646970;font-size:12px;font-family:monospace;"></span>
-				<span style="flex:1;"></span>
-				<span id="ep-editor-status" style="font-size:12px;color:#646970;"></span>
-				<button id="ep-editor-save" class="button button-primary" disabled style="font-size:12px;padding:2px 12px;">Save</button>
+			<div class="ep-editor-toolbar">
+				<a href="<?php echo esc_url( $apps_url ); ?>" class="ep-editor-toolbar-back">&larr; Apps</a>
+				<span id="ep-editor-app-name" class="ep-editor-app-name"></span>
+				<span id="ep-editor-file-path" class="ep-editor-file-path"></span>
+				<span class="ep-editor-spacer"></span>
+				<span id="ep-editor-status" class="ep-editor-status"></span>
+				<button id="ep-editor-save" class="ep-editor-save" disabled>Save</button>
 			</div>
-			<!-- Body: tree + editor -->
-			<div style="display:flex;flex:1;overflow:hidden;">
-				<div id="ep-editor-tree" style="width:240px;border-right:1px solid #c3c4c7;overflow-y:auto;font-size:12px;background:#f6f7f7;padding:8px 0;"></div>
-				<div id="ep-editor-container" style="flex:1;overflow:hidden;"></div>
+			<div class="ep-editor-body">
+				<div id="ep-editor-tree" class="ep-editor-tree"></div>
+				<div id="ep-editor-container" class="ep-editor-container"></div>
 			</div>
 		<?php endif; ?>
 
+	</div>
 	</div>
 	<?php
 }

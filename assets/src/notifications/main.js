@@ -1,13 +1,14 @@
 /**
- * Theme page entry point.
- * Tabs: Color Palette (default), Layout, Typography, Size Scale
+ * Notifications page entry point.
+ * Tabs: Active (default), Archived
  */
 import '../css/base.css';
 
 import { initLogger, log } from '../lib/logger.js';
 import { initApi } from '../lib/api.js';
 import { initTabs } from '../lib/tabs.js';
-import { renderDesign } from './design.js';
+import { initNotifications } from '../stores/notifications.js';
+import { renderNotifications } from './notifications.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 	const data = window.ExamplePressData;
@@ -15,10 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	initLogger(data.devMode);
 	initApi(data.nonce);
-	initTabs('colors');
+	initTabs('active');
 
-	const { colors, layout, fonts, sizes } = data;
-	renderDesign(colors || [], layout, fonts || [], sizes || []);
+	initNotifications(data);
+	renderNotifications(() => {});
 
-	log.info('[ExamplePress] Theme page ready.');
+	log.info('[ExamplePress] Notifications page ready.');
 });

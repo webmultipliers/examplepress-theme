@@ -92,8 +92,8 @@ function examplepress_render_settings_page(): void {
 								</div>
 								<span class="ep-build-hint">Grants repo creation + code push on your org. No shared secrets.</span>
 							</div>
-							<div class="ep-conn-field" style="border-top:1px solid #c3c4c7;padding-top:0.6rem;margin-top:0.2rem;">
-								<label class="ep-build-label" style="color:#50575e;font-size:0.68rem;">Or use a token instead</label>
+							<div class="ep-conn-field ep-conn-field-separator">
+								<label class="ep-build-label">Or use a token instead</label>
 							<?php else : ?>
 							<div class="ep-conn-field">
 								<label class="ep-build-label">Write Access Token</label>

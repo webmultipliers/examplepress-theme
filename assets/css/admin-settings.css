@@ -2994,3 +2994,168 @@ ul#adminmenu>li.current>a.current:after {
 [data-app-filter]:hover {
   transform: translateY(-1px);
 }
+
+/* ── Routes layout helpers ────────────────────────────────────── */
+
+.ep-routes-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ep-routes-view-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--surface-alt);
+  border-radius: 6px;
+  padding: 2px;
+  width: fit-content;
+  margin-bottom: 16px;
+}
+
+/* ── Editor page ──────────────────────────────────────────────── */
+
+.ep-editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 32px);
+  background: var(--surface);
+}
+
+.ep-editor-error {
+  padding: 40px;
+  text-align: center;
+}
+
+.ep-editor-error h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.ep-editor-error p {
+  color: var(--text-faint);
+  margin: 0 0 16px;
+}
+
+.ep-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg);
+  font-family: var(--sans);
+}
+
+.ep-editor-toolbar-back {
+  text-decoration: none;
+  color: var(--accent-text);
+  font-size: 13px;
+}
+
+.ep-editor-toolbar-back:hover {
+  color: var(--accent-hover-text);
+}
+
+.ep-editor-app-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.ep-editor-file-path {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-family: var(--mono);
+}
+
+.ep-editor-spacer {
+  flex: 1;
+}
+
+.ep-editor-status {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.ep-editor-save {
+  font-size: 12px;
+  padding: 4px 14px;
+  border: 1px solid var(--accent-ui);
+  border-radius: var(--radius);
+  background: var(--accent-ui);
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-weight: 500;
+  transition: background var(--ease), border-color var(--ease);
+}
+
+.ep-editor-save:hover:not(:disabled) {
+  background: var(--accent-hover-ui);
+  border-color: var(--accent-hover-ui);
+}
+
+.ep-editor-save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ep-editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.ep-editor-tree {
+  width: 240px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  font-size: 12px;
+  background: var(--surface-alt);
+  padding: 8px 0;
+  font-family: var(--sans);
+}
+
+.ep-editor-container {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Connections field separator ──────────────────────────────── */
+
+.ep-conn-field-separator {
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+  margin-top: 0.2rem;
+}
+
+.ep-conn-field-separator .ep-build-label {
+  color: var(--text-faint);
+  font-size: 0.68rem;
+}
+
+/* ── Editor toolbar secondary button ─────────────────────────── */
+
+.ep-editor-btn-secondary {
+  font-size: 12px;
+  padding: 4px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background var(--ease), border-color var(--ease);
+}
+
+.ep-editor-btn-secondary:hover {
+  background: var(--surface-alt);
+  border-color: var(--border-strong);
+  color: var(--text);
+}

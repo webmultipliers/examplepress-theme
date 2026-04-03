@@ -50,8 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				: `https://github.com/codespaces/new?repo=${encodeURIComponent(data.github.owner_repo)}`;
 			csBtn.target = '_blank';
 			csBtn.rel = 'noopener';
-			csBtn.className = 'button';
-			csBtn.style.cssText = 'font-size:12px;padding:2px 12px;margin-right:4px;';
+			csBtn.className = 'ep-editor-btn-secondary';
 			csBtn.textContent = 'Codespace';
 			toolbar.insertBefore(csBtn, saveBtn);
 		}

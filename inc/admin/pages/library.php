@@ -34,9 +34,14 @@ function examplepress_render_library_page(): void {
 
 			<?php examplepress_render_page_header( $is_dev ); ?>
 
+			<div class="ep-layout">
+			<nav class="ep-tabs" role="tablist">
+				<button class="ep-tab" role="tab" aria-selected="true" aria-controls="p-library" id="t-library" data-tab-id="library">Library</button>
+			</nav>
+
 			<div class="ep-panels">
 
-			<div id="p-library">
+			<div class="ep-panel" id="p-library" role="tabpanel" aria-hidden="false">
 				<section class="ep-section ep-library-hero">
 					<div class="ep-library-icon">&#9783;</div>
 					<div class="ep-doc-section-title">The Component Library is arriving soon.</div>
@@ -46,6 +51,7 @@ function examplepress_render_library_page(): void {
 			</div>
 
 			</div><!-- /.ep-panels -->
+			</div><!-- /.ep-layout -->
 
 		</div>
 	</div>
