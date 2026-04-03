@@ -181,6 +181,19 @@
 	},
 	"dependencies": [
 		{
+			"slug": "examplepress-theme-update",
+			"name": "ExamplePress Theme Update",
+			"tier": "required",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "examplepress-theme-update/examplepress-theme-update.php",
+			"source": {
+				"type": "direct",
+				"url": "https://github.com/webmultipliers/examplepress-theme-update"
+			}
+		},
+		{
 			"slug": "blockstudio",
 			"name": "Blockstudio",
 			"tier": "required",

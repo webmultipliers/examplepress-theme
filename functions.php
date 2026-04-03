@@ -53,9 +53,7 @@ if ( is_admin() ) {
 }
 
 require_once EP_THEME_PATH . '/inc/cli.php';
-require_once EP_THEME_PATH . '/inc/updater.php';
-
-new ExamplePress_Updater();
+require_once EP_THEME_PATH . '/inc/updater-bootstrap.php';
 
 /**
  * Theme setup.
