@@ -2,7 +2,7 @@
 /**
  * ExamplePress Admin — System Page
  *
- * Health checks, environment info, and support.
+ * Health checks, routes, blocks, and notifications.
  */
 
 declare( strict_types=1 );
@@ -16,11 +16,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function examplepress_system_data(): array {
 	return [
-		'themeVersion'  => EP_THEME_VERSION,
-		'devMode'       => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
-		'page'          => 'system',
-		'healthChecks'  => examplepress_settings_get_health(),
-		'nonce'         => wp_create_nonce( 'wp_rest' ),
+		'themeVersion'   => EP_THEME_VERSION,
+		'devMode'        => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
+		'page'           => 'system',
+		'healthChecks'   => examplepress_settings_get_health(),
+		'blocks'         => examplepress_settings_get_blocks(),
+		'routeTopology'  => examplepress_settings_get_route_topology(),
+		'notifications'  => examplepress_gather_notifications(),
+		'archived'       => examplepress_get_archived_notifications(),
+		'restUrl'        => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
+		'nonce'          => wp_create_nonce( 'wp_rest' ),
 	];
 }
 
@@ -42,8 +47,10 @@ function examplepress_render_system_page(): void {
 
 			<div class="ep-layout">
 			<nav class="ep-tabs" role="tablist">
-				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-health"  id="t-health"  data-tab-id="health">Health</button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-support" id="t-support" data-tab-id="support">Support</button>
+				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-health"        id="t-health"        data-tab-id="health">Health</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-routes"         id="t-routes"        data-tab-id="routes">Routes<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-blocks"         id="t-blocks"        data-tab-id="blocks">Blocks<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-notifications"  id="t-notifications" data-tab-id="notifications">Notifications</button>
 			</nav>
 
 			<div class="ep-panels">
@@ -105,37 +112,45 @@ function examplepress_render_system_page(): void {
 				</section>
 			</div>
 
-			<!-- Support -->
-			<div class="ep-panel" id="p-support" role="tabpanel" aria-hidden="true">
+			<!-- Routes -->
+			<div class="ep-panel" id="p-routes" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
-					<div class="ep-doc-section-title">Support &amp; Resources</div>
-					<p class="ep-doc-section-desc">Get help, contribute, and connect with the ExamplePress ecosystem.</p>
-					<div class="ep-support-grid">
-						<a class="ep-support-card" href="https://github.com/flavor/flavor" target="_blank" rel="noopener">
-							<div class="ep-support-card-eyebrow">Framework</div>
-							<div class="ep-support-card-title">Blockstudio</div>
-							<div class="ep-support-card-desc">The open-source block framework ExamplePress is built on. Block registration, fields, rendering, SCSS/Tailwind, and developer tools.</div>
-							<div class="ep-support-card-link">GitHub &rarr;</div>
-						</a>
-						<div class="ep-support-card">
-							<div class="ep-support-card-eyebrow">Coming Soon</div>
-							<div class="ep-support-card-title">ExamplePress Support</div>
-							<div class="ep-support-card-desc">Advanced support packages for teams building on ExamplePress. Dedicated onboarding, architecture review, and priority issue resolution.</div>
-							<span class="ep-badge badge-info"><span class="ep-dot"></span>Coming Soon</span>
-						</div>
-						<a class="ep-support-card" href="https://github.com/webmultipliers/examplepress-theme" target="_blank" rel="noopener">
-							<div class="ep-support-card-eyebrow">Open Source</div>
-							<div class="ep-support-card-title">Contribute</div>
-							<div class="ep-support-card-desc">Report bugs, suggest features, or submit pull requests. ExamplePress is open source and built for the community.</div>
-							<div class="ep-support-card-link">GitHub &rarr;</div>
-						</a>
-						<a class="ep-support-card" href="https://examplepress.com/contact" target="_blank" rel="noopener">
-							<div class="ep-support-card-eyebrow">Contact</div>
-							<div class="ep-support-card-title">Get In Touch</div>
-							<div class="ep-support-card-desc">Questions about licensing, partnerships, or enterprise deployments? Reach out to the team directly.</div>
-							<div class="ep-support-card-link">examplepress.com &rarr;</div>
-						</a>
+					<div class="ep-doc-section-title">Route Aggregator</div>
+					<div class="ep-section-desc">
+						Visualizing the dispatch topology across all registered companion apps.
+						Each app declares route slugs with condition closures and a priority.
+						The router evaluates origins in priority order and dispatches the first match.
 					</div>
+				</section>
+				<section class="ep-section">
+					<div id="ep-routes-stats" class="ep-overview-grid" style="grid-template-columns: repeat(4, 1fr);"></div>
+				</section>
+				<section class="ep-section">
+					<div id="ep-routes-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+					<div id="ep-routes-view-toggle" style="display:flex;gap:2px;background:var(--surface-alt,#f0f0f1);border-radius:6px;padding:2px;width:fit-content;margin-bottom:16px;"></div>
+					<div id="ep-routes-content"></div>
+				</section>
+			</div>
+
+			<!-- Blocks -->
+			<div class="ep-panel" id="p-blocks" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Block Registry</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">All Blockstudio blocks discovered in the active theme and companion plugins, grouped by namespace. Template blocks are blocks the router can dispatch to.</p>
+					<div class="ep-table" id="tbl-blocks"></div>
+				</section>
+			</div>
+
+			<!-- Notifications -->
+			<div class="ep-panel" id="p-notifications" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Notifications</span><div class="ep-section-line"></div></div>
+					<div class="ep-notif-subtabs" id="notif-subtabs">
+						<button class="ep-notif-subtab active" data-target="notices-active">Active</button>
+						<button class="ep-notif-subtab" data-target="notices-archived">Archived</button>
+					</div>
+					<div id="notices-active" class="ep-notif-list"></div>
+					<div id="notices-archived" class="ep-notif-list" style="display:none"></div>
 				</section>
 			</div>
 
@@ -143,6 +158,9 @@ function examplepress_render_system_page(): void {
 			</div><!-- /.ep-layout -->
 
 		</div>
+
+		<?php examplepress_render_detail_modal(); ?>
+
 	</div>
 	<?php
 }

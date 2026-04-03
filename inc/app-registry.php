@@ -18,11 +18,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Option key for the legacy app registry (pre-CPT migration).
- */
-define( 'EP_APP_REGISTRY_OPTION', 'ep_app_registry' );
-
 // ── CRUD ──────────────────────────────────────────────────────────
 
 /**

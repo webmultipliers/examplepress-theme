@@ -19,6 +19,7 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 /**
  * Core includes.
  */
+require_once EP_THEME_PATH . '/inc/helpers.php';
 require_once EP_THEME_PATH . '/inc/config.php';
 require_once EP_THEME_PATH . '/inc/feature-registry.php';
 require_once EP_THEME_PATH . '/inc/features.php';
@@ -36,15 +37,17 @@ require_once EP_THEME_PATH . '/inc/api.php';
 
 if ( is_admin() ) {
 	require_once EP_THEME_PATH . '/inc/admin/admin-assets.php';
-	require_once EP_THEME_PATH . '/inc/admin/settings-page.php';  // data helpers
+	require_once EP_THEME_PATH . '/inc/admin/settings-data.php';
 	require_once EP_THEME_PATH . '/inc/admin/admin-registry.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/shared.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/dashboard.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/settings.php';    // before apps (defines connection state helper)
 	require_once EP_THEME_PATH . '/inc/admin/pages/apps.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/theme.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/routing.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/reference.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/navigation.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/dependencies.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/library.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/system.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/docs.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/editor.php';
 }
 

@@ -98,13 +98,19 @@ export function renderAppsTable() {
 			? `<strong>v${esc(app.version)}</strong>`
 			: '<span class="ep-apps-empty">&mdash;</span>';
 
+		// Editor link (in-browser Monaco editor).
+		const editorUrl = data.editorUrl ? data.editorUrl.replace('__SLUG__', encodeURIComponent(app.slug)) : '';
+		const editorLink = editorUrl && !isOrphan
+			? `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="${esc(editorUrl)}">Edit</a></span>`
+			: '';
+
 		// Codespace link.
 		const ghRepoId = (app.github && app.github.repo_id) || (app.troy && app.troy.repo_id) || '';
 		let codespaceLink = '';
 		if (ghRepo) {
 			codespaceLink = ghRepoId
-				? `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="#" data-action="codespace" data-repo-id="${esc(ghRepoId)}" class="ep-apps-action-edit">Edit</a></span>`
-				: `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="https://github.com/codespaces/new?hide_repo_select=true&repo=${encodeURIComponent(ghRepo)}" target="_blank" rel="noopener" class="ep-apps-action-edit">Edit</a></span>`;
+				? `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="#" data-action="codespace" data-repo-id="${esc(ghRepoId)}" class="ep-apps-action-edit">Codespace</a></span>`
+				: `<span class="ep-apps-sep">|</span><span class="ep-apps-action"><a href="https://github.com/codespaces/new?hide_repo_select=true&repo=${encodeURIComponent(ghRepo)}" target="_blank" rel="noopener" class="ep-apps-action-edit">Codespace</a></span>`;
 		}
 
 		// Row actions.
@@ -123,6 +129,7 @@ export function renderAppsTable() {
 				${activateAction}
 				<span class="ep-apps-sep">|</span>
 				<span class="ep-apps-action"><a href="${esc(data.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Locate</a></span>
+				${editorLink}
 				<span class="ep-apps-sep">|</span>
 				<span class="ep-apps-action"><a href="https://github.com/${esc(ghRepo)}" target="_blank" rel="noopener" class="ep-apps-action-repo">Repo</a></span>
 				${codespaceLink}
@@ -139,6 +146,7 @@ export function renderAppsTable() {
 				${activateAction}
 				<span class="ep-apps-sep">|</span>
 				<span class="ep-apps-action"><a href="${esc(data.adminUrl || '')}plugins.php?s=${esc(app.slug)}" target="_blank">Locate</a></span>
+				${editorLink}
 				<span class="ep-apps-sep">|</span>
 				<span class="ep-apps-action"><a href="#" data-action="manage" data-slug="${esc(app.slug)}" class="ep-apps-action-manage">Connect</a></span>
 			`;
@@ -275,7 +283,7 @@ async function fetchAppHealth(slug) {
 	if (badge) badge.innerHTML = '&#8987; Checking&hellip;';
 
 	try {
-		const res = await fetch(`${data.appsHealthUrl}/${encodeURIComponent(slug)}/health`, {
+		const res = await fetch(`${data.appsBaseUrl}/${encodeURIComponent(slug)}/health`, {
 			headers: { 'X-WP-Nonce': data.nonce },
 		});
 		const result = await res.json();
@@ -315,7 +323,7 @@ export async function handleConnect(slug) {
 	if (link) { link.textContent = 'Connecting...'; link.style.pointerEvents = 'none'; }
 
 	try {
-		const res = await fetch(`${data.appsDeactivateUrl}/${slug}/connect`, {
+		const res = await fetch(`${data.appsBaseUrl}/${slug}/connect`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': data.nonce },
 		});
@@ -344,7 +352,7 @@ export async function handleConnect(slug) {
 async function handleDeactivate(slug) {
 	const data = window.ExamplePressData;
 	try {
-		const res = await fetch(`${data.appsDeactivateUrl}/${slug}/deactivate`, {
+		const res = await fetch(`${data.appsBaseUrl}/${slug}/deactivate`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': data.nonce },
 		});
@@ -369,7 +377,7 @@ async function handleDestroy(slug, link) {
 	if (link) { link.textContent = 'Deleting...'; link.style.pointerEvents = 'none'; }
 
 	try {
-		const res = await fetch(`${data.appsDeactivateUrl}/${slug}/destroy`, {
+		const res = await fetch(`${data.appsBaseUrl}/${slug}/destroy`, {
 			method: 'DELETE',
 			headers: { 'X-WP-Nonce': data.nonce },
 		});

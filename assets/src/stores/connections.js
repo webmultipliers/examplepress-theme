@@ -6,8 +6,16 @@ import { atom } from 'nanostores';
 export const $connections = atom({
 	hasGithubApp: false,
 	hasGithubPat: false,
+	githubAppAvail: false,
+	githubAppSlug: '',
+	githubOrg: '',
+	appTemplateRepo: '',
 	hasTroyUrl: false,
 	hasTroyCreds: false,
+	hasTroyGithubPat: false,
+	troyServerUrl: '',
+	testGithubUrl: '',
+	testTroyUrl: '',
 });
 
 export function initConnections(data) {

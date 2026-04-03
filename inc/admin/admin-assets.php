@@ -93,7 +93,18 @@ function examplepress_vite_enqueue( string $entry ) {
  * Add type="module" to Vite-managed scripts.
  */
 add_filter( 'script_loader_tag', function ( $tag, $handle ) {
-	$vite_handles = [ 'ep-vite-client', 'ep-dashboard', 'ep-theme', 'ep-build', 'ep-reference', 'ep-routing', 'ep-system', 'ep-editor' ];
+	$vite_handles = [
+		'ep-vite-client',
+		'ep-apps',
+		'ep-theme',
+		'ep-navigation',
+		'ep-dependencies',
+		'ep-library',
+		'ep-settings',
+		'ep-system',
+		'ep-docs',
+		'ep-editor',
+	];
 	if ( in_array( $handle, $vite_handles, true ) ) {
 		$tag = str_replace( '<script ', '<script type="module" ', $tag );
 	}

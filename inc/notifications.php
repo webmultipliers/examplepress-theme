@@ -13,7 +13,9 @@
 
 // ── REST Endpoint ──────────────────────────────────────────────────
 
-add_action( 'rest_api_init', function () {
+add_action( 'rest_api_init', 'examplepress_register_notification_routes' );
+
+function examplepress_register_notification_routes() {
 	register_rest_route( 'examplepress/v1', '/notifications/archive', [
 		'methods'             => 'POST',
 		'callback'            => 'examplepress_archive_notification',
@@ -39,7 +41,7 @@ add_action( 'rest_api_init', function () {
 			],
 		],
 	] );
-} );
+}
 
 /**
  * Handle archive/restore requests for individual notifications.

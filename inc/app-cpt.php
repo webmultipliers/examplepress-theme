@@ -2,9 +2,10 @@
 /**
  * ExamplePress App CPT
  *
- * Shadow Custom Post Type for companion app tracking. Replaces the
- * serialized `ep_app_registry` option with proper WP_Post storage.
- * The CPT is a data store only — show_ui is false.
+ * Shadow Custom Post Type for companion app tracking.
+ * The CPT is a data store only — show_ui is false. All access is
+ * gated by `manage_options` checks in the REST endpoints, so the
+ * CPT uses standard `post` capabilities (no custom cap model).
  */
 
 declare( strict_types=1 );
@@ -28,37 +29,8 @@ function examplepress_register_app_cpt(): void {
 		'show_in_rest'        => false,
 		'exclude_from_search' => true,
 		'supports'            => [ 'title' ],
-		'capability_type'     => [ 'ep_app', 'ep_apps' ],
-		'map_meta_cap'        => true,
+		'capability_type'     => 'post',
 	] );
-}
-
-// ── Capability Grants ───────────────────────────────────────────
-
-add_action( 'after_switch_theme', 'examplepress_grant_app_caps' );
-
-function examplepress_grant_app_caps(): void {
-	$role = get_role( 'administrator' );
-
-	if ( ! $role ) {
-		return;
-	}
-
-	$caps = [
-		'edit_ep_app',
-		'read_ep_app',
-		'delete_ep_app',
-		'edit_ep_apps',
-		'edit_others_ep_apps',
-		'publish_ep_apps',
-		'read_private_ep_apps',
-		'delete_ep_apps',
-		'delete_others_ep_apps',
-	];
-
-	foreach ( $caps as $cap ) {
-		$role->add_cap( $cap );
-	}
 }
 
 // ── Helpers ─────────────────────────────────────────────────────
@@ -159,44 +131,4 @@ function examplepress_cpt_write_meta( int $post_id, array $data ): void {
 			}
 		}
 	}
-}
-
-// ── Migration ───────────────────────────────────────────────────
-
-add_action( 'admin_init', 'examplepress_migrate_app_registry' );
-
-function examplepress_migrate_app_registry(): void {
-	$registry = get_option( EP_APP_REGISTRY_OPTION, null );
-
-	if ( $registry === null ) {
-		return; // Nothing to migrate.
-	}
-
-	if ( empty( $registry ) || ! is_array( $registry ) ) {
-		delete_option( EP_APP_REGISTRY_OPTION );
-		return;
-	}
-
-	foreach ( $registry as $slug => $record ) {
-		// Skip if already migrated.
-		if ( examplepress_registry_get_post( $slug ) ) {
-			continue;
-		}
-
-		$post_id = wp_insert_post( [
-			'post_type'   => 'ep_app',
-			'post_title'  => $record['name'] ?? $slug,
-			'post_name'   => $slug,
-			'post_status' => 'draft',
-		] );
-
-		if ( is_wp_error( $post_id ) ) {
-			continue;
-		}
-
-		update_post_meta( $post_id, '_ep_plugin_slug', $slug );
-		examplepress_cpt_write_meta( $post_id, $record );
-	}
-
-	delete_option( EP_APP_REGISTRY_OPTION );
 }

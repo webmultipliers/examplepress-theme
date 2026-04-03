@@ -2,33 +2,13 @@
 /**
  * ExamplePress Admin — Apps Page
  *
- * Companion app management: scaffold, connect, health, and connections.
+ * Companion app management: scaffold, connect, health, and demo.
  */
 
 declare( strict_types=1 );
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
-}
-
-/**
- * Connection state helper for the apps page.
- */
-function examplepress_apps_connection_state(): array {
-	return [
-		'hasGithubPat'     => (bool) get_option( 'ep_github_pat', '' ),
-		'hasGithubApp'     => function_exists( 'examplepress_github_app_is_installed' ) && examplepress_github_app_is_installed(),
-		'githubAppAvail'   => function_exists( 'examplepress_github_app_is_configured' ) && examplepress_github_app_is_configured(),
-		'githubAppSlug'    => function_exists( 'examplepress_get_github_app_slug' ) ? examplepress_get_github_app_slug() : '',
-		'githubOrg'        => get_option( 'ep_github_org', 'webmultipliers' ),
-		'appTemplateRepo'  => get_option( 'ep_app_template_repo', defined( 'EP_DEFAULT_TEMPLATE_REPO' ) ? EP_DEFAULT_TEMPLATE_REPO : '' ),
-		'hasTroyUrl'       => (bool) get_option( 'ep_troy_server_url', '' ),
-		'hasTroyCreds'     => (bool) get_option( 'ep_troy_credentials', '' ),
-		'hasTroyGithubPat' => (bool) get_option( 'ep_troy_github_pat', '' ),
-		'troyServerUrl'    => get_option( 'ep_troy_server_url', '' ),
-		'testGithubUrl'    => esc_url_raw( rest_url( 'examplepress/v1/settings/test-github' ) ),
-		'testTroyUrl'      => esc_url_raw( rest_url( 'examplepress/v1/settings/test-troy' ) ),
-	];
 }
 
 /**
@@ -40,15 +20,16 @@ function examplepress_apps_data(): array {
 		'devMode'           => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
 		'page'              => 'apps',
 		'apps'              => function_exists( 'examplepress_get_apps' ) ? examplepress_get_apps() : [],
+		'appsBaseUrl'       => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
 		'appsScaffoldUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps/scaffold' ) ),
-		'appsTroyBindUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
-		'appsDeactivateUrl' => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
-		'appsHealthUrl'     => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
-		'connectionsUrl'    => esc_url_raw( rest_url( 'examplepress/v1/settings/connections' ) ),
-		'connections'       => examplepress_apps_connection_state(),
 		'editorUrl'         => examplepress_admin_page_url( 'editor', [ 'app' => '__SLUG__' ] ),
 		'troyCloudUrl'      => examplepress_get_troy_cloud_url(),
 		'adminUrl'          => esc_url( admin_url() ),
+		'demo'              => [
+			'status' => function_exists( 'examplepress_get_demo_status' ) ? examplepress_get_demo_status() : 'not-installed',
+		],
+		'demoInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
+		'demoUninstallUrl'  => esc_url_raw( rest_url( 'examplepress/v1/demo/uninstall' ) ),
 		'nonce'             => wp_create_nonce( 'wp_rest' ),
 	];
 }
@@ -144,8 +125,6 @@ function examplepress_render_app_modals(): void {
  */
 function examplepress_render_apps_page(): void {
 	$is_dev = defined( 'EP_DEV_MODE' ) && EP_DEV_MODE;
-	$ep_github_app_available = function_exists( 'examplepress_github_app_is_configured' ) && examplepress_github_app_is_configured();
-	$ep_github_app_installed = function_exists( 'examplepress_github_app_is_installed' ) && examplepress_github_app_is_installed();
 	?>
 	<div class="ep-settings-wrapper">
 		<div class="ep-settings">
@@ -154,14 +133,14 @@ function examplepress_render_apps_page(): void {
 
 			<div class="ep-layout">
 			<nav class="ep-tabs" role="tablist">
-				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-build"       id="t-build"       data-tab-id="build">Apps</button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-connections"  id="t-connections"  data-tab-id="connections">Connections</button>
+				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-apps" id="t-apps" data-tab-id="apps">Apps</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-demo" id="t-demo" data-tab-id="demo">Demo</button>
 			</nav>
 
 			<div class="ep-panels">
 
-			<!-- Build / Apps -->
-			<div class="ep-panel" id="p-build" role="tabpanel" aria-hidden="false">
+			<!-- Apps -->
+			<div class="ep-panel" id="p-apps" role="tabpanel" aria-hidden="false">
 
 				<!-- Workflow Explanation -->
 				<section class="ep-section">
@@ -213,78 +192,19 @@ function examplepress_render_apps_page(): void {
 
 			</div>
 
-			<!-- Connections -->
-			<div class="ep-panel" id="p-connections" role="tabpanel" aria-hidden="true">
-				<section class="ep-section" id="ep-connections-section">
-					<div class="ep-section-header"><span class="ep-section-title">Connections</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Configure credentials for the automated scaffold pipeline. Without these, the "+ New App" flow scaffolds locally only.</p>
-					<div class="ep-connections-grid" id="ep-connections-grid">
-						<div class="ep-conn-group">
-							<div class="ep-conn-group-title">GitHub</div>
-							<div class="ep-conn-field">
-								<label class="ep-build-label" for="ep-conn-github-org">Organization</label>
-								<input type="text" id="ep-conn-github-org" placeholder="webmultipliers" />
-							</div>
-							<div class="ep-conn-field">
-								<label class="ep-build-label" for="ep-conn-app-template">App Template Repository</label>
-								<input type="text" id="ep-conn-app-template" placeholder="<?php echo esc_attr( EP_DEFAULT_TEMPLATE_REPO ); ?>" />
-								<span class="ep-build-hint">GitHub template repo used when scaffolding new apps. Use your own to customize the boilerplate.</span>
-							</div>
-							<?php if ( $ep_github_app_available ) : ?>
-							<div class="ep-conn-field">
-								<label class="ep-build-label">App Authorization</label>
-								<div class="ep-troy-auth-row">
-									<button class="ep-demo-btn ep-demo-btn-primary" id="ep-conn-github-app-btn" type="button">Install GitHub App</button>
-									<span class="ep-troy-auth-status" id="ep-github-app-status"></span>
-								</div>
-								<span class="ep-build-hint">Grants repo creation + code push on your org. No shared secrets.</span>
-							</div>
-							<div class="ep-conn-field" style="border-top:1px solid #c3c4c7;padding-top:0.6rem;margin-top:0.2rem;">
-								<label class="ep-build-label" style="color:#50575e;font-size:0.68rem;">Or use a token instead</label>
-							<?php else : ?>
-							<div class="ep-conn-field">
-								<label class="ep-build-label">Write Access Token</label>
-							<?php endif; ?>
-								<input type="password" id="ep-conn-github-pat" placeholder="github_pat_..." autocomplete="off" />
-								<span class="ep-build-hint">Fine-grained PAT. Permissions: <code>Administration</code> (R/W) + <code>Contents</code> (R/W). <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create token &rarr;</a></span>
-							</div>
-							<div class="ep-conn-field">
-								<div class="ep-troy-auth-row">
-									<button class="ep-demo-btn" id="ep-test-github-btn" type="button">Test GitHub</button>
-									<span class="ep-troy-auth-status" id="ep-test-github-status"></span>
-								</div>
-							</div>
+			<!-- Demo -->
+			<div class="ep-panel" id="p-demo" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Demo Companion Plugin</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Install a working demo companion plugin to see the routing contract in action. The demo claims its own namespace, defines a routing cascade, and renders distinct template blocks. Inspect the source, then remove it when you're ready to scaffold your own.</p>
+
+					<div class="ep-demo-panel" id="ep-demo-panel">
+						<div class="ep-demo-status">
+							<div class="ep-demo-status-label">Status</div>
+							<span class="ep-badge" id="ep-demo-badge"></span>
 						</div>
-						<details class="ep-conn-group ep-conn-group-troy">
-							<summary class="ep-conn-group-title" style="cursor:pointer;">Troy Server <span class="ep-build-hint" style="font-weight:normal;margin-left:6px;">Optional &mdash; for multi-site distribution</span></summary>
-							<div class="ep-conn-field">
-								<label class="ep-build-label" for="ep-conn-troy-url">Server URL</label>
-								<input type="url" id="ep-conn-troy-url" placeholder="https://internal.repo.mustuse.com" />
-							</div>
-							<div class="ep-conn-field">
-								<label class="ep-build-label">Authorization</label>
-								<div class="ep-troy-auth-row">
-									<button class="ep-demo-btn ep-demo-btn-primary" id="ep-conn-troy-auth-btn" type="button">Authorize with Troy</button>
-									<span class="ep-troy-auth-status" id="ep-troy-auth-status"></span>
-								</div>
-								<span class="ep-build-hint">Opens the Troy Server to create an application password automatically.</span>
-							</div>
-							<div class="ep-conn-field">
-								<label class="ep-build-label" for="ep-conn-troy-github-pat">GitHub Read Token</label>
-								<input type="password" id="ep-conn-troy-github-pat" placeholder="github_pat_..." autocomplete="off" />
-								<span class="ep-build-hint">Fine-grained PAT with <code>Contents</code> (Read). Passed to Troy for tag fetching and ZIP downloads from private repos.</span>
-							</div>
-							<div class="ep-conn-field">
-								<div class="ep-troy-auth-row">
-									<button class="ep-demo-btn" id="ep-test-troy-btn" type="button">Test Troy</button>
-									<span class="ep-troy-auth-status" id="ep-test-troy-status"></span>
-								</div>
-							</div>
-						</details>
-					</div>
-					<div class="ep-conn-actions">
-						<button class="ep-build-submit" id="ep-conn-save-btn" type="button">Save Connections</button>
-						<span class="ep-conn-status" id="ep-conn-status"></span>
+						<p class="ep-demo-message" id="ep-demo-message"></p>
+						<div class="ep-demo-actions" id="ep-demo-actions"></div>
 					</div>
 				</section>
 			</div>

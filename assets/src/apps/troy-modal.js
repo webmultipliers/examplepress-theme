@@ -37,7 +37,7 @@ export function initTroyModal(data) {
 						if (errEl) { errEl.textContent = 'Please enter a Troy server URL.'; errEl.style.display = ''; }
 						return;
 					}
-					const res = await fetch(`${data.appsDeactivateUrl}/${slug}/troy-bind`, {
+					const res = await fetch(`${data.appsBaseUrl}/${slug}/troy-bind`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': data.nonce },
 						body: JSON.stringify({ troy_type: 'custom', custom_url: customUrl }),

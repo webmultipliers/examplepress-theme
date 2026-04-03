@@ -2,7 +2,7 @@
 /**
  * ExamplePress Admin — Theme Page
  *
- * Features, design tokens, config files, and dependencies.
+ * Features, design tokens, and config files.
  */
 
 declare( strict_types=1 );
@@ -29,7 +29,6 @@ function examplepress_theme_data(): array {
 		'fonts'          => examplepress_settings_get_fonts(),
 		'sizes'          => examplepress_settings_get_sizes(),
 		'configFiles'    => examplepress_settings_get_config_files(),
-		'dependencies'   => examplepress_get_dependencies(),
 		'nonce'          => wp_create_nonce( 'wp_rest' ),
 	];
 }
@@ -47,10 +46,9 @@ function examplepress_render_theme_page(): void {
 
 			<div class="ep-layout">
 			<nav class="ep-tabs" role="tablist">
-				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-features"      id="t-features"     data-tab-id="features">Features<span class="ep-tab-count"></span></button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-design"         id="t-design"       data-tab-id="design">Design</button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-config"         id="t-config"       data-tab-id="config">Config</button>
-				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-dependencies"   id="t-dependencies" data-tab-id="dependencies">Dependencies<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-features" id="t-features" data-tab-id="features">Features<span class="ep-tab-count"></span></button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-design"   id="t-design"   data-tab-id="design">Design</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-config"   id="t-config"   data-tab-id="config">Config</button>
 			</nav>
 
 			<div class="ep-panels">
@@ -95,38 +93,12 @@ function examplepress_render_theme_page(): void {
 				</section>
 			</div>
 
-			<!-- Dependencies -->
-			<div class="ep-panel" id="p-dependencies" role="tabpanel" aria-hidden="true">
-				<section class="ep-section">
-					<div class="ep-section-header"><span class="ep-section-title">Dependency Directory</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Plugins, Composer packages, and libraries declared in examplepress.json. Detected via plugin registry, class_exists, or function_exists.</p>
-					<div class="ep-notif-subtabs" id="dep-subtabs">
-						<button class="ep-notif-subtab active" data-target="deps-required">Requirements</button>
-						<button class="ep-notif-subtab" data-target="deps-recommended">Recommendations</button>
-					</div>
-					<div class="ep-table" id="deps-required"></div>
-					<div class="ep-table" id="deps-recommended" style="display:none"></div>
-				</section>
-			</div>
-
 			</div><!-- /.ep-panels -->
 			</div><!-- /.ep-layout -->
 
 		</div>
 
-		<!-- Generic Modal (features, dependencies) -->
-		<div class="ep-modal-overlay" id="ep-feature-modal" style="display:none">
-			<div class="ep-modal">
-				<div class="ep-modal-header">
-					<div>
-						<span class="ep-modal-title" id="ep-modal-title"></span>
-						<span class="ep-modal-id" id="ep-modal-id"></span>
-					</div>
-					<button class="ep-modal-close" id="ep-modal-close">&times;</button>
-				</div>
-				<div class="ep-modal-body" id="ep-modal-body"></div>
-			</div>
-		</div>
+		<?php examplepress_render_detail_modal(); ?>
 
 	</div>
 	<?php

@@ -199,30 +199,15 @@ function examplepress_build_admin_menu(): void {
 // ── Core Page Registration ──────────────────────────────────────
 
 function examplepress_register_core_admin_pages(): void {
-	examplepress_register_admin_page( 'dashboard', [
-		'page_title' => __( 'ExamplePress — Dashboard', 'examplepress-theme' ),
-		'menu_title' => __( 'Dashboard', 'examplepress-theme' ),
-		'position'   => 0,
-		'render'     => 'examplepress_render_dashboard_page',
-		'enqueue'    => function () {
-			examplepress_vite_enqueue( 'dashboard' );
-			wp_add_inline_script(
-				'ep-dashboard',
-				'window.ExamplePressData = ' . wp_json_encode( examplepress_dashboard_data() ) . ';',
-				'before'
-			);
-		},
-	] );
-
 	examplepress_register_admin_page( 'apps', [
 		'page_title' => __( 'ExamplePress — Apps', 'examplepress-theme' ),
 		'menu_title' => __( 'Apps', 'examplepress-theme' ),
-		'position'   => 10,
+		'position'   => 0,
 		'render'     => 'examplepress_render_apps_page',
 		'enqueue'    => function () {
-			examplepress_vite_enqueue( 'build' );
+			examplepress_vite_enqueue( 'apps' );
 			wp_add_inline_script(
-				'ep-build',
+				'ep-apps',
 				'window.ExamplePressData = ' . wp_json_encode( examplepress_apps_data() ) . ';',
 				'before'
 			);
@@ -232,7 +217,7 @@ function examplepress_register_core_admin_pages(): void {
 	examplepress_register_admin_page( 'theme', [
 		'page_title' => __( 'ExamplePress — Theme', 'examplepress-theme' ),
 		'menu_title' => __( 'Theme', 'examplepress-theme' ),
-		'position'   => 20,
+		'position'   => 10,
 		'render'     => 'examplepress_render_theme_page',
 		'enqueue'    => function () {
 			examplepress_vite_enqueue( 'theme' );
@@ -244,31 +229,61 @@ function examplepress_register_core_admin_pages(): void {
 		},
 	] );
 
-	examplepress_register_admin_page( 'routing', [
-		'page_title' => __( 'ExamplePress — Routing', 'examplepress-theme' ),
-		'menu_title' => __( 'Routing', 'examplepress-theme' ),
-		'position'   => 30,
-		'render'     => 'examplepress_render_routing_page',
+	examplepress_register_admin_page( 'navigation', [
+		'page_title' => __( 'ExamplePress — Navigation', 'examplepress-theme' ),
+		'menu_title' => __( 'Navigation', 'examplepress-theme' ),
+		'position'   => 20,
+		'render'     => 'examplepress_render_navigation_page',
 		'enqueue'    => function () {
-			examplepress_vite_enqueue( 'routing' );
+			examplepress_vite_enqueue( 'navigation' );
 			wp_add_inline_script(
-				'ep-routing',
-				'window.ExamplePressData = ' . wp_json_encode( examplepress_routing_data() ) . ';',
+				'ep-navigation',
+				'window.ExamplePressData = ' . wp_json_encode( examplepress_navigation_data() ) . ';',
 				'before'
 			);
 		},
 	] );
 
-	examplepress_register_admin_page( 'reference', [
-		'page_title' => __( 'ExamplePress — Reference', 'examplepress-theme' ),
-		'menu_title' => __( 'Reference', 'examplepress-theme' ),
-		'position'   => 40,
-		'render'     => 'examplepress_render_reference_page',
+	examplepress_register_admin_page( 'dependencies', [
+		'page_title' => __( 'ExamplePress — Dependencies', 'examplepress-theme' ),
+		'menu_title' => __( 'Dependencies', 'examplepress-theme' ),
+		'position'   => 30,
+		'render'     => 'examplepress_render_dependencies_page',
 		'enqueue'    => function () {
-			examplepress_vite_enqueue( 'reference' );
+			examplepress_vite_enqueue( 'dependencies' );
 			wp_add_inline_script(
-				'ep-reference',
-				'window.ExamplePressData = ' . wp_json_encode( examplepress_reference_data() ) . ';',
+				'ep-dependencies',
+				'window.ExamplePressData = ' . wp_json_encode( examplepress_dependencies_data() ) . ';',
+				'before'
+			);
+		},
+	] );
+
+	examplepress_register_admin_page( 'library', [
+		'page_title' => __( 'ExamplePress — Library', 'examplepress-theme' ),
+		'menu_title' => __( 'Library', 'examplepress-theme' ),
+		'position'   => 40,
+		'render'     => 'examplepress_render_library_page',
+		'enqueue'    => function () {
+			examplepress_vite_enqueue( 'library' );
+			wp_add_inline_script(
+				'ep-library',
+				'window.ExamplePressData = ' . wp_json_encode( examplepress_library_data() ) . ';',
+				'before'
+			);
+		},
+	] );
+
+	examplepress_register_admin_page( 'settings', [
+		'page_title' => __( 'ExamplePress — Settings', 'examplepress-theme' ),
+		'menu_title' => __( 'Settings', 'examplepress-theme' ),
+		'position'   => 50,
+		'render'     => 'examplepress_render_settings_page',
+		'enqueue'    => function () {
+			examplepress_vite_enqueue( 'settings' );
+			wp_add_inline_script(
+				'ep-settings',
+				'window.ExamplePressData = ' . wp_json_encode( examplepress_settings_page_data() ) . ';',
 				'before'
 			);
 		},
@@ -277,13 +292,28 @@ function examplepress_register_core_admin_pages(): void {
 	examplepress_register_admin_page( 'system', [
 		'page_title' => __( 'ExamplePress — System', 'examplepress-theme' ),
 		'menu_title' => __( 'System', 'examplepress-theme' ),
-		'position'   => 50,
+		'position'   => 60,
 		'render'     => 'examplepress_render_system_page',
 		'enqueue'    => function () {
 			examplepress_vite_enqueue( 'system' );
 			wp_add_inline_script(
 				'ep-system',
 				'window.ExamplePressData = ' . wp_json_encode( examplepress_system_data() ) . ';',
+				'before'
+			);
+		},
+	] );
+
+	examplepress_register_admin_page( 'docs', [
+		'page_title' => __( 'ExamplePress — Docs', 'examplepress-theme' ),
+		'menu_title' => __( 'Docs', 'examplepress-theme' ),
+		'position'   => 70,
+		'render'     => 'examplepress_render_docs_page',
+		'enqueue'    => function () {
+			examplepress_vite_enqueue( 'docs' );
+			wp_add_inline_script(
+				'ep-docs',
+				'window.ExamplePressData = ' . wp_json_encode( examplepress_docs_data() ) . ';',
 				'before'
 			);
 		},
