@@ -26,10 +26,15 @@ function examplepress_apps_data(): array {
 		'troyCloudUrl'      => examplepress_get_troy_cloud_url(),
 		'adminUrl'          => esc_url( admin_url() ),
 		'updater'              => [
-			'status' => function_exists( 'examplepress_get_updater_status' ) ? examplepress_get_updater_status() : 'not-installed',
+			'status'          => function_exists( 'examplepress_get_updater_status' ) ? examplepress_get_updater_status() : 'not-installed',
+			'current_version' => examplepress_get_updater_plugin_version(),
 		],
 		'updaterInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/updater/install' ) ),
 		'updaterUninstallUrl'  => esc_url_raw( rest_url( 'examplepress/v1/updater/uninstall' ) ),
+		'updaterCheckUrl'      => esc_url_raw( rest_url( 'examplepress/v1/updater/check' ) ),
+		'updaterUpdateUrl'     => esc_url_raw( rest_url( 'examplepress/v1/updater/update' ) ),
+		'updaterSettingsUrl'   => esc_url_raw( rest_url( 'examplepress/v1/updater/settings' ) ),
+		'updaterReleasesUrl'   => esc_url_raw( rest_url( 'examplepress/v1/updater/releases' ) ),
 		'demo'              => [
 			'status' => function_exists( 'examplepress_get_demo_status' ) ? examplepress_get_demo_status() : 'not-installed',
 		],
@@ -211,6 +216,59 @@ function examplepress_render_apps_page(): void {
 						</div>
 						<p class="ep-demo-message" id="ep-updater-message"></p>
 						<div class="ep-demo-actions" id="ep-updater-actions"></div>
+					</div>
+				</section>
+
+				<!-- Update Check -->
+				<section class="ep-section" id="ep-updater-check-section">
+					<div class="ep-section-header"><span class="ep-section-title">Check for Plugin Updates</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Check GitHub for a newer version of the updater plugin. The theme is responsible for keeping its companion up to date.</p>
+
+					<div class="ep-demo-panel">
+						<div class="ep-demo-status">
+							<div class="ep-demo-status-label">Installed</div>
+							<span class="ep-badge badge-on" id="ep-updater-current-ver">&mdash;</span>
+						</div>
+						<div class="ep-demo-status" id="ep-updater-target-row" style="display:none;margin-top:8px;">
+							<div class="ep-demo-status-label">Target</div>
+							<span class="ep-badge badge-on" id="ep-updater-target-ver"></span>
+						</div>
+						<div class="ep-demo-status" id="ep-updater-available-row" style="display:none;margin-top:8px;">
+							<div class="ep-demo-status-label">Action Needed</div>
+							<span class="ep-badge badge-warn" id="ep-updater-available-ver"></span>
+						</div>
+						<p class="ep-demo-message" id="ep-updater-check-message">Click below to check GitHub releases against your channel and pin settings.</p>
+						<div class="ep-demo-actions">
+							<button class="ep-demo-btn ep-demo-btn-primary" id="ep-updater-check-btn">Check Now</button>
+							<button class="ep-demo-btn ep-demo-btn-primary" id="ep-updater-update-btn" style="display:none;">Update Now</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Channel & Pin Settings -->
+				<section class="ep-section" id="ep-updater-settings-section">
+					<div class="ep-section-header"><span class="ep-section-title">Plugin Channel &amp; Pinning</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Choose which release channel to follow for the updater plugin. Optionally pin to a specific version to prevent upgrades past that release.</p>
+
+					<div class="ep-demo-panel">
+						<div class="ep-build-field">
+							<label class="ep-build-label" for="ep-updater-channel">Channel</label>
+							<select class="ep-build-input" id="ep-updater-channel" style="max-width:260px;">
+								<option value="stable">Stable (main branch releases only)</option>
+								<option value="prerelease">Pre-release (includes development builds)</option>
+							</select>
+						</div>
+						<div class="ep-build-field" style="margin-top:12px;">
+							<label class="ep-build-label" for="ep-updater-pin">Pin to Version</label>
+							<select class="ep-build-input" id="ep-updater-pin" style="max-width:260px;">
+								<option value="">Latest (no pin)</option>
+							</select>
+							<p class="ep-section-desc" style="margin-top:4px;font-size:12px;">When pinned, the updater will not offer versions newer than the pinned release.</p>
+						</div>
+						<div class="ep-demo-actions" style="margin-top:12px;">
+							<button class="ep-demo-btn ep-demo-btn-primary" id="ep-updater-save-settings">Save Settings</button>
+						</div>
+						<p class="ep-demo-message" id="ep-updater-settings-message" style="display:none;"></p>
 					</div>
 				</section>
 			</div>
