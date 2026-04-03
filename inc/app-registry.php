@@ -3,9 +3,8 @@
  * ExamplePress App Registry
  *
  * Persistent record of every app created through the scaffold flow.
- * Stored in wp_options as a keyed array. Survives local plugin deletion
- * so orphan entities (GitHub repos, Troy registrations) can be tracked
- * and cleaned up.
+ * Stored as a Custom Post Type (ep_app) — see inc/app-cpt.php for
+ * the CPT definition and helpers.
  *
  * The registry is the source of truth for "what apps have been created."
  * Filesystem discovery (inc/apps.php) provides the live local state.
@@ -20,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Option key for the persistent app registry.
+ * Option key for the legacy app registry (pre-CPT migration).
  */
 define( 'EP_APP_REGISTRY_OPTION', 'ep_app_registry' );
 
@@ -32,9 +31,21 @@ define( 'EP_APP_REGISTRY_OPTION', 'ep_app_registry' );
  * @return array<string, array> Map of slug => record.
  */
 function examplepress_registry_all(): array {
-	$registry = get_option( EP_APP_REGISTRY_OPTION, [] );
+	$posts = get_posts( [
+		'post_type'      => 'ep_app',
+		'posts_per_page' => -1,
+		'post_status'    => 'any',
+		'no_found_rows'  => true,
+	] );
 
-	return is_array( $registry ) ? $registry : [];
+	$registry = [];
+
+	foreach ( $posts as $post ) {
+		$record = examplepress_cpt_to_record( $post );
+		$registry[ $record['slug'] ] = $record;
+	}
+
+	return $registry;
 }
 
 /**
@@ -44,9 +55,13 @@ function examplepress_registry_all(): array {
  * @return array|null Record or null if not found.
  */
 function examplepress_registry_get( string $slug ): ?array {
-	$registry = examplepress_registry_all();
+	$post = examplepress_registry_get_post( $slug );
 
-	return $registry[ $slug ] ?? null;
+	if ( ! $post ) {
+		return null;
+	}
+
+	return examplepress_cpt_to_record( $post );
 }
 
 /**
@@ -60,27 +75,42 @@ function examplepress_registry_get( string $slug ): ?array {
  * @return array The full merged record.
  */
 function examplepress_registry_set( string $slug, array $data ): array {
-	$registry = examplepress_registry_all();
-	$existing = $registry[ $slug ] ?? [];
+	$post = examplepress_registry_get_post( $slug );
 
-	// Deep merge for nested keys (github, troy).
-	foreach ( [ 'github', 'troy' ] as $key ) {
-		if ( isset( $data[ $key ] ) && isset( $existing[ $key ] ) ) {
-			$data[ $key ] = array_merge( $existing[ $key ], $data[ $key ] );
+	if ( $post ) {
+		// Update existing post.
+		$update_args = [ 'ID' => $post->ID ];
+
+		if ( isset( $data['name'] ) && $data['name'] !== $post->post_title ) {
+			$update_args['post_title'] = $data['name'];
 		}
+
+		if ( count( $update_args ) > 1 ) {
+			wp_update_post( $update_args );
+		}
+
+		examplepress_cpt_write_meta( $post->ID, $data );
+
+		return examplepress_cpt_to_record( get_post( $post->ID ) );
 	}
 
-	$record = array_merge( $existing, $data );
+	// Create new post.
+	$post_id = wp_insert_post( [
+		'post_type'   => 'ep_app',
+		'post_title'  => $data['name'] ?? $slug,
+		'post_name'   => $slug,
+		'post_status' => 'draft',
+	] );
 
-	// Ensure required fields.
-	$record['slug']       = $slug;
-	$record['created_at'] = $record['created_at'] ?? gmdate( 'c' );
-	$record['updated_at'] = gmdate( 'c' );
+	if ( is_wp_error( $post_id ) ) {
+		// Fallback: return a minimal record.
+		return array_merge( [ 'slug' => $slug ], $data );
+	}
 
-	$registry[ $slug ] = $record;
-	update_option( EP_APP_REGISTRY_OPTION, $registry, false );
+	update_post_meta( $post_id, '_ep_plugin_slug', $slug );
+	examplepress_cpt_write_meta( $post_id, $data );
 
-	return $record;
+	return examplepress_cpt_to_record( get_post( $post_id ) );
 }
 
 /**
@@ -93,14 +123,13 @@ function examplepress_registry_set( string $slug, array $data ): array {
  * @return bool True if the record existed and was removed.
  */
 function examplepress_registry_forget( string $slug ): bool {
-	$registry = examplepress_registry_all();
+	$post = examplepress_registry_get_post( $slug );
 
-	if ( ! isset( $registry[ $slug ] ) ) {
+	if ( ! $post ) {
 		return false;
 	}
 
-	unset( $registry[ $slug ] );
-	update_option( EP_APP_REGISTRY_OPTION, $registry, false );
+	wp_delete_post( $post->ID, true );
 
 	return true;
 }
@@ -142,9 +171,6 @@ function examplepress_registry_list_merged(): array {
 	}
 
 	// Adopt any locally-discovered apps that aren't in the registry yet.
-	// This covers apps installed manually, migrated from another site,
-	// or created before the registry existed. We persist them so they're
-	// tracked going forward.
 	foreach ( $local_by_slug as $slug => $local ) {
 		$adopted = [
 			'slug'        => $slug,
@@ -154,8 +180,7 @@ function examplepress_registry_list_merged(): array {
 			'source'      => 'discovered',
 		];
 
-		// Pull Troy/GitHub data from the local examplepress.json so
-		// a manually-installed app with connection data shows as connected.
+		// Pull Troy/GitHub data from the local examplepress.json.
 		if ( ! empty( $local['troy']['server_url'] ) ) {
 			$adopted['troy'] = [
 				'server_url' => $local['troy']['server_url'],
@@ -235,8 +260,8 @@ function examplepress_registry_merge_record( array $record, ?array $local ): arr
 			'repo_id'    => $troy_repo_id,
 		],
 
-		// Connection status (derived).
-		'status' => $has_local && ( $has_github || $has_troy )
+		// Connection status (derived). GitHub alone is sufficient for "connected".
+		'status' => $has_local && $has_github
 			? 'connected'
 			: ( $has_local ? 'disconnected' : 'orphan' ),
 
@@ -329,7 +354,7 @@ function examplepress_destroy_app( string $slug ): array {
 		}
 	}
 
-	// ── 3. Unregister from Troy ────────────────────────────────
+	// ── 3. Unregister from Troy (only if configured) ───────────
 
 	$troy_server = $record['troy']['server_url'] ?? '';
 

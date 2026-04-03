@@ -40,7 +40,7 @@ function renderAppsStats() {
 	appsStatsEl.innerHTML = `
 		<span class="ep-apps-stat"><span class="ep-apps-dot ep-apps-dot-connected"></span><strong>${connected}</strong> Connected</span>
 		<span class="ep-apps-stat"><span class="ep-apps-dot ep-apps-dot-disconnected"></span><strong>${disconnected}</strong> Disconnected</span>
-		<span class="ep-apps-stat ep-apps-stat-right">Troy Cloud + GitHub Codespaces</span>
+		<span class="ep-apps-stat ep-apps-stat-right">GitHub + Codespaces</span>
 	`;
 }
 
@@ -73,7 +73,7 @@ export function renderAppsTable() {
 		// Status badge.
 		let statusBadge;
 		if (isOrphan) {
-			statusBadge = `<span class="ep-apps-status-badge ep-apps-status-orphan ep-apps-health-trigger" data-slug="${esc(app.slug)}" role="button" tabindex="0" title="Plugin deleted locally — exists on GitHub/Troy">&#9888; Orphan</span>`;
+			statusBadge = `<span class="ep-apps-status-badge ep-apps-status-orphan ep-apps-health-trigger" data-slug="${esc(app.slug)}" role="button" tabindex="0" title="Plugin deleted locally — exists on GitHub">&#9888; Orphan</span>`;
 		} else if (isConnected) {
 			statusBadge = `<span class="ep-apps-status-badge ep-apps-status-connected ep-apps-health-trigger" data-slug="${esc(app.slug)}" role="button" tabindex="0" title="Click to check health">&#10003; Connected</span>`;
 		} else {
@@ -144,8 +144,9 @@ export function renderAppsTable() {
 			`;
 		}
 
-		const existsWhere = isOrphan
-			? ` <span class="ep-apps-exists">(${[exists.github ? 'GitHub' : '', exists.troy ? 'Troy' : ''].filter(Boolean).join(' + ')})</span>`
+		const existsParts = [exists.github ? 'GitHub' : '', exists.troy ? 'Troy' : ''].filter(Boolean);
+		const existsWhere = isOrphan && existsParts.length
+			? ` <span class="ep-apps-exists">(${existsParts.join(' + ')})</span>`
 			: '';
 
 		html += `<tr class="${isOrphan ? 'ep-apps-row-orphan' : ''}">
@@ -224,27 +225,30 @@ function renderHealthPanel(panel, data) {
 	}
 	html += '</div>';
 
-	html += '<div class="ep-health-section">';
-	html += '<div class="ep-health-section-title">Troy</div>';
-	if (troy.reachable) {
-		html += `<div class="ep-health-row">${renderHealthDot(true)} ${esc(troy.status === 'publish' ? 'Published' : troy.status || 'Registered')}</div>`;
-		if (troy.latest_version) {
-			html += `<div class="ep-health-row">Version: <strong>${esc(troy.latest_version)}</strong></div>`;
-		}
-		if (troy.edit_link) {
-			html += `<div class="ep-health-row"><a href="${esc(troy.edit_link)}" target="_blank" rel="noopener" class="ep-health-link">Edit on Troy &rarr;</a></div>`;
-		}
-		if (troyGh.owner_repo) {
-			const troyGhOk = troyGh.reachable;
-			html += `<div class="ep-health-row">${renderHealthDot(troyGhOk)} Troy &harr; GitHub ${troyGhOk ? 'OK' : esc(troyGh.error || 'unreachable')}</div>`;
-			if (troyGh.tag_count != null) {
-				html += `<div class="ep-health-row"><span class="ep-health-meta">${troyGh.tag_count} tag(s)${troyGh.auto_process ? ', auto-process on' : ''}</span></div>`;
+	// Troy section — only render when the app has Troy configured.
+	if (data.troy) {
+		html += '<div class="ep-health-section">';
+		html += '<div class="ep-health-section-title">Troy</div>';
+		if (troy.reachable) {
+			html += `<div class="ep-health-row">${renderHealthDot(true)} ${esc(troy.status === 'publish' ? 'Published' : troy.status || 'Registered')}</div>`;
+			if (troy.latest_version) {
+				html += `<div class="ep-health-row">Version: <strong>${esc(troy.latest_version)}</strong></div>`;
 			}
+			if (troy.edit_link) {
+				html += `<div class="ep-health-row"><a href="${esc(troy.edit_link)}" target="_blank" rel="noopener" class="ep-health-link">Edit on Troy &rarr;</a></div>`;
+			}
+			if (troyGh.owner_repo) {
+				const troyGhOk = troyGh.reachable;
+				html += `<div class="ep-health-row">${renderHealthDot(troyGhOk)} Troy &harr; GitHub ${troyGhOk ? 'OK' : esc(troyGh.error || 'unreachable')}</div>`;
+				if (troyGh.tag_count != null) {
+					html += `<div class="ep-health-row"><span class="ep-health-meta">${troyGh.tag_count} tag(s)${troyGh.auto_process ? ', auto-process on' : ''}</span></div>`;
+				}
+			}
+		} else {
+			html += `<div class="ep-health-row">${renderHealthDot(troy.error ? false : null)} ${esc(troy.error || 'Not configured')}</div>`;
 		}
-	} else {
-		html += `<div class="ep-health-row">${renderHealthDot(troy.error ? false : null)} ${esc(troy.error || 'Not configured')}</div>`;
+		html += '</div>';
 	}
-	html += '</div>';
 
 	html += '</div>';
 	panel.innerHTML = html;
@@ -280,12 +284,14 @@ async function fetchAppHealth(slug) {
 			renderHealthPanel(panel, result);
 
 			if (badge) {
-				const allOk = result.github?.reachable && result.troy?.reachable;
-				const partial = result.github?.reachable || result.troy?.reachable;
-				if (allOk) {
+				const ghOk = result.github?.reachable;
+				const troyOk = result.troy?.reachable;
+				// GitHub alone is sufficient for healthy. Troy is a bonus.
+				if (ghOk && (!result.troy || troyOk)) {
 					badge.className = 'ep-apps-status-badge ep-apps-status-healthy ep-apps-health-trigger';
 					badge.innerHTML = '&#10003; Healthy';
-				} else if (partial) {
+				} else if (ghOk) {
+					// GitHub OK but Troy configured and failing.
 					badge.className = 'ep-apps-status-badge ep-apps-status-degraded ep-apps-health-trigger';
 					badge.innerHTML = '&#9888; Degraded';
 				} else if (result.local?.active) {
@@ -322,9 +328,7 @@ export async function handleConnect(slug) {
 			if (result.warnings && result.warnings.length) {
 				showAppsNotice(`<strong>${esc(slug)}</strong>: ${result.warnings.map(w => esc(w)).join(' | ')}`);
 			} else {
-				const hasRepo = result.github && result.github.owner_repo;
-				const label = hasRepo ? 'Connected to GitHub + Troy' : 'Connected to Troy';
-				showAppsNotice(`<strong>${esc(slug)}</strong>: ${label}.`);
+				showAppsNotice(`<strong>${esc(slug)}</strong>: Connected to GitHub.`);
 			}
 		} else {
 			const msg = result.message || result.data?.message || 'Connection failed.';
@@ -356,7 +360,7 @@ async function handleDeactivate(slug) {
 }
 
 async function handleDestroy(slug, link) {
-	if (!confirm(`Delete "${slug}" everywhere?\n\nThis will remove the local plugin, delete the GitHub repo, and unregister from Troy. This cannot be undone.`)) {
+	if (!confirm(`Delete "${slug}" everywhere?\n\nThis will remove the local plugin and delete the GitHub repo. This cannot be undone.`)) {
 		return;
 	}
 

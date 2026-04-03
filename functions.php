@@ -28,6 +28,7 @@ require_once EP_THEME_PATH . '/inc/dependencies.php';
 require_once EP_THEME_PATH . '/inc/notifications.php';
 require_once EP_THEME_PATH . '/inc/apps.php';
 require_once EP_THEME_PATH . '/inc/app-registry.php';
+require_once EP_THEME_PATH . '/inc/app-cpt.php';
 require_once EP_THEME_PATH . '/inc/github.php';
 require_once EP_THEME_PATH . '/inc/github-app.php';
 require_once EP_THEME_PATH . '/inc/scaffolder.php';
@@ -35,7 +36,16 @@ require_once EP_THEME_PATH . '/inc/api.php';
 
 if ( is_admin() ) {
 	require_once EP_THEME_PATH . '/inc/admin/admin-assets.php';
-	require_once EP_THEME_PATH . '/inc/admin/settings-page.php';
+	require_once EP_THEME_PATH . '/inc/admin/settings-page.php';  // data helpers
+	require_once EP_THEME_PATH . '/inc/admin/admin-registry.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/shared.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/dashboard.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/apps.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/theme.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/routing.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/reference.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/system.php';
+	require_once EP_THEME_PATH . '/inc/admin/pages/editor.php';
 }
 
 require_once EP_THEME_PATH . '/inc/cli.php';

@@ -13,7 +13,7 @@
  * Flow:
  *   1. Create repo from template via GitHub API
  *   2. Replace __SLUG__, __NAME__, __DESC__ placeholders in the new repo
- *   3. Optionally register with Troy
+ *   3. Create initial release (v0.0.0)
  *   4. Return repo URL + Codespaces link
  */
 
@@ -34,7 +34,7 @@ define( 'EP_DEFAULT_TEMPLATE_REPO', 'webmultipliers/examplepress-theme-app' );
 /**
  * Placeholder tokens used in the template repository files.
  */
-define( 'EP_SCAFFOLD_PLACEHOLDERS', [ '__NAME__', '__SLUG__', '__DESC__', '__TROY__' ] );
+define( 'EP_SCAFFOLD_PLACEHOLDERS', [ '__NAME__', '__SLUG__', '__DESC__' ] );
 
 /**
  * Get the configured template repository (owner/repo).
@@ -132,15 +132,13 @@ function examplepress_scaffold_from_template( string $slug, string $description,
  * @param string $slug        Plugin slug.
  * @param string $name        Plugin display name.
  * @param string $description Plugin description.
- * @param string $troy_url    Troy server URL (optional).
  * @return true|WP_Error
  */
 function examplepress_scaffold_replace_remote_placeholders(
 	string $full_name,
 	string $slug,
 	string $name,
-	string $description,
-	string $troy_url = ''
+	string $description
 ) {
 	$pat = examplepress_github_get_write_token();
 
@@ -205,7 +203,6 @@ function examplepress_scaffold_replace_remote_placeholders(
 		'__NAME__' => $name,
 		'__SLUG__' => $slug,
 		'__DESC__' => $description,
-		'__TROY__' => $troy_url,
 	];
 
 	// Collect files to process (skip directories, images, etc.).
@@ -304,9 +301,9 @@ function examplepress_scaffold_replace_remote_placeholders(
 /**
  * Create an initial v0.0.0 release on a newly scaffolded repo.
  *
- * This gives Troy a release to index immediately and marks the repo
- * as deployment-ready. GitHub auto-attaches source archives (zip/tar)
- * to every release, so no build step is needed for the initial tag.
+ * Marks the repo as deployment-ready. GitHub auto-attaches source
+ * archives (zip/tar) to every release, so no build step is needed
+ * for the initial tag. The companion app updater will pick this up.
  *
  * @param string $full_name GitHub "owner/repo" string.
  * @return true|WP_Error
@@ -367,15 +364,13 @@ function examplepress_scaffold_create_initial_release( string $full_name ) {
  * @param string $slug        Plugin slug.
  * @param string $name        Plugin display name.
  * @param string $description Plugin description.
- * @param string $troy_url    Troy server URL (optional).
  * @return true|WP_Error
  */
 function examplepress_scaffold_download_template(
 	string $dest,
 	string $slug,
 	string $name,
-	string $description,
-	string $troy_url = ''
+	string $description
 ) {
 	$headers = [
 		'Accept'     => 'application/vnd.github.v3+json',
@@ -424,7 +419,6 @@ function examplepress_scaffold_download_template(
 		'__NAME__' => $name,
 		'__SLUG__' => $slug,
 		'__DESC__' => $description,
-		'__TROY__' => $troy_url,
 	];
 
 	$processable_extensions = [ 'php', 'json', 'md', 'yml', 'yaml', 'txt', 'xml', 'css', 'js', 'html' ];

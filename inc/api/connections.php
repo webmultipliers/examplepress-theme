@@ -4,6 +4,9 @@
  *
  * Handles saving connection settings, testing GitHub/Troy connections,
  * and OAuth callback handlers for Troy and GitHub App installations.
+ *
+ * GitHub is the primary connection for companion app scaffolding and updates.
+ * Troy is optional — used for multi-site distribution when explicitly configured.
  */
 
 // ── Route Registration ───────────────────────────────────────────

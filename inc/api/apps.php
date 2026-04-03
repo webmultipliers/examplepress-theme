@@ -2,16 +2,17 @@
 /**
  * ExamplePress REST API — App Endpoints
  *
- * Handles app listing, scaffolding (GitHub template + Troy orchestration),
- * Troy binding, deactivation, and connection/reconnection.
+ * Handles app listing, scaffolding (GitHub template), Troy binding
+ * (opt-in), deactivation, and connection/reconnection.
  */
 
 // ── Build / Scaffold ─────────────────────────────────────────────
 //
 // One-click orchestration: scaffold locally → create GitHub repo →
-// push scaffold code → register on Troy → connect Troy ↔ GitHub →
-// write back to local JSON. Degrades gracefully when credentials
-// are not configured (local-only scaffold still works).
+// replace placeholders → create initial release → register in
+// app registry. Troy registration is opt-in (only when the app's
+// examplepress.json declares a troy.server_url). Degrades
+// gracefully when credentials are not configured.
 
 // ── App Endpoints ────────────────────────────────────────────────
 
@@ -204,8 +205,8 @@ function examplepress_handle_app_destroy( WP_REST_Request $request ) {
  *
  * Creates a repo from the official GitHub template repository
  * (webmultipliers/examplepress-theme-app), replaces placeholders
- * remotely, optionally registers with Troy, and returns the repo
- * URL + Codespaces link. No local files are written.
+ * remotely, creates an initial release, and returns the repo
+ * URL + Codespaces link.
  *
  * Requires a GitHub write token.
  */
@@ -239,11 +240,11 @@ function examplepress_handle_app_scaffold( WP_REST_Request $request ) {
 }
 
 /**
- * Template mode: scaffold locally, create GitHub repo, replace placeholders, register on Troy.
+ * Template mode: scaffold locally, create GitHub repo, replace placeholders, create initial release.
  *
  * The local plugin is created first so the app is immediately visible
- * in the Build tab. The GitHub repo and Troy registration are layered
- * on top — failures in those steps are non-fatal warnings.
+ * in the Build tab. The GitHub repo is layered on top — failures in
+ * those steps are non-fatal warnings.
  */
 function examplepress_scaffold_template_mode( string $slug, string $name, string $desc ) {
 	$description = $desc ?: examplepress_get_default_app_description();
@@ -293,13 +294,8 @@ function examplepress_scaffold_template_mode( string $slug, string $name, string
 	// ── Step 3: Replace placeholders in the new repo ────────────
 
 	if ( ! empty( $steps['template_create'] ) ) {
-		$troy_url     = get_option( 'ep_troy_server_url', '' );
-		$troy_display = $troy_url
-			? str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) )
-			: '';
-
 		$replace_result = examplepress_scaffold_replace_remote_placeholders(
-			$full_name, $slug, $name, $description, $troy_display
+			$full_name, $slug, $name, $description
 		);
 
 		if ( is_wp_error( $replace_result ) ) {
@@ -323,49 +319,9 @@ function examplepress_scaffold_template_mode( string $slug, string $name, string
 		}
 	}
 
-	// ── Step 5: Register with Troy (optional) ───────────────────
-
-	$troy_url = get_option( 'ep_troy_server_url', '' );
-
-	if ( $troy_url && get_option( 'ep_troy_credentials', '' ) ) {
-		$troy_result = examplepress_troy_register_and_connect(
-			$slug, $name, $description, $full_name
-		);
-
-		if ( is_wp_error( $troy_result ) ) {
-			if ( $troy_result->get_error_code() === 'troy_slug_exists' ) {
-				$steps['troy_register'] = true;
-			} else {
-				$warnings[]             = 'Troy: ' . $troy_result->get_error_message();
-				$steps['troy_register'] = false;
-			}
-		} else {
-			$steps['troy_register'] = true;
-		}
-	} else {
-		$steps['troy_register'] = null;
-	}
-
-	// ── Step 6: Write Troy + GitHub data back to local JSON ─────
+	// ── Step 5: Register in persistent app registry ───────────
 
 	$plugin_dir = WP_PLUGIN_DIR . '/' . $slug;
-	$troy_data  = [];
-
-	if ( $troy_url ) {
-		$troy_data = [
-			'server_url' => str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) ),
-			'repo'       => $full_name,
-			'repo_id'    => (string) $repo_id,
-		];
-	}
-
-	if ( ! empty( $troy_data ) && file_exists( $plugin_dir . '/examplepress.json' ) ) {
-		if ( ! examplepress_update_app_troy_data( $slug, $troy_data ) ) {
-			$warnings[] = 'Failed to write Troy data to local examplepress.json.';
-		}
-	}
-
-	// ── Step 7: Register in persistent app registry ───────────
 
 	$registry_data = [
 		'name'        => $name,
@@ -384,13 +340,10 @@ function examplepress_scaffold_template_mode( string $slug, string $name, string
 			'html_url'   => $html_url,
 		];
 	}
-	if ( ! empty( $troy_data ) ) {
-		$registry_data['troy'] = $troy_data;
-	}
 
 	examplepress_registry_set( $slug, $registry_data );
 
-	// Re-read the app so the response reflects Troy data.
+	// Re-read the app so the response reflects the latest state.
 	$app = examplepress_parse_app( $slug, $plugin_dir . '/examplepress.json', $plugin_dir );
 
 	return rest_ensure_response( [
@@ -492,10 +445,11 @@ function examplepress_handle_app_deactivate( WP_REST_Request $request ) {
 }
 
 /**
- * Connect a disconnected app: create GitHub repo, push code, register on Troy.
+ * Connect a disconnected app: create GitHub repo, push code.
  *
- * Runs the same GitHub+Troy flow as the scaffold endpoint but on an
- * existing plugin that's already installed locally.
+ * Runs the same GitHub flow as the scaffold endpoint but on an
+ * existing plugin that's already installed locally. Troy registration
+ * only fires if the app already has troy.server_url configured.
  */
 function examplepress_handle_app_connect( WP_REST_Request $request ) {
 	$slug = $request->get_param( 'slug' );
@@ -514,7 +468,7 @@ function examplepress_handle_app_connect( WP_REST_Request $request ) {
 	}
 
 	// No early return for "connected" apps — this endpoint also heals
-	// incomplete connections (e.g. Troy registered but no GitHub repo).
+	// incomplete connections (e.g. GitHub repo missing).
 
 	$plugin_path = WP_PLUGIN_DIR . '/' . $slug;
 	$name        = $app['name'];
@@ -522,7 +476,6 @@ function examplepress_handle_app_connect( WP_REST_Request $request ) {
 	$org         = get_option( 'ep_github_org', 'webmultipliers' );
 	$owner_repo  = $org . '/' . $slug;
 	$warnings    = [];
-	$troy_data   = [];
 	$github_data = [];
 
 	// ── Step 1: Create GitHub repo ──────────────────────────────
@@ -556,45 +509,23 @@ function examplepress_handle_app_connect( WP_REST_Request $request ) {
 		$warnings[] = 'No GitHub write token. Install the GitHub App or configure a write access token.';
 	}
 
-	// ── Step 3: Register on Troy + connect GitHub ───────────────
-	// Always attempt if Troy is configured — independent of GitHub.
+	// ── Step 3: Register on Troy (only if app has Troy configured) ──
+	// Troy registration is opt-in — only fires when the app's local
+	// examplepress.json declares a troy.server_url.
 
-	$troy_url = get_option( 'ep_troy_server_url', '' );
+	$app_troy_server = $app['troy']['server_url'] ?? '';
 
-	if ( $troy_url && get_option( 'ep_troy_credentials', '' ) ) {
+	if ( $app_troy_server && get_option( 'ep_troy_credentials', '' ) ) {
+		$troy_url = 'https://' . rtrim( $app_troy_server, '/' );
+
 		$troy_result = examplepress_troy_register_and_connect(
 			$slug, $name, $description, $owner_repo
 		);
 
 		if ( is_wp_error( $troy_result ) ) {
-			if ( $troy_result->get_error_code() === 'troy_slug_exists' ) {
-				// Already registered — that's fine for reconnecting.
-			} else {
+			if ( $troy_result->get_error_code() !== 'troy_slug_exists' ) {
 				$warnings[] = 'Troy: ' . $troy_result->get_error_message();
 			}
-		} else {
-			$integration_ok = ! empty( $troy_result['integration'] );
-
-			if ( ! $integration_ok && ! empty( $troy_result['warning'] ) ) {
-				$warnings[] = 'Troy integration: ' . $troy_result['warning'];
-			}
-		}
-
-		// Always write Troy data to local JSON.
-		$troy_data = [
-			'server_url' => str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) ),
-			'repo'       => $owner_repo,
-			'repo_id'    => (string) ( $github_data['repo_id'] ?? '' ),
-		];
-	} elseif ( ! $troy_url ) {
-		$warnings[] = 'No Troy Server configured.';
-	}
-
-	// ── Step 4: Write back Troy data to local JSON ──────────────
-
-	if ( ! empty( $troy_data ) ) {
-		if ( ! examplepress_update_app_troy_data( $slug, $troy_data ) ) {
-			$warnings[] = 'Failed to write Troy data to examplepress.json.';
 		}
 	}
 
@@ -607,9 +538,6 @@ function examplepress_handle_app_connect( WP_REST_Request $request ) {
 			'html_url'   => $github_data['html_url'] ?? '',
 		];
 	}
-	if ( ! empty( $troy_data ) ) {
-		$registry_update['troy'] = $troy_data;
-	}
 	if ( ! empty( $registry_update ) ) {
 		examplepress_registry_set( $slug, $registry_update );
 	}
@@ -619,7 +547,7 @@ function examplepress_handle_app_connect( WP_REST_Request $request ) {
 
 	return rest_ensure_response( [
 		'success'  => true,
-		'message'  => empty( $warnings ) ? "App \"{$name}\" connected." : "App \"{$name}\" partially connected.",
+		'message'  => empty( $warnings ) ? "App \"{$name}\" connected to GitHub." : "App \"{$name}\" partially connected.",
 		'app'      => $updated_app,
 		'warnings' => $warnings,
 		'github'   => $github_data,
@@ -666,50 +594,54 @@ function examplepress_handle_app_health( WP_REST_Request $request ) {
 		'github' => null,
 	];
 
-	// ── Troy health ─────────────────────────────────────────────
+	// ── Troy health (only when app has Troy configured) ─────────
 
 	$troy_server = $app['troy']['server_url'] ?? '';
-	$troy_auth   = get_option( 'ep_troy_credentials', '' );
 
-	if ( $troy_server && $troy_auth ) {
-		$troy_url = 'https://' . rtrim( $troy_server, '/' );
+	if ( $troy_server ) {
+		$troy_auth = get_option( 'ep_troy_credentials', '' );
 
-		$troy_response = wp_remote_get(
-			$troy_url . '/wp-json/troy-server/v1/plugins/manage/health?' . http_build_query( [ 'slug' => $slug ] ),
-			[
-				'headers' => [
-					'Authorization' => 'Basic ' . base64_encode( $troy_auth ),
-					'User-Agent'    => 'ExamplePress/' . EP_THEME_VERSION,
-					'Accept'        => 'application/json',
-				],
-				'timeout' => 15,
-			]
-		);
+		if ( $troy_auth ) {
+			$troy_url = 'https://' . rtrim( $troy_server, '/' );
 
-		if ( is_wp_error( $troy_response ) ) {
-			$health['troy'] = [
-				'reachable' => false,
-				'error'     => $troy_response->get_error_message(),
-			];
-		} else {
-			$code = wp_remote_retrieve_response_code( $troy_response );
-			$body = json_decode( wp_remote_retrieve_body( $troy_response ), true );
+			$troy_response = wp_remote_get(
+				$troy_url . '/wp-json/troy-server/v1/plugins/manage/health?' . http_build_query( [ 'slug' => $slug ] ),
+				[
+					'headers' => [
+						'Authorization' => 'Basic ' . base64_encode( $troy_auth ),
+						'User-Agent'    => 'ExamplePress/' . EP_THEME_VERSION,
+						'Accept'        => 'application/json',
+					],
+					'timeout' => 15,
+				]
+			);
 
-			if ( $code === 200 && is_array( $body ) ) {
-				$health['troy'] = array_merge( [ 'reachable' => true ], $body );
-			} else {
+			if ( is_wp_error( $troy_response ) ) {
 				$health['troy'] = [
 					'reachable' => false,
-					'error'     => $body['message'] ?? "HTTP {$code}",
+					'error'     => $troy_response->get_error_message(),
 				];
+			} else {
+				$code = wp_remote_retrieve_response_code( $troy_response );
+				$body = json_decode( wp_remote_retrieve_body( $troy_response ), true );
+
+				if ( $code === 200 && is_array( $body ) ) {
+					$health['troy'] = array_merge( [ 'reachable' => true ], $body );
+				} else {
+					$health['troy'] = [
+						'reachable' => false,
+						'error'     => $body['message'] ?? "HTTP {$code}",
+					];
+				}
 			}
+		} else {
+			$health['troy'] = [
+				'reachable' => false,
+				'error'     => 'No Troy credentials stored.',
+			];
 		}
-	} else {
-		$health['troy'] = [
-			'reachable' => false,
-			'error'     => ! $troy_server ? 'No Troy server configured for this app.' : 'No Troy credentials stored.',
-		];
 	}
+	// When no Troy server is configured, health['troy'] stays null.
 
 	// ── GitHub health ───────────────────────────────────────────
 
@@ -830,13 +762,9 @@ function examplepress_scaffold_local_mode( string $slug, string $name, string $d
 	}
 
 	$description = $desc ?: examplepress_get_default_app_description();
-	$troy_url    = get_option( 'ep_troy_server_url', '' );
-	$troy_display = $troy_url
-		? str_replace( [ 'https://', 'http://' ], '', rtrim( $troy_url, '/' ) )
-		: '';
 
 	$result = examplepress_scaffold_download_template(
-		$plugin_dir, $slug, $name, $description, $troy_display
+		$plugin_dir, $slug, $name, $description
 	);
 
 	if ( is_wp_error( $result ) ) {

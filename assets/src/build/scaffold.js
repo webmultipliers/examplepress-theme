@@ -13,7 +13,6 @@ export function renderScaffoldSteps(results) {
 
 	const conn = $connections.get();
 	const hasGithub = conn.hasGithubApp || conn.hasGithubPat;
-	const hasTroy = conn.hasTroyUrl && conn.hasTroyCreds;
 	const githubSkip = !hasGithub ? 'Install GitHub App or configure a write token' : '';
 
 	const steps = [
@@ -21,7 +20,6 @@ export function renderScaffoldSteps(results) {
 		{ label: 'Create GitHub repo', ok: hasGithub, skip: githubSkip, key: 'template_create' },
 		{ label: 'Replace placeholders', ok: hasGithub, skip: githubSkip, key: 'placeholder_replace' },
 		{ label: 'Tag initial release (v0.0.0)', ok: hasGithub, skip: githubSkip, key: 'initial_release' },
-		{ label: 'Register on Troy', ok: hasTroy && hasGithub, skip: !hasTroy ? 'No Troy credentials configured' : githubSkip, key: 'troy_register' },
 	];
 
 	stepsEl.innerHTML = steps.map(s => {
