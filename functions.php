@@ -53,6 +53,7 @@ if ( is_admin() ) {
 }
 
 require_once EP_THEME_PATH . '/inc/cli.php';
+require_once EP_THEME_PATH . '/inc/demo-bootstrap.php';
 require_once EP_THEME_PATH . '/inc/updater-bootstrap.php';
 
 /**

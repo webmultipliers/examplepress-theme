@@ -36,10 +36,15 @@ function examplepress_apps_data(): array {
 		'updaterSettingsUrl'   => esc_url_raw( rest_url( 'examplepress/v1/updater/settings' ) ),
 		'updaterReleasesUrl'   => esc_url_raw( rest_url( 'examplepress/v1/updater/releases' ) ),
 		'demo'              => [
-			'status' => function_exists( 'examplepress_get_demo_status' ) ? examplepress_get_demo_status() : 'not-installed',
+			'status'          => function_exists( 'examplepress_get_demo_status' ) ? examplepress_get_demo_status() : 'not-installed',
+			'current_version' => function_exists( 'examplepress_get_demo_plugin_version' ) ? examplepress_get_demo_plugin_version() : null,
 		],
 		'demoInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/demo/install' ) ),
 		'demoUninstallUrl'  => esc_url_raw( rest_url( 'examplepress/v1/demo/uninstall' ) ),
+		'demoCheckUrl'      => esc_url_raw( rest_url( 'examplepress/v1/demo/check' ) ),
+		'demoUpdateUrl'     => esc_url_raw( rest_url( 'examplepress/v1/demo/update' ) ),
+		'demoSettingsUrl'   => esc_url_raw( rest_url( 'examplepress/v1/demo/settings' ) ),
+		'demoReleasesUrl'   => esc_url_raw( rest_url( 'examplepress/v1/demo/releases' ) ),
 		'nonce'             => wp_create_nonce( 'wp_rest' ),
 	];
 }
@@ -277,7 +282,7 @@ function examplepress_render_apps_page(): void {
 			<div class="ep-panel" id="p-demo" role="tabpanel" aria-hidden="true">
 				<section class="ep-section">
 					<div class="ep-section-header"><span class="ep-section-title">Demo Companion Plugin</span><div class="ep-section-line"></div></div>
-					<p class="ep-section-desc">Install a working demo companion plugin to see the routing contract in action. The demo claims its own namespace, defines a routing cascade, and renders distinct template blocks. Inspect the source, then remove it when you're ready to scaffold your own.</p>
+					<p class="ep-section-desc">Install the demo companion plugin to see the routing contract in action. The demo claims its own namespace, defines a routing cascade, and renders distinct template blocks. Inspect the source, then remove it when you're ready to scaffold your own.</p>
 
 					<div class="ep-demo-panel" id="ep-demo-panel">
 						<div class="ep-demo-status">
@@ -286,6 +291,59 @@ function examplepress_render_apps_page(): void {
 						</div>
 						<p class="ep-demo-message" id="ep-demo-message"></p>
 						<div class="ep-demo-actions" id="ep-demo-actions"></div>
+					</div>
+				</section>
+
+				<!-- Check for Plugin Updates -->
+				<section class="ep-section" id="ep-demo-check-section">
+					<div class="ep-section-header"><span class="ep-section-title">Check for Plugin Updates</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Check GitHub for a newer version of the demo plugin.</p>
+
+					<div class="ep-demo-panel">
+						<div class="ep-demo-status">
+							<div class="ep-demo-status-label">Installed</div>
+							<span class="ep-badge badge-on" id="ep-demo-current-ver">&mdash;</span>
+						</div>
+						<div class="ep-demo-status" id="ep-demo-target-row" style="display:none;margin-top:8px;">
+							<div class="ep-demo-status-label">Target</div>
+							<span class="ep-badge badge-on" id="ep-demo-target-ver"></span>
+						</div>
+						<div class="ep-demo-status" id="ep-demo-available-row" style="display:none;margin-top:8px;">
+							<div class="ep-demo-status-label">Action Needed</div>
+							<span class="ep-badge badge-warn" id="ep-demo-available-ver"></span>
+						</div>
+						<p class="ep-demo-message" id="ep-demo-check-message">Click below to check GitHub releases against your channel and pin settings.</p>
+						<div class="ep-demo-actions">
+							<button class="ep-demo-btn ep-demo-btn-primary" id="ep-demo-check-btn">Check Now</button>
+							<button class="ep-demo-btn ep-demo-btn-primary" id="ep-demo-update-btn" style="display:none;">Update Now</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Plugin Channel & Pinning -->
+				<section class="ep-section" id="ep-demo-settings-section">
+					<div class="ep-section-header"><span class="ep-section-title">Plugin Channel &amp; Pinning</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">Choose which release channel to follow for the demo plugin. Optionally pin to a specific version.</p>
+
+					<div class="ep-demo-panel">
+						<div class="ep-build-field">
+							<label class="ep-build-label" for="ep-demo-channel">Channel</label>
+							<select class="ep-build-input" id="ep-demo-channel" style="max-width:260px;">
+								<option value="stable">Stable (main branch releases only)</option>
+								<option value="prerelease">Pre-release (includes development builds)</option>
+							</select>
+						</div>
+						<div class="ep-build-field" style="margin-top:12px;">
+							<label class="ep-build-label" for="ep-demo-pin">Pin to Version</label>
+							<select class="ep-build-input" id="ep-demo-pin" style="max-width:260px;">
+								<option value="">Latest (no pin)</option>
+							</select>
+							<p class="ep-section-desc" style="margin-top:4px;font-size:12px;">When pinned, the updater will not offer versions newer than the pinned release.</p>
+						</div>
+						<div class="ep-demo-actions" style="margin-top:12px;">
+							<button class="ep-demo-btn ep-demo-btn-primary" id="ep-demo-save-settings">Save Settings</button>
+						</div>
+						<p class="ep-demo-message" id="ep-demo-settings-message" style="display:none;"></p>
 					</div>
 				</section>
 			</div>

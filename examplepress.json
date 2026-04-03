@@ -194,6 +194,19 @@
 			}
 		},
 		{
+			"slug": "examplepress-demo",
+			"name": "ExamplePress Demo",
+			"tier": "recommended",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "examplepress-demo/examplepress-demo.php",
+			"source": {
+				"type": "direct",
+				"url": "https://github.com/webmultipliers/examplepress-theme-demo"
+			}
+		},
+		{
 			"slug": "blockstudio",
 			"name": "Blockstudio",
 			"tier": "required",
