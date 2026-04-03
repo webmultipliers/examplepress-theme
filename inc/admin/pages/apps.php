@@ -25,6 +25,11 @@ function examplepress_apps_data(): array {
 		'editorUrl'         => examplepress_admin_page_url( 'editor', [ 'app' => '__SLUG__' ] ),
 		'troyCloudUrl'      => examplepress_get_troy_cloud_url(),
 		'adminUrl'          => esc_url( admin_url() ),
+		'updater'              => [
+			'status' => function_exists( 'examplepress_get_updater_status' ) ? examplepress_get_updater_status() : 'not-installed',
+		],
+		'updaterInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/updater/install' ) ),
+		'updaterUninstallUrl'  => esc_url_raw( rest_url( 'examplepress/v1/updater/uninstall' ) ),
 		'demo'              => [
 			'status' => function_exists( 'examplepress_get_demo_status' ) ? examplepress_get_demo_status() : 'not-installed',
 		],
@@ -134,6 +139,7 @@ function examplepress_render_apps_page(): void {
 			<div class="ep-layout">
 			<nav class="ep-tabs" role="tablist">
 				<button class="ep-tab" role="tab" aria-selected="true"  aria-controls="p-apps" id="t-apps" data-tab-id="apps">Apps</button>
+				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-updater" id="t-updater" data-tab-id="updater">Updates</button>
 				<button class="ep-tab" role="tab" aria-selected="false" aria-controls="p-demo" id="t-demo" data-tab-id="demo">Demo</button>
 			</nav>
 
@@ -190,6 +196,23 @@ function examplepress_render_apps_page(): void {
 					<div id="ep-apps-table"></div>
 				</section>
 
+			</div>
+
+			<!-- Updates -->
+			<div class="ep-panel" id="p-updater" role="tabpanel" aria-hidden="true">
+				<section class="ep-section">
+					<div class="ep-section-header"><span class="ep-section-title">Theme Update Plugin</span><div class="ep-section-line"></div></div>
+					<p class="ep-section-desc">The ExamplePress theme relies on a companion plugin to check for updates via GitHub Releases. This plugin lives outside the theme directory so it persists across theme upgrades. Install it here, and it becomes a locked dependency &mdash; it cannot be deactivated while ExamplePress is the active theme.</p>
+
+					<div class="ep-demo-panel" id="ep-updater-panel">
+						<div class="ep-demo-status">
+							<div class="ep-demo-status-label">Status</div>
+							<span class="ep-badge" id="ep-updater-badge"></span>
+						</div>
+						<p class="ep-demo-message" id="ep-updater-message"></p>
+						<div class="ep-demo-actions" id="ep-updater-actions"></div>
+					</div>
+				</section>
 			</div>
 
 			<!-- Demo -->

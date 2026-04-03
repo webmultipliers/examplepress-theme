@@ -2,14 +2,13 @@
 /**
  * ExamplePress — Updater Plugin Bootstrap
  *
- * Ensures the examplepress-theme-update companion plugin is installed
- * and active. This plugin lives outside the theme directory so it
- * survives theme updates (WordPress deletes the old theme dir during
- * upgrades).
+ * Provides constants and install/cleanup utilities for the
+ * examplepress-theme-update companion plugin. The plugin is
+ * installed manually via the Updates tab on the Apps admin page.
  *
- * Install sources (tried in order):
- *   1. GitHub release asset  (examplepress-theme-update.zip)
- *   2. GitHub repo archive   (fallback if no releases exist yet)
+ * This file also cleans up stale directories on admin_init
+ * to prevent class-redeclaration fatals from leftover GitHub
+ * archive extractions (e.g. examplepress-theme-update-development/).
  *
  * @package ExamplePress
  */
@@ -23,23 +22,40 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * The plugin file path relative to WP_PLUGIN_DIR.
  */
-define( 'EP_UPDATER_PLUGIN_FILE', 'examplepress-theme-update/examplepress-theme-update.php' );
+const EP_UPDATER_PLUGIN_FILE = 'examplepress-theme-update/examplepress-theme-update.php';
 
 /**
  * GitHub repository for the updater plugin.
  */
-define( 'EP_UPDATER_GITHUB_REPO', 'webmultipliers/examplepress-theme-update' );
+const EP_UPDATER_GITHUB_REPO = 'webmultipliers/examplepress-theme-update';
 
 /**
- * Ensure the updater companion plugin is installed and active.
- *
- * Runs early on admin_init so the plugin is in place before any
- * update checks fire.
+ * Transient key used to throttle install attempts.
  */
-add_action( 'admin_init', 'examplepress_ensure_updater_plugin', 5 );
+const EP_UPDATER_THROTTLE_KEY = 'ep_updater_install_attempted';
 
-function examplepress_ensure_updater_plugin(): void {
-	if ( ! current_user_can( 'install_plugins' ) ) {
+/**
+ * Clean up stale directories on admin load to prevent fatals.
+ */
+add_action( 'admin_init', 'examplepress_cleanup_stale_updater_dirs' );
+
+/**
+ * Remove any stale examplepress-theme-update-* directories.
+ *
+ * GitHub repo archive zips extract to "reponame-branch/" (e.g.
+ * examplepress-theme-update-development/). If one of these exists
+ * alongside the canonical directory, WordPress loads both and PHP
+ * fatals on class redeclaration.
+ */
+function examplepress_cleanup_stale_updater_dirs(): void {
+	if ( wp_doing_ajax() || wp_doing_cron() || defined( 'REST_REQUEST' ) ) {
+		return;
+	}
+
+	$pattern = WP_PLUGIN_DIR . '/examplepress-theme-update-*';
+	$stale   = glob( $pattern, GLOB_ONLYDIR );
+
+	if ( empty( $stale ) ) {
 		return;
 	}
 
@@ -47,38 +63,30 @@ function examplepress_ensure_updater_plugin(): void {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 	}
 
-	// Already active — nothing to do.
-	if ( is_plugin_active( EP_UPDATER_PLUGIN_FILE ) ) {
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	WP_Filesystem();
+	global $wp_filesystem;
+
+	if ( ! $wp_filesystem instanceof WP_Filesystem_Base ) {
 		return;
 	}
 
-	// Installed but inactive — activate it.
-	if ( array_key_exists( EP_UPDATER_PLUGIN_FILE, get_plugins() ) ) {
-		activate_plugin( EP_UPDATER_PLUGIN_FILE );
-		return;
+	foreach ( $stale as $dir ) {
+		$dirname      = basename( $dir );
+		$stale_plugin = $dirname . '/examplepress-theme-update.php';
+
+		if ( is_plugin_active( $stale_plugin ) ) {
+			deactivate_plugins( $stale_plugin, true );
+		}
+
+		$wp_filesystem->delete( $dir, true );
 	}
-
-	// Not installed — download and install from GitHub.
-	$installed = examplepress_install_updater_from_github();
-
-	if ( is_wp_error( $installed ) ) {
-		add_action( 'admin_notices', function () use ( $installed ) {
-			printf(
-				'<div class="notice notice-error"><p><strong>ExamplePress:</strong> %s</p></div>',
-				esc_html(
-					'Failed to auto-install the updater plugin: ' . $installed->get_error_message()
-					. ' You can install it manually from https://github.com/' . EP_UPDATER_GITHUB_REPO
-				)
-			);
-		} );
-		return;
-	}
-
-	activate_plugin( EP_UPDATER_PLUGIN_FILE );
 }
 
 /**
  * Download and install the updater plugin from GitHub.
+ *
+ * Called by the REST API endpoint, not automatically.
  *
  * Tries the latest release asset first. If no releases exist,
  * falls back to a repo archive download.
@@ -87,7 +95,16 @@ function examplepress_ensure_updater_plugin(): void {
  */
 function examplepress_install_updater_from_github() {
 	require_once ABSPATH . 'wp-admin/includes/file.php';
-	require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+	// Clean up stale/broken directory if it exists without a valid plugin file.
+	$plugin_dir = WP_PLUGIN_DIR . '/examplepress-theme-update';
+	if ( is_dir( $plugin_dir ) ) {
+		WP_Filesystem();
+		global $wp_filesystem;
+		if ( $wp_filesystem instanceof WP_Filesystem_Base ) {
+			$wp_filesystem->delete( $plugin_dir, true );
+		}
+	}
 
 	$zip_url = examplepress_resolve_updater_zip_url();
 
@@ -98,11 +115,35 @@ function examplepress_install_updater_from_github() {
 		);
 	}
 
-	// Use WP's built-in plugin upgrader for a clean install.
-	$skin     = new WP_Ajax_Upgrader_Skin();
-	$upgrader = new Plugin_Upgrader( $skin );
+	require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
-	$result = $upgrader->install( $zip_url );
+	// GitHub repo archives extract to "reponame-branch/" instead of "slug/".
+	// Temporarily hook upgrader_source_selection to rename the directory.
+	$rename_filter = function ( string $source, string $remote_source ) {
+		$expected = trailingslashit( $remote_source ) . 'examplepress-theme-update/';
+
+		if ( $source === $expected ) {
+			return $source;
+		}
+
+		$basename = basename( untrailingslashit( $source ) );
+		if ( str_starts_with( $basename, 'examplepress-theme-update' ) && $basename !== 'examplepress-theme-update' ) {
+			global $wp_filesystem;
+			if ( $wp_filesystem->move( $source, $expected, true ) ) {
+				return $expected;
+			}
+		}
+
+		return $source;
+	};
+
+	add_filter( 'upgrader_source_selection', $rename_filter, 10, 2 );
+
+	$skin     = new Automatic_Upgrader_Skin();
+	$upgrader = new Plugin_Upgrader( $skin );
+	$result   = $upgrader->install( $zip_url );
+
+	remove_filter( 'upgrader_source_selection', $rename_filter, 10 );
 
 	if ( is_wp_error( $result ) ) {
 		return $result;
@@ -132,12 +173,6 @@ function examplepress_install_updater_from_github() {
  * @return string|null
  */
 function examplepress_resolve_updater_zip_url(): ?string {
-	// Try latest release first.
-	$release_url = sprintf(
-		'https://api.github.com/repos/%s/releases/latest',
-		EP_UPDATER_GITHUB_REPO
-	);
-
 	$headers = [
 		'Accept'     => 'application/vnd.github+json',
 		'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . home_url(),
@@ -148,10 +183,11 @@ function examplepress_resolve_updater_zip_url(): ?string {
 		$headers['Authorization'] = 'Bearer ' . $token;
 	}
 
-	$response = wp_remote_get( $release_url, [
-		'timeout' => 10,
-		'headers' => $headers,
-	] );
+	// Try latest release first.
+	$response = wp_remote_get(
+		sprintf( 'https://api.github.com/repos/%s/releases/latest', EP_UPDATER_GITHUB_REPO ),
+		[ 'timeout' => 10, 'headers' => $headers ]
+	);
 
 	if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
 		$release = json_decode( wp_remote_retrieve_body( $response ), true );
