@@ -318,7 +318,7 @@ jobs:
       - name: Cleanup Staging Directory
         if: always()
         run: |
-          rm -rf staging updates.json
+          rm -rf staging
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
