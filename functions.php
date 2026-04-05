@@ -11,8 +11,14 @@ use ExamplePress\MU\Infrastructure\Router;
 use ExamplePress\MU\Infrastructure\RouteRegistry;
 
 define( 'EP_THEME_VERSION', wp_get_theme()->get( 'Version' ) ?? '1.0.0' );
-define( 'EP_THEME_PATH', get_template_directory() );
-define( 'EP_THEME_URI', get_template_directory_uri() );
+
+if ( ! defined( 'EP_THEME_PATH' ) ) {
+	define( 'EP_THEME_PATH', get_template_directory() );
+}
+
+if ( ! defined( 'EP_THEME_URI' ) ) {
+	define( 'EP_THEME_URI', get_template_directory_uri() );
+}
 
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require_once __DIR__ . '/vendor/autoload.php';
