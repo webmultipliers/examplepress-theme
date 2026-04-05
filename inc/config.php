@@ -353,48 +353,4 @@ function examplepress_normalise_dependencies_config( array $config ) {
 	return $config;
 }
 
-// ── Platform Defaults ─────────────────────────────────────────────
-// Centralised defaults for values that agencies may override.
-
-/**
- * Get the Troy Cloud URL.
- *
- * Agencies running their own Troy infrastructure override this via
- * the `ep_troy_cloud_url` option or `examplepress_troy_cloud_url` filter.
- *
- * @return string Full URL (with https://).
- */
-function examplepress_get_troy_cloud_url(): string {
-	$url = get_option( 'ep_troy_cloud_url', 'https://internal.repo.mustuse.com' );
-
-	if ( ! $url ) {
-		$url = 'https://internal.repo.mustuse.com';
-	}
-
-	return apply_filters( 'examplepress_troy_cloud_url', $url );
-}
-
-/**
- * Get the default description for newly scaffolded apps.
- *
- * @return string
- */
-function examplepress_get_default_app_description(): string {
-	return apply_filters( 'examplepress_default_app_description', 'A companion plugin.' );
-}
-
-/**
- * Get the GitHub App slug for the installation link.
- *
- * @return string
- */
-function examplepress_get_github_app_slug(): string {
-	if ( defined( 'EP_GITHUB_APP_SLUG' ) ) {
-		return EP_GITHUB_APP_SLUG;
-	}
-
-	$slug = get_option( 'ep_github_app_slug', 'examplepress' );
-
-	return apply_filters( 'examplepress_github_app_slug', $slug );
-}
 

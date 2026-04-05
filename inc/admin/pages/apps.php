@@ -23,7 +23,7 @@ function examplepress_apps_data(): array {
 		'appsBaseUrl'       => esc_url_raw( rest_url( 'examplepress/v1/apps' ) ),
 		'appsScaffoldUrl'   => esc_url_raw( rest_url( 'examplepress/v1/apps/scaffold' ) ),
 		'editorUrl'         => examplepress_admin_page_url( 'editor', [ 'app' => '__SLUG__' ] ),
-		'troyCloudUrl'      => examplepress_get_troy_cloud_url(),
+		'troyCloudUrl'      => function_exists( 'examplepress_get_troy_cloud_url' ) ? examplepress_get_troy_cloud_url() : '',
 		'adminUrl'          => esc_url( admin_url() ),
 		'updater'              => [
 			'status'          => function_exists( 'examplepress_get_updater_status' ) ? examplepress_get_updater_status() : 'not-installed',
