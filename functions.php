@@ -2,8 +2,9 @@
 /**
  * ExamplePress functions and definitions.
  *
- * The theme is strictly a presentation and routing layer.
- * All platform infrastructure lives in the MU Kernel (examplepress-mu).
+ * The theme is strictly a presentation layer.
+ * All platform infrastructure — routing, features, configuration,
+ * admin UI, security — lives in the MU Kernel (examplepress-mu).
  */
 
 define( 'EP_THEME_VERSION', wp_get_theme()->get( 'Version' ) ?? '1.0.0' );
@@ -13,9 +14,6 @@ define( 'EP_THEME_URI', get_template_directory_uri() );
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require_once __DIR__ . '/vendor/autoload.php';
 }
-
-require_once EP_THEME_PATH . '/inc/route-registry.php';
-require_once EP_THEME_PATH . '/inc/router.php';
 
 /**
  * Theme setup.
@@ -38,9 +36,13 @@ add_filter( 'blockstudio/blocks/components/inner_blocks/frontend/wrap', function
 		$render = false;
 	}
 
-	$template_prefix = examplepress_get_template_prefix();
+	$template_prefix = function_exists( 'examplepress_get_template_prefix' )
+		? examplepress_get_template_prefix()
+		: 'template';
 
-	$namespaces   = examplepress_get_route_origin_namespaces();
+	$namespaces   = function_exists( 'examplepress_get_route_origin_namespaces' )
+		? examplepress_get_route_origin_namespaces()
+		: [];
 	$namespaces[] = 'examplepress-theme';
 	$namespaces   = array_unique( $namespaces );
 
