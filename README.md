@@ -2,7 +2,7 @@
 
 > **Beta** — ExamplePress is in public beta. Core architecture is stable. APIs and configuration may evolve based on feedback. Report issues on [GitHub](https://github.com/webmultipliers/examplepress-theme/issues).
 
-A code-first WordPress theme built on Blockstudio. ExamplePress replaces the traditional template hierarchy with a single-entry-point router that dispatches to modular Blockstudio blocks. The theme is an **infrastructure layer** — it owns the engine (router, guards, feature registry, configuration pipeline, and scaffolding). Companion plugins own the application (routing logic, template blocks, patterns, frontend assets).
+A code-first WordPress theme built on Blockstudio. ExamplePress replaces the traditional template hierarchy with a single-entry-point router that dispatches to modular Blockstudio blocks. The theme is a **presentation and routing layer** — it owns the engine (router, feature registry, configuration pipeline, Blockstudio integration, and scaffolding). Security, platform governance, and template guards are enforced by the **ExamplePress Platform Kernel** (`examplepress-mu`), a required Must-Use plugin. Companion plugins own the application (routing logic, template blocks, patterns, frontend assets).
 
 ## How It Works
 
@@ -19,20 +19,22 @@ Every request enters through `templates/index.html`, which contains only the rou
 
 ## Requirements
 
-| Dependency   | Version         |
-|--------------|----------------|
-| WordPress    | >= 6.9         |
-| PHP          | >= 8.4         |
-| Blockstudio  | >= 7.1         |
-| Composer     | Required for autoloading |
+| Dependency              | Version                  |
+|-------------------------|--------------------------|
+| WordPress               | >= 6.9                   |
+| PHP                     | >= 8.4                   |
+| ExamplePress MU Kernel  | Required (must-use plugin) |
+| Blockstudio             | >= 7.1                   |
+| Composer                | Required for autoloading |
 
 ## Installation & Onboarding
 
-1. Clone or download into `wp-content/themes/examplepress-theme/`
-2. Run `composer install`
-3. Activate the theme
-4. Install and activate Blockstudio
-5. **Install the Demo:**  
+1. Install the **ExamplePress Platform Kernel** (`examplepress-mu`) as a must-use plugin
+2. Clone or download into `wp-content/themes/examplepress-theme/`
+3. Run `composer install`
+4. Activate the theme
+5. Install and activate Blockstudio
+6. **Install the Demo:**  
    Navigate to the ExamplePress settings page in your WordPress admin. Under the "Build" tab, click to install and activate the built-in Demo Companion Plugin. This will take over the router and demonstrate how to build custom template blocks.
 
 ## App Scaffolding (Build)
@@ -100,7 +102,7 @@ When resolving a feature toggle or option, the registry checks in this priority 
 
 A JSON Schema is available at `schema/examplepress-theme.json` for IDE autocompletion.
 
-## Registered Features (37 Total)
+## Registered Features (31 Total)
 
 ### Theme Support
 
@@ -116,10 +118,10 @@ A JSON Schema is available at `schema/examplepress-theme.json` for IDE autocompl
 - `disable-core-block-patterns`
 - `restrict-block-types` (opt-in)
 - `openverse`
+- `post-lock-window`
 
 ### Admin Customization
 
-- `post-lock-window`
 - `remove-dashboard-widgets`
 - `login-branding`
 
@@ -130,12 +132,6 @@ A JSON Schema is available at `schema/examplepress-theme.json` for IDE autocompl
 - `theme-typography`
 - `design-strict` — injected into `theme.json` at runtime via `wp_theme_json_data_theme`. Setting `design-strict` locks down `appearanceTools` globally.
 
-### Site Options
-
-- `disable-redirect-guess-404`
-- `permalink-structure`
-- `managed-options`
-
 ### Spacing, Borders & Shadows
 
 - `theme-spacing`
@@ -143,12 +139,13 @@ A JSON Schema is available at `schema/examplepress-theme.json` for IDE autocompl
 - `theme-shadows`
 - `theme-global-styles`
 
-### Guards
+### Platform Kernel (examplepress-mu)
 
-- `guard-template-redirect`
-- `guard-template-rest`
-- `guard-template-resolution`  
-  A three-layer lockdown preventing template creation that would bypass the router.
+The following are enforced by the MU Kernel and are **not** registered or toggleable via the theme:
+
+- Template guards (redirect, REST, resolution)
+- Permalink structure enforcement
+- Capability lockdown and `DISALLOW_FILE_EDIT`
 
 ### Blockstudio Controls
 
@@ -199,6 +196,8 @@ add_filter( 'examplepress_feature_post-lock-window_duration', fn() => 120 );
 
 ## Admin Dashboard
 
+The admin UI is rendered by the theme. Platform data (apps, dependencies, notifications, connections) is provided by the MU Kernel via shared PHP functions. REST API endpoints for scaffolding, plugin management, and file editing are registered by the MU Kernel.
+
 A read-only settings page is available at **ExamplePress** in the admin menu. It surfaces:
 
 - **Features** — All registered features with their resolved state and source
@@ -210,11 +209,11 @@ A read-only settings page is available at **ExamplePress** in the admin menu. It
 - **Notifications** — Aggregated system warnings (missing dependencies, health failures, routing issues) with per-user archiving
 - **Library** — Component library (coming in v1.1)
 - **Config** — Raw JSON viewer for configuration files
-- **Health** — Environment checks, theme integrity, router status, guard state, and connection health
+- **Health** — Environment checks, theme integrity, router status, platform kernel status, and connection health
 - **Docs** — Documentation links configurable via examplepress.json
 - **Support** — Blockstudio, GitHub repository, and contact links
 
-> Define `EP_DEV_MODE` as `true` in `wp-config.php` to automatically disable all template guards during development.
+> Template guards are enforced by the MU Kernel. Define `EP_DEV_MODE` in `wp-config.php` to bypass guards during development (requires MU Kernel support).
 
 ---
 

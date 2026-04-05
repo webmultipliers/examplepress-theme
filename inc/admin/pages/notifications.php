@@ -19,8 +19,8 @@ function examplepress_notifications_data(): array {
 		'themeVersion'  => EP_THEME_VERSION,
 		'devMode'       => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
 		'page'          => 'notifications',
-		'notifications' => examplepress_gather_notifications(),
-		'archived'      => examplepress_get_archived_notifications(),
+		'notifications' => function_exists( 'examplepress_gather_notifications' ) ? examplepress_gather_notifications() : [],
+		'archived'      => function_exists( 'examplepress_get_archived_notifications' ) ? examplepress_get_archived_notifications() : [],
 		'restUrl'       => esc_url_raw( rest_url( 'examplepress/v1/notifications/archive' ) ),
 		'nonce'         => wp_create_nonce( 'wp_rest' ),
 	];

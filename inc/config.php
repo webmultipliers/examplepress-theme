@@ -398,12 +398,3 @@ function examplepress_get_github_app_slug(): string {
 	return apply_filters( 'examplepress_github_app_slug', $slug );
 }
 
-// ── Developer Mode ─────────────────────────────────────────────────
-// Define EP_DEV_MODE in wp-config.php to auto-disable all guards
-// during companion plugin development.
-
-if ( defined( 'EP_DEV_MODE' ) && EP_DEV_MODE ) {
-	add_filter( 'examplepress_feature_guard-template-redirect', '__return_false' );
-	add_filter( 'examplepress_feature_guard-template-rest', '__return_false' );
-	add_filter( 'examplepress_feature_guard-template-resolution', '__return_false' );
-}

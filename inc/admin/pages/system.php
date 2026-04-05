@@ -96,7 +96,7 @@ function examplepress_render_system_page(): void {
 				<section class="ep-section ep-collapsible" data-health-section="security">
 					<div class="ep-section-header ep-collapsible-header">
 						<button class="ep-collapse-toggle" aria-expanded="true" aria-label="Toggle section"><span class="ep-collapse-icon"></span></button>
-						<span class="ep-section-title">Security &amp; Guards</span><div class="ep-section-line"></div>
+						<span class="ep-section-title">Security &amp; Platform</span><div class="ep-section-line"></div>
 					</div>
 					<div class="ep-collapsible-body">
 						<div class="ep-table" id="tbl-health-security"></div>

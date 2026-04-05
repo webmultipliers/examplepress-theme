@@ -181,6 +181,19 @@
 	},
 	"dependencies": [
 		{
+			"slug": "examplepress-mu",
+			"name": "ExamplePress Platform Kernel",
+			"tier": "required",
+			"pricing": "free",
+			"cloud_dependent": false,
+			"check_type": "plugin",
+			"check_target": "examplepress-mu/examplepress-mu.php",
+			"source": {
+				"type": "direct",
+				"url": "https://github.com/webmultipliers/examplepress-mu"
+			}
+		},
+		{
 			"slug": "examplepress-theme-update",
 			"name": "ExamplePress Theme Update",
 			"tier": "required",

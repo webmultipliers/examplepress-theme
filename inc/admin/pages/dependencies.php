@@ -19,7 +19,7 @@ function examplepress_dependencies_data(): array {
 		'themeVersion'  => EP_THEME_VERSION,
 		'devMode'       => defined( 'EP_DEV_MODE' ) && EP_DEV_MODE,
 		'page'          => 'dependencies',
-		'dependencies'  => examplepress_get_dependencies(),
+		'dependencies'  => function_exists( 'examplepress_get_dependencies' ) ? examplepress_get_dependencies() : [],
 		'nonce'         => wp_create_nonce( 'wp_rest' ),
 	];
 }

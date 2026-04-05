@@ -27,7 +27,7 @@ function examplepress_apps_data(): array {
 		'adminUrl'          => esc_url( admin_url() ),
 		'updater'              => [
 			'status'          => function_exists( 'examplepress_get_updater_status' ) ? examplepress_get_updater_status() : 'not-installed',
-			'current_version' => examplepress_get_updater_plugin_version(),
+			'current_version' => function_exists( 'examplepress_get_updater_plugin_version' ) ? examplepress_get_updater_plugin_version() : null,
 		],
 		'updaterInstallUrl'    => esc_url_raw( rest_url( 'examplepress/v1/updater/install' ) ),
 		'updaterUninstallUrl'  => esc_url_raw( rest_url( 'examplepress/v1/updater/uninstall' ) ),

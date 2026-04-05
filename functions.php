@@ -17,30 +17,22 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 }
 
 /**
- * Core includes.
+ * Core includes — presentation, routing, and Blockstudio integration only.
+ * Platform infrastructure (apps, GitHub, scaffolding, REST APIs, CLI,
+ * dependencies, notifications) lives in the MU Kernel (examplepress-mu).
  */
-require_once EP_THEME_PATH . '/inc/helpers.php';
 require_once EP_THEME_PATH . '/inc/config.php';
 require_once EP_THEME_PATH . '/inc/feature-registry.php';
 require_once EP_THEME_PATH . '/inc/features.php';
 require_once EP_THEME_PATH . '/inc/route-registry.php';
 require_once EP_THEME_PATH . '/inc/router.php';
-require_once EP_THEME_PATH . '/inc/dependencies.php';
-require_once EP_THEME_PATH . '/inc/notifications.php';
-require_once EP_THEME_PATH . '/inc/apps.php';
-require_once EP_THEME_PATH . '/inc/app-registry.php';
-require_once EP_THEME_PATH . '/inc/app-cpt.php';
-require_once EP_THEME_PATH . '/inc/github.php';
-require_once EP_THEME_PATH . '/inc/github-app.php';
-require_once EP_THEME_PATH . '/inc/scaffolder.php';
-require_once EP_THEME_PATH . '/inc/api.php';
 
 if ( is_admin() ) {
 	require_once EP_THEME_PATH . '/inc/admin/admin-assets.php';
 	require_once EP_THEME_PATH . '/inc/admin/settings-data.php';
 	require_once EP_THEME_PATH . '/inc/admin/admin-registry.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/shared.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/settings.php';    // before apps (defines connection state helper)
+	require_once EP_THEME_PATH . '/inc/admin/pages/settings.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/apps.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/theme.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/navigation.php';
@@ -51,10 +43,6 @@ if ( is_admin() ) {
 	require_once EP_THEME_PATH . '/inc/admin/pages/docs.php';
 	require_once EP_THEME_PATH . '/inc/admin/pages/editor.php';
 }
-
-require_once EP_THEME_PATH . '/inc/cli.php';
-require_once EP_THEME_PATH . '/inc/demo-bootstrap.php';
-require_once EP_THEME_PATH . '/inc/updater-bootstrap.php';
 
 /**
  * Theme setup.

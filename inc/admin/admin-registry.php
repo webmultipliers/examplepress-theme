@@ -136,42 +136,16 @@ function examplepress_build_admin_menu(): void {
 	// 2. Let companion plugins add their pages.
 	do_action( 'examplepress_register_admin_pages' );
 
-	// 3. Build the WordPress menu.
 	$pages = examplepress_get_admin_pages();
-
 	if ( empty( $pages ) ) {
 		return;
 	}
 
-	$first_id = array_key_first( $pages );
-	$first    = $pages[ $first_id ];
-
-	// Create the top-level menu from the first page.
-	$parent_hook = add_menu_page(
-		$first['page_title'],
-		'ExamplePress',
-		$first['capability'],
-		EP_ADMIN_MENU_SLUG,
-		$first['render'],
-		'dashicons-layout',
-		60
-	);
-
-	// Register enqueue for the first page.
-	if ( $first['enqueue'] ) {
-		$enqueue_cb = $first['enqueue'];
-		add_action( 'admin_enqueue_scripts', function ( $hook_suffix ) use ( $parent_hook, $enqueue_cb ) {
-			if ( $hook_suffix === $parent_hook ) {
-				$enqueue_cb();
-			}
-		} );
-	}
-
-	// Register all pages as submenus (including the first, so it appears correctly).
+	// 3. Register all pages as submenus attaching to the MU parent slug.
 	foreach ( $pages as $id => $page ) {
 		$menu_slug = examplepress_admin_page_slug( $id );
 
-		// The first page is already registered as the parent — just add the submenu label.
+		// Always attach to the parent 'examplepress' slug.
 		$parent = $page['hidden'] ? null : EP_ADMIN_MENU_SLUG;
 
 		$hook = add_submenu_page(
@@ -184,8 +158,7 @@ function examplepress_build_admin_menu(): void {
 			$page['position']
 		);
 
-		// Register enqueue callback (skip first — already done above).
-		if ( $id !== $first_id && $page['enqueue'] ) {
+		if ( $page['enqueue'] ) {
 			$enqueue_cb = $page['enqueue'];
 			add_action( 'admin_enqueue_scripts', function ( $hook_suffix ) use ( $hook, $enqueue_cb ) {
 				if ( $hook_suffix === $hook ) {

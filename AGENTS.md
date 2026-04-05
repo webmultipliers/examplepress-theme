@@ -2,7 +2,7 @@
 
 ## Foundational Constraint
 
-ExamplePress is an **infrastructure layer**. The theme owns the engine (router, guards, feature registry, configuration pipeline, Blockstudio bridge). Companion plugins own the application (routing logic, template blocks, patterns, frontend assets). The theme provides zero "reasonable defaults" for front-end rendering — only a clean, documented handoff.
+ExamplePress uses a **Kernel + Theme** architecture. The theme is a **presentation and routing layer** — it owns the engine (router, feature registry, configuration pipeline, Blockstudio bridge). The **ExamplePress Platform Kernel** (`examplepress-mu`) is the undisputed platform governor — it owns security, template guards, permalink enforcement, and capability lockdown. Companion plugins own the application (routing logic, template blocks, patterns, frontend assets). The theme provides zero "reasonable defaults" for front-end rendering — only a clean, documented handoff.
 
 ## Architecture Overview
 
@@ -59,7 +59,7 @@ The settings page supports deep-linking via query params: `?page=examplepress-se
 
 ### Developer Mode
 
-Define `EP_DEV_MODE` as `true` in `wp-config.php` to auto-disable all three guards during development. The settings page displays a red warning banner when active.
+Template guards are enforced by the MU Kernel (`examplepress-mu`). Define `EP_DEV_MODE` in `wp-config.php` to bypass guards during development (requires MU Kernel support). The settings page displays a red warning banner when active.
 
 ## Public API
 
@@ -92,7 +92,7 @@ Define `EP_DEV_MODE` as `true` in `wp-config.php` to auto-disable all three guar
 |---|---|
 | `wp examplepress init` | Generate a starter `examplepress.json` pre-populated with all registration defaults |
 
-## Feature Inventory (37 features)
+## Feature Inventory (31 features)
 
 Every feature has a `group` key used by the settings page to auto-sort into tabs.
 
@@ -100,10 +100,10 @@ Every feature has a `group` key used by the settings page to auto-sort into tabs
 `title-tag`, `responsive-embeds`, `post-thumbnails`, `wp-block-styles`, `html5`
 
 ### Editor Controls (group: `editor`)
-`disable-remote-block-patterns`, `disable-core-block-patterns`, `restrict-block-types` (opt-in), `openverse`
+`disable-remote-block-patterns`, `disable-core-block-patterns`, `restrict-block-types` (opt-in), `openverse`, `post-lock-window`
 
 ### Admin Customization (group: `admin`)
-`post-lock-window`, `remove-dashboard-widgets`, `login-branding`
+`remove-dashboard-widgets`, `login-branding`
 
 ### Design Tokens (group: `design`)
 `theme-colors`, `theme-layout`, `theme-typography`, `theme-spacing`, `theme-borders`, `theme-shadows`, `theme-global-styles` — inject into `wp_theme_json_data_theme` at priority 39
@@ -111,11 +111,11 @@ Every feature has a `group` key used by the settings page to auto-sort into tabs
 ### Design Controls (group: `design`)
 `design-strict` — locks down `appearanceTools` when enabled via `design.strict: true` (priority 99)
 
-### Site Options (group: `site`)
-`disable-redirect-guess-404`, `permalink-structure`, `managed-options`
-
-### Guards (group: `guards`)
-`guard-template-redirect`, `guard-template-rest`, `guard-template-resolution` — three-layer template lockdown preventing users from creating templates that bypass the router. Auto-disabled by `EP_DEV_MODE`.
+### Platform Kernel (examplepress-mu)
+The following are enforced by the MU Kernel and are **not** registered or toggleable via the theme:
+- Template guards (redirect, REST, resolution) — three-layer template lockdown preventing users from creating templates that bypass the router
+- Permalink structure enforcement (`/%postname%/`)
+- Capability lockdown and `DISALLOW_FILE_EDIT`
 
 ### Blockstudio (group: `blockstudio`)
 `blockstudio-assets`, `blockstudio-asset-reset`, `blockstudio-minify`, `blockstudio-scss`, `blockstudio-tailwind`, `blockstudio-editor`, `blockstudio-block-editor`, `blockstudio-ai-context`, `blockstudio-block-tags`, `blockstudio-dev`, `blockstudio-users` — bridge Blockstudio runtime settings via `blockstudio/settings/{path}` filters. All default to disabled; enable via `blockstudio.*` shorthand or `features.blockstudio-*` in `examplepress.json`.
@@ -125,16 +125,11 @@ Every feature has a `group` key used by the settings page to auto-sort into tabs
 ```
 inc/
 ├── admin/
-│   └── settings-page.php   # Read-only admin dashboard (features, design, connections, build, health, etc.)
-├── api.php                 # REST API loader — requires api/*.php modules
-├── api/
-│   ├── apps.php            # App listing, scaffolding, troy-bind, deactivate, connect endpoints
-│   ├── connections.php     # Connection settings, GitHub/Troy tests, OAuth callbacks
-│   └── demo.php            # Demo companion plugin install/uninstall (WP_Filesystem)
-├── apps.php                # App discovery — parses companion plugin examplepress.json files
-├── config.php              # examplepress_get_config(), JSON reader + design/blockstudio normalisation + EP_DEV_MODE
-├── cli.php                 # WP-CLI commands (wp examplepress init)
-├── dependencies.php        # Plugin dependency checker and status resolution
+│   ├── admin-assets.php    # Vite-aware asset enqueuing (dev + prod)
+│   ├── admin-registry.php  # Declarative submenu registration (attaches to MU parent)
+│   ├── settings-data.php   # Data helpers for admin page payloads
+│   └── pages/              # Per-page render functions and data gatherers
+├── config.php              # examplepress_get_config(), JSON reader + design/blockstudio normalisation
 ├── feature-registry.php    # Registry API (register, enabled, option, guarded_setup, boot, get_by_group)
 ├── features.php            # Loader for domain-specific feature files
 ├── features/
@@ -142,25 +137,15 @@ inc/
 │   ├── editor-controls.php
 │   ├── admin-customization.php
 │   ├── design-tokens.php   # Colors, layout, typography, spacing, borders, shadows, global styles, strict mode
-│   ├── site-options.php
-│   ├── guards.php
 │   └── blockstudio.php     # 11 Blockstudio integration features
-├── github.php              # GitHub API helpers (repo creation, push, Troy registration)
-├── github-app.php          # GitHub App JWT signing + installation token management
-├── notifications.php       # Notification hub — aggregates warnings, per-user archiving via REST
 ├── route-registry.php      # Multi-origin route registry (register_route_origin, resolve)
-├── router.php              # Routing helper functions
-├── scaffolder.php          # GitHub template repo scaffolding + placeholder replacement
-└── updater.php             # GitHub Releases auto-updater (authenticated, channel-aware)
+└── router.php              # Routing helper functions
 
 blockstudio/
 ├── router/                 # Single-entry dispatch block
-├── site-editor/            # JS/CSS lockdown layers (PHP guards moved to features)
+├── site-editor/            # JS/CSS lockdown layers (PHP guards enforced by MU Kernel)
 ├── templates/              # Template blocks (get-started fallback)
 └── patterns/               # Block pattern directory
-
-demo/
-└── examplepress-demo/      # Bundled demo companion plugin (3 template blocks)
 
 examplepress.json           # Declarative configuration (features, design, updater, dependencies)
 schema/examplepress-theme.json  # JSON Schema for IDE autocompletion (covers theme + companion plugin configs)
@@ -168,13 +153,27 @@ languages/
 └── examplepress-theme.pot  # Translation template
 ```
 
+### Platform Infrastructure (in MU Kernel)
+
+The following capabilities are provided by the MU Kernel (`examplepress-mu`) and consumed by the theme's admin pages via `function_exists()` guards:
+
+- **App discovery & registry** — `examplepress_get_apps()`, `examplepress_registry_*()`, `ep_app` CPT
+- **Dependency resolution** — `examplepress_get_dependencies()`
+- **Notification aggregation** — `examplepress_gather_notifications()`, archive/restore REST endpoint
+- **GitHub integration** — repo creation, scaffold push, App JWT signing, token management
+- **Scaffolder** — template repo scaffolding, placeholder replacement, Codespaces URLs
+- **REST API** — `/examplepress/v1/` endpoints for apps, connections, demo, updater, filesystem
+- **Plugin manager** — updater and demo plugin install/update/uninstall
+- **WP-CLI** — `wp examplepress init`
+
 ## Rules for Contributors
 
 - **Never add application logic to the theme.** Routing decisions, template blocks, and frontend assets belong in companion plugins.
 - **Every new behaviour must be a registered feature** with a unique ID, `group`, default state, and filter support.
 - **Use `examplepress_guarded_setup()`** in all complex feature `setup` callables instead of manually checking `examplepress_feature_enabled()`. The only exception is features that intentionally run regardless of enabled state (e.g. `openverse` which writes the setting either way).
-- **Every feature must have a `group` key** — one of: `design`, `editor`, `admin`, `theme`, `site`, `guards`, `blockstudio`.
-- **The theme must work with zero plugins installed** — the `get-started` fallback is the baseline.
-- **Guards exist to protect the router pattern.** Do not remove them without understanding the template hijacking problem they solve.
+- **Every feature must have a `group` key** — one of: `design`, `editor`, `admin`, `theme`, `blockstudio`.
+- **The theme must work with zero plugins installed** — the `get-started` fallback is the baseline. Admin pages degrade gracefully via `function_exists()` guards when MU kernel functions are unavailable.
+- **Platform infrastructure belongs in the MU Kernel.** App lifecycle, GitHub integration, scaffolding, REST APIs, dependencies, notifications, CLI, and plugin management are all MU responsibilities. The theme only renders the admin UI.
+- **Guards are enforced by the MU Kernel.** The theme blindly assumes the MU plugin is active and managing the security perimeter.
 - **Shorthand sections (`design.*`, `blockstudio.*`) provide option data, not feature toggles.** A `features.{id}: false` toggle always takes precedence over shorthand values for that feature.
 - **Blockstudio features follow the filter bridge pattern:** register with `examplepress_register_feature()`, then use `add_filter('blockstudio/settings/{path}', ...)` inside the guarded setup to write values back. Never generate or modify `blockstudio.json` from PHP.

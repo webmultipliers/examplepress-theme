@@ -9,9 +9,7 @@ import { log } from '../lib/logger.js';
 const categoryLabels = {
 	'theme-support': 'Theme Support',
 	'editor': 'Editor & Content Controls',
-	'guards': 'Guards',
 	'admin': 'Admin Customization',
-	'options': 'Site Options',
 	'design': 'Design Tokens',
 };
 

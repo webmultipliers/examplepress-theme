@@ -131,10 +131,8 @@ function examplepress_settings_get_features() {
 
 	$categories = [
 		'theme-support' => [ 'title-tag', 'responsive-embeds', 'post-thumbnails', 'wp-block-styles', 'html5' ],
-		'editor'        => [ 'disable-remote-block-patterns', 'disable-core-block-patterns', 'restrict-block-types', 'disable-redirect-guess-404', 'openverse', 'post-lock-window' ],
-		'guards'        => [ 'guard-template-redirect', 'guard-template-rest', 'guard-template-resolution' ],
+		'editor'        => [ 'disable-remote-block-patterns', 'disable-core-block-patterns', 'restrict-block-types', 'openverse', 'post-lock-window' ],
 		'admin'         => [ 'remove-dashboard-widgets', 'login-branding' ],
-		'options'       => [ 'permalink-structure', 'managed-options' ],
 		'design'        => [ 'theme-colors', 'theme-layout', 'theme-typography', 'design-strict' ],
 	];
 
@@ -142,14 +140,6 @@ function examplepress_settings_get_features() {
 		'html5'                => [ 'features', fn( $v ) => implode( ', ', (array) $v ) ],
 		'post-lock-window'     => [ 'duration', fn( $v ) => $v . 's' ],
 		'restrict-block-types' => [ 'types', fn( $v ) => implode( ', ', (array) $v ) ],
-		'permalink-structure'  => [ 'structure', fn( $v ) => (string) $v ],
-		'managed-options'      => [ 'values', function ( $v ) {
-			$parts = [];
-			foreach ( (array) $v as $k => $val ) {
-				$parts[] = "$k: $val";
-			}
-			return empty( $parts ) ? '(none)' : implode( ', ', $parts );
-		} ],
 	];
 
 	$result = [];
@@ -308,9 +298,10 @@ function examplepress_settings_get_health() {
 		],
 		'router'   => examplepress_settings_get_router_health(),
 		'security' => [
-			[ 'name' => 'REST Template Guard',       'detail' => examplepress_feature_enabled( 'guard-template-rest' ) ? 'Active' : 'Disabled',       'req' => 'Enabled', 'status' => examplepress_feature_enabled( 'guard-template-rest' ) ? 'pass' : 'warn' ],
-			[ 'name' => 'Template Resolution Guard', 'detail' => examplepress_feature_enabled( 'guard-template-resolution' ) ? 'Active' : 'Disabled', 'req' => 'Enabled', 'status' => examplepress_feature_enabled( 'guard-template-resolution' ) ? 'pass' : 'warn' ],
-			[ 'name' => 'Editor Redirect Guard',     'detail' => examplepress_feature_enabled( 'guard-template-redirect' ) ? 'Active' : 'Disabled',   'req' => 'Enabled', 'status' => examplepress_feature_enabled( 'guard-template-redirect' ) ? 'pass' : 'warn' ],
+			[ 'name' => 'Platform Kernel', 'detail' => defined('EXAMPLEPRESS_MU_VERSION') ? 'Active (v' . EXAMPLEPRESS_MU_VERSION . ')' : 'Missing', 'req' => 'Required', 'status' => defined('EXAMPLEPRESS_MU_VERSION') ? 'pass' : 'fail' ],
+			[ 'name' => 'REST Template Guard', 'detail' => 'Enforced by MU Kernel', 'req' => 'Enabled', 'status' => 'pass' ],
+			[ 'name' => 'Template Resolution Guard', 'detail' => 'Enforced by MU Kernel', 'req' => 'Enabled', 'status' => 'pass' ],
+			[ 'name' => 'Editor Redirect Guard', 'detail' => 'Enforced by MU Kernel', 'req' => 'Enabled', 'status' => 'pass' ],
 			[
 				'name'   => 'Block Type Restriction',
 				'detail' => examplepress_feature_enabled( 'restrict-block-types' ) ? 'Active' : 'Disabled',
@@ -586,11 +577,6 @@ function examplepress_settings_get_feature_details() {
 			'technical'   => 'Hooks allowed_block_types_all and returns only the configured types array. Falls back to the examplepress_allowed_block_types filter.',
 			'override'    => "add_filter( 'examplepress_feature_restrict-block-types', '__return_true' );\nadd_filter( 'examplepress_feature_restrict-block-types_types', function () {\n    return [ 'core/paragraph', 'core/heading', 'core/image' ];\n} );",
 		],
-		'disable-redirect-guess-404' => [
-			'description' => 'Stops WordPress from guessing a redirect URL when a 404 occurs, preventing unexpected redirects to unrelated content.',
-			'technical'   => 'Hooks do_redirect_guess_404_permalink and returns false.',
-			'override'    => "add_filter( 'examplepress_feature_disable-redirect-guess-404', '__return_false' );",
-		],
 		'openverse' => [
 			'description' => 'Controls visibility of the Openverse free media library in the block editor media inserter.',
 			'technical'   => 'Hooks the block_editor_settings_all filter and sets enableOpenverseMediaCategory.',
@@ -611,16 +597,6 @@ function examplepress_settings_get_feature_details() {
 			'technical'   => 'Hooks login_enqueue_scripts to inject custom styles on the login page.',
 			'override'    => "add_filter( 'examplepress_feature_login-branding', '__return_false' );",
 		],
-		'permalink-structure' => [
-			'description' => 'Enforces a specific permalink structure at runtime, overriding the database setting. Default: /%postname%/.',
-			'technical'   => 'Hooks pre_option_permalink_structure to short-circuit the database lookup and return the configured value.',
-			'override'    => "add_filter( 'examplepress_feature_permalink-structure_structure', function () {\n    return '/%category%/%postname%/';\n} );",
-		],
-		'managed-options' => [
-			'description' => 'Overrides wp_options values at runtime without modifying the database. Useful for enforcing settings across environments.',
-			'technical'   => 'Hooks pre_option_{option_name} for each managed option to short-circuit the database lookup.',
-			'override'    => "// Via examplepress.json:\n// \"managed-options\": { \"enabled\": true, \"options\": { \"values\": { \"blogdescription\": \"My Site\" } } }\n\n// Via PHP filter:\nadd_filter( 'examplepress_feature_managed-options_values', function ( \$values ) {\n    \$values['blogdescription'] = 'My Site';\n    return \$values;\n} );",
-		],
 		'theme-colors' => [
 			'description' => 'Injects a colour palette into theme.json at runtime. Prefer using the design.colors shorthand in examplepress.json.',
 			'technical'   => 'Hooks wp_theme_json_data_theme and merges the palette array into settings.color.palette.',
@@ -640,21 +616,6 @@ function examplepress_settings_get_feature_details() {
 			'description' => 'Locks down all appearance tools in the block editor — disables custom colours, font sizes, spacing, and other visual controls.',
 			'technical'   => 'Hooks wp_theme_json_data_theme and forces appearanceTools to false, disabling all editor appearance panels.',
 			'override'    => "// Enable via examplepress.json: \"design\": { \"strict\": true }\nadd_filter( 'examplepress_feature_design-strict', '__return_true' );",
-		],
-		'guard-template-redirect' => [
-			'description' => 'Redirects site editor template URLs to the Styles panel, preventing users from accessing the template editor directly.',
-			'technical'   => 'Hooks current_screen to detect template URLs and wp_safe_redirect to the Styles panel. Also overrides the admin bar "Edit Site" link.',
-			'override'    => "add_filter( 'examplepress_feature_guard-template-redirect', '__return_false' );",
-		],
-		'guard-template-rest' => [
-			'description' => 'Blocks template creation via POST and prevents deletion of the index template via the REST API. The most critical guard layer.',
-			'technical'   => 'Hooks rest_pre_dispatch and intercepts POST/DELETE requests to /wp/v2/templates. Returns WP_Error for blocked operations.',
-			'override'    => "add_filter( 'examplepress_feature_guard-template-rest', '__return_false' );",
-		],
-		'guard-template-resolution' => [
-			'description' => 'Filters out user-created (custom source) templates at resolution time, ensuring only theme-defined templates are used.',
-			'technical'   => 'Hooks get_block_templates and removes templates where source === "custom". Safety net for pre-existing database templates.',
-			'override'    => "add_filter( 'examplepress_feature_guard-template-resolution', '__return_false' );",
 		],
 	];
 

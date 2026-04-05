@@ -2,8 +2,8 @@
 /**
  * Site Editor — Template lockdown (Blockstudio entry point)
  *
- * PHP guard logic has been moved to the feature registry
- * (inc/features/guards.php) so each guard is individually toggleable.
+ * PHP guard logic is enforced by the MU Kernel (examplepress-mu).
+ * The theme no longer registers or toggles guards directly.
  *
  * This directory still provides the JS/CSS lockdown layers:
  *   - block-editor-scripts.js  — MutationObserver hiding sidebar nav items
