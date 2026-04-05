@@ -8,3 +8,5 @@ AGENTS.md
 docs
 composer.json
 composer.lock
+staging
+updates.json
