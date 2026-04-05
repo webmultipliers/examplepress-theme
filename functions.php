@@ -2,8 +2,8 @@
 /**
  * ExamplePress functions and definitions.
  *
- * This file is pure bootstrap: constants, autoloader, requires,
- * and the after_setup_theme hook. No loose logic belongs here.
+ * The theme is strictly a presentation and routing layer.
+ * All platform infrastructure lives in the MU Kernel (examplepress-mu).
  */
 
 define( 'EP_THEME_VERSION', wp_get_theme()->get( 'Version' ) ?? '1.0.0' );
@@ -12,37 +12,10 @@ define( 'EP_THEME_URI', get_template_directory_uri() );
 
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require_once __DIR__ . '/vendor/autoload.php';
-} else {
-	error_log( 'Composer autoload file not found. Please run "composer install".' );
 }
 
-/**
- * Core includes — presentation, routing, and Blockstudio integration only.
- * Platform infrastructure (apps, GitHub, scaffolding, REST APIs, CLI,
- * dependencies, notifications) lives in the MU Kernel (examplepress-mu).
- */
-require_once EP_THEME_PATH . '/inc/config.php';
-require_once EP_THEME_PATH . '/inc/feature-registry.php';
-require_once EP_THEME_PATH . '/inc/features.php';
 require_once EP_THEME_PATH . '/inc/route-registry.php';
 require_once EP_THEME_PATH . '/inc/router.php';
-
-if ( is_admin() ) {
-	require_once EP_THEME_PATH . '/inc/admin/admin-assets.php';
-	require_once EP_THEME_PATH . '/inc/admin/settings-data.php';
-	require_once EP_THEME_PATH . '/inc/admin/admin-registry.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/shared.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/settings.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/apps.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/theme.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/navigation.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/dependencies.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/library.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/notifications.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/system.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/docs.php';
-	require_once EP_THEME_PATH . '/inc/admin/pages/editor.php';
-}
 
 /**
  * Theme setup.
@@ -50,8 +23,6 @@ if ( is_admin() ) {
 add_action( 'after_setup_theme', function () {
 	load_theme_textdomain( 'examplepress-theme', EP_THEME_PATH . '/languages' );
 } );
-
-add_action( 'after_setup_theme', 'examplepress_boot_features' );
 
 /**
  * Blockstudio integration.
@@ -69,7 +40,6 @@ add_filter( 'blockstudio/blocks/components/inner_blocks/frontend/wrap', function
 
 	$template_prefix = examplepress_get_template_prefix();
 
-	// Exempt template blocks from all registered origin namespaces + the theme itself.
 	$namespaces   = examplepress_get_route_origin_namespaces();
 	$namespaces[] = 'examplepress-theme';
 	$namespaces   = array_unique( $namespaces );
