@@ -7,6 +7,9 @@
  * admin UI, security — lives in the MU Kernel (examplepress-mu).
  */
 
+use ExamplePress\MU\Infrastructure\Router;
+use ExamplePress\MU\Infrastructure\RouteRegistry;
+
 define( 'EP_THEME_VERSION', wp_get_theme()->get( 'Version' ) ?? '1.0.0' );
 define( 'EP_THEME_PATH', get_template_directory() );
 define( 'EP_THEME_URI', get_template_directory_uri() );
@@ -36,12 +39,12 @@ add_filter( 'blockstudio/blocks/components/inner_blocks/frontend/wrap', function
 		$render = false;
 	}
 
-	$template_prefix = function_exists( 'examplepress_get_template_prefix' )
-		? examplepress_get_template_prefix()
+	$template_prefix = class_exists( Router::class )
+		? Router::templatePrefix()
 		: 'template';
 
-	$namespaces   = function_exists( 'examplepress_get_route_origin_namespaces' )
-		? examplepress_get_route_origin_namespaces()
+	$namespaces   = class_exists( RouteRegistry::class )
+		? RouteRegistry::namespaces()
 		: [];
 	$namespaces[] = 'examplepress-theme';
 	$namespaces   = array_unique( $namespaces );
