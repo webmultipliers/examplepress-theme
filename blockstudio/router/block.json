@@ -9,6 +9,8 @@
 		"renaming": true
 	},
 	"allowedBlocks": [],
+	"parent": [],
+	"ancestor": [],
 	"attributes": {
 		"metadata": {
 			"type": "object",
